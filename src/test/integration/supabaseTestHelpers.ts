@@ -30,41 +30,54 @@ export async function createTestUser(
     throw new Error(`failed to create test auth user: ${createError?.message}`);
   }
 
-  const { data: profile, error: profileError } = await admin
-    .from("role_profiles")
-    .select("id")
-    .eq("name", roleProfileName)
-    .single();
-  if (profileError || !profile) {
-    throw new Error(`failed to find role profile "${roleProfileName}": ${profileError?.message}`);
-  }
+  try {
+    const { data: profile, error: profileError } = await admin
+      .from("role_profiles")
+      .select("id")
+      .eq("name", roleProfileName)
+      .single();
+    if (profileError || !profile) {
+      throw new Error(`failed to find role profile "${roleProfileName}": ${profileError?.message}`);
+    }
 
-  const { error: appUserError } = await admin.from("app_users").insert({
-    id: created.user.id,
-    email,
-    role_profile_id: profile.id,
-  });
-  if (appUserError) {
-    throw new Error(`failed to insert app_users row: ${appUserError.message}`);
-  }
+    const { error: appUserError } = await admin.from("app_users").insert({
+      id: created.user.id,
+      email,
+      role_profile_id: profile.id,
+    });
+    if (appUserError) {
+      throw new Error(`failed to insert app_users row: ${appUserError.message}`);
+    }
 
-  const client = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
-  const { error: signInError } = await client.auth.signInWithPassword({
-    email,
-    password: TEST_PASSWORD,
-  });
-  if (signInError) {
-    throw new Error(`failed to sign in as test user: ${signInError.message}`);
-  }
+    const client = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+    const { error: signInError } = await client.auth.signInWithPassword({
+      email,
+      password: TEST_PASSWORD,
+    });
+    if (signInError) {
+      throw new Error(`failed to sign in as test user: ${signInError.message}`);
+    }
 
-  return { id: created.user.id, email, client };
+    return { id: created.user.id, email, client };
+  } catch (err) {
+    await admin.auth.admin.deleteUser(created.user.id).catch(() => {});
+    throw err;
+  }
 }
 
 export async function deleteTestUser(userId: string): Promise<void> {
   const admin = createAdminClient();
-  await admin.from("app_users").delete().eq("id", userId);
-  await admin.auth.admin.deleteUser(userId);
+
+  const { error: appUserError } = await admin.from("app_users").delete().eq("id", userId);
+  if (appUserError) {
+    console.warn(`failed to delete app_users row for ${userId}: ${appUserError.message}`);
+  }
+
+  const { error: deleteUserError } = await admin.auth.admin.deleteUser(userId);
+  if (deleteUserError) {
+    console.warn(`failed to delete auth user ${userId}: ${deleteUserError.message}`);
+  }
 }
