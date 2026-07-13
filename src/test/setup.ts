@@ -1,2 +1,4 @@
 import "@testing-library/jest-dom/vitest";
-import "dotenv/config";
+import { config } from "dotenv";
+
+config({ path: ".env.local" });
