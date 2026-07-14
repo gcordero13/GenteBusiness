@@ -9,11 +9,17 @@ export default async function Home() {
   } = await supabase.auth.getUser();
   const { data: flagsRows } = await supabase.rpc("get_my_role_flags");
   const canManagePlatform = flagsRows?.[0]?.can_manage_platform;
+  const canView = flagsRows?.[0]?.can_view;
 
   return (
     <div className="mx-auto mt-24 max-w-sm space-y-4">
       <h1 className="text-xl font-semibold">Bienvenido</h1>
       <p className="text-sm text-muted-foreground">{user?.email}</p>
+      {canView && (
+        <a href="/contacts" className="block text-sm underline">
+          Agenda de contactos
+        </a>
+      )}
       {canManagePlatform && (
         <nav className="space-y-1 rounded border p-3 text-sm">
           <a href="/users" className="block underline">
