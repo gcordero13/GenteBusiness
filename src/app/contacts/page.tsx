@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getUpcomingBirthdays, whatsappUrl } from "@/lib/contacts";
+import { escapeIlikePattern, getUpcomingBirthdays, whatsappUrl } from "@/lib/contacts";
 import { SearchFilters } from "./SearchFilters";
 import { BirthdaysWidget } from "./BirthdaysWidget";
 
@@ -42,7 +42,8 @@ export default async function ContactsPage({
     query = query.eq("status", "active");
   }
   if (q) {
-    query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%`);
+    const pattern = escapeIlikePattern(q);
+    query = query.or(`first_name.ilike.${pattern},last_name.ilike.${pattern}`);
   }
   if (company) {
     query = query.eq("company_id", company);

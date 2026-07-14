@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getUpcomingBirthdays, whatsappUrl } from "./contacts";
+import { escapeIlikePattern, getUpcomingBirthdays, whatsappUrl } from "./contacts";
 
 describe("getUpcomingBirthdays", () => {
   it("returns up to 5 contacts sorted by the nearest upcoming month/day", () => {
@@ -58,5 +58,19 @@ describe("whatsappUrl", () => {
 
   it("handles an already-clean digit string", () => {
     expect(whatsappUrl("5215512345678")).toBe("https://wa.me/5215512345678");
+  });
+});
+
+describe("escapeIlikePattern", () => {
+  it("wraps a plain search term in a quoted ilike wildcard pattern", () => {
+    expect(escapeIlikePattern("ana")).toBe('"%ana%"');
+  });
+
+  it("escapes double quotes and backslashes so they can't break out of the PostgREST filter", () => {
+    expect(escapeIlikePattern('a"b\\c')).toBe('"%a\\"b\\\\c%"');
+  });
+
+  it("keeps commas and parentheses harmless by keeping them inside the quoted value", () => {
+    expect(escapeIlikePattern("a,b(c)")).toBe('"%a,b(c)%"');
   });
 });
