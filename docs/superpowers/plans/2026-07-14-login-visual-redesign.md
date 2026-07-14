@@ -1,3 +1,26 @@
+# Login Visual Redesign Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace the default shadcn light styling of `src/app/login/page.tsx` with a dark, branded look (charcoal background, teal accent) per the approved design, scoped to this one file only.
+
+**Architecture:** Same Server Component, same `login` Server Action, same `searchParams` error handling — only JSX markup and Tailwind classes change. Existing shadcn `Button`/`Input`/`Label` components are reused with `className` overrides (they merge via `cn()`/`tailwind-merge`, confirmed in `src/lib/utils.ts`), not replaced with raw HTML. No changes to `globals.css` or shadcn theme tokens — this styling is local to the login page.
+
+**Tech Stack:** Next.js (App Router), Tailwind CSS (arbitrary value classes for brand hex colors), existing shadcn/ui components.
+
+**Related spec:** `docs/superpowers/specs/2026-07-14-login-visual-redesign-design.md`
+
+---
+
+### Task 1: Restyle the login page
+
+**Files:**
+- Modify: `src/app/login/page.tsx`
+
+- [ ] **Step 1: Replace the page content**
+
+`src/app/login/page.tsx`:
+```tsx
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,3 +85,15 @@ export default async function LoginPage({
     </div>
   );
 }
+```
+
+- [ ] **Step 2: Manual verification**
+
+Run: the dev server is already running on `http://localhost:3000`. Visit `/login` and confirm: dark charcoal page background, darker-still card with shadow, white "Iniciar sesión" heading, teal-focused inputs, solid teal "Entrar" button, readable error message in red-400 if you submit bad credentials, and the "¿Olvidaste tu clave?" link still navigates to `/forgot-password`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/app/login/page.tsx
+git commit -m "style: redesign login page with dark branded theme"
+```
