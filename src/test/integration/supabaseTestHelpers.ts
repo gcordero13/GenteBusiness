@@ -49,9 +49,18 @@ export async function createTestUser(
       throw new Error(`failed to insert app_users row: ${appUserError.message}`);
     }
 
+    // Each test client gets its own storage key. Without this, every client
+    // created in-process shares the same jsdom localStorage under the same
+    // default (project-derived) key, so signing in as a second test user
+    // clobbers the first user's session out from under their `client`.
     const client = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          storageKey: `sb-test-${created.user.id}-auth-token`,
+        },
+      },
     );
     const { error: signInError } = await client.auth.signInWithPassword({
       email,
