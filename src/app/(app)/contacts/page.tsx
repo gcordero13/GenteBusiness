@@ -10,6 +10,7 @@ import { ContactsCards } from "./ContactsCards";
 import { ContactsGrouped } from "./ContactsGrouped";
 import { ContactsOrgChart } from "./ContactsOrgChart";
 import { ExportContactsButton } from "./ExportContactsButton";
+import { ImportContactsDialog } from "./ImportContactsDialog";
 
 export default async function ContactsPage({
   searchParams,
@@ -110,6 +111,7 @@ export default async function ContactsPage({
         <h1 className="text-xl font-semibold">Agenda de contactos</h1>
         <div className="flex items-center gap-2">
           <ExportContactsButton />
+          {flags.can_add && <ImportContactsDialog />}
           {flags.can_add && (
             <a href="/contacts/new" className="text-sm underline">
               Nuevo contacto
