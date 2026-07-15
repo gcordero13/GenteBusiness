@@ -8,58 +8,54 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ShieldCheck } from "lucide-react";
 import { RoleProfileForm } from "./RoleProfileForm";
 
 export default async function RoleProfilesPage() {
   const supabase = await createClient();
-  const { data: flagsRows } = await supabase.rpc("get_my_role_flags");
-  if (!flagsRows?.[0]?.can_manage_platform) {
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
+    p_module_key: "role_profiles",
+  });
+  if (!flagsRows?.[0]?.can_manage) {
     redirect("/");
   }
 
-  const { data: profiles } = await supabase.from("role_profiles").select("*").order("name");
+  const { data: modules } = await supabase.from("modules").select("id, key, label").order("label");
+  const { data: profiles } = await supabase
+    .from("role_profiles")
+    .select("id, name, role_profile_permissions(module_id, can_view, can_add, can_edit, can_delete, can_deactivate, can_manage, can_authorize)")
+    .order("name");
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
+    <div className="mx-auto max-w-2xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Perfiles de rol</h1>
-        <RoleProfileForm />
+        <RoleProfileForm modules={modules ?? []} />
       </div>
-      {(profiles ?? []).length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-16 text-center text-muted-foreground">
-          <ShieldCheck className="size-8" />
-          <p className="text-sm">No hay perfiles de rol todavía.</p>
-          <p className="text-xs">Crea el primero con el botón &quot;Nuevo perfil&quot;.</p>
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Ver</TableHead>
-              <TableHead>Agregar</TableHead>
-              <TableHead>Editar</TableHead>
-              <TableHead>Eliminar</TableHead>
-              <TableHead>Anular</TableHead>
-              <TableHead>Gestiona</TableHead>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {(profiles ?? []).map((profile) => (
+            <TableRow key={profile.id}>
+              <TableCell className="font-medium">{profile.name}</TableCell>
+              <TableCell>
+                <RoleProfileForm
+                  modules={modules ?? []}
+                  initial={{
+                    id: profile.id,
+                    name: profile.name,
+                    permissions: (profile.role_profile_permissions ?? []) as never,
+                  }}
+                />
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(profiles ?? []).map((profile) => (
-              <TableRow key={profile.id}>
-                <TableCell className="font-medium">{profile.name}</TableCell>
-                <TableCell>{profile.can_view ? "✓" : "—"}</TableCell>
-                <TableCell>{profile.can_add ? "✓" : "—"}</TableCell>
-                <TableCell>{profile.can_edit ? "✓" : "—"}</TableCell>
-                <TableCell>{profile.can_delete ? "✓" : "—"}</TableCell>
-                <TableCell>{profile.can_deactivate ? "✓" : "—"}</TableCell>
-                <TableCell>{profile.can_manage_platform ? "✓" : "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
