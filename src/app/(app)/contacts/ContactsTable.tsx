@@ -7,7 +7,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Mail, MessageCircle } from "lucide-react";
 import { whatsappUrl } from "@/lib/contacts";
 
@@ -18,6 +17,7 @@ export interface ContactRow {
   email: string | null;
   position: string | null;
   status: string;
+  extension: string | null;
   fleet_phone: string | null;
   has_whatsapp: boolean;
   photo_url: string | null;
@@ -36,7 +36,7 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
             <TableHead className="py-3">Puesto</TableHead>
             <TableHead className="py-3">Empresa</TableHead>
             <TableHead className="py-3">Departamento</TableHead>
-            <TableHead className="py-3">Estado</TableHead>
+            <TableHead className="py-3">Extensión</TableHead>
             <TableHead className="py-3 text-right">Contacto</TableHead>
           </TableRow>
         </TableHeader>
@@ -64,11 +64,7 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
               <TableCell className="py-3 text-muted-foreground">
                 {c.departments?.name}
               </TableCell>
-              <TableCell className="py-3">
-                <Badge variant={c.status === "active" ? "default" : "secondary"}>
-                  {c.status === "active" ? "Activo" : "Anulado"}
-                </Badge>
-              </TableCell>
+              <TableCell className="py-3 text-muted-foreground">{c.extension}</TableCell>
               <TableCell className="py-3">
                 <div className="flex justify-end gap-3">
                   {c.email && (
