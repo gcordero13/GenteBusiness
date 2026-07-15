@@ -14,8 +14,10 @@ import { ActivityForm } from "./ActivityForm";
 
 export default async function ActivitiesPage() {
   const supabase = await createClient();
-  const { data: flagsRows } = await supabase.rpc("get_my_role_flags");
-  if (!flagsRows?.[0]?.can_manage_platform) {
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
+    p_module_key: "activities",
+  });
+  if (!flagsRows?.[0]?.can_manage) {
     redirect("/");
   }
 

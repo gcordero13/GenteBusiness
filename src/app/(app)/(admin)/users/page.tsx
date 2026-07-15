@@ -13,10 +13,12 @@ import { InviteUserForm } from "./InviteUserForm";
 
 export default async function UsersPage() {
   const supabase = await createClient();
-  const { data: flagsRows } = await supabase.rpc("get_my_role_flags");
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
+    p_module_key: "users",
+  });
   const flags = flagsRows?.[0];
 
-  if (!flags?.can_manage_platform) {
+  if (!flags?.can_manage) {
     redirect("/");
   }
 

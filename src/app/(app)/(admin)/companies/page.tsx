@@ -13,8 +13,10 @@ import { CompanyForm } from "./CompanyForm";
 
 export default async function CompaniesPage() {
   const supabase = await createClient();
-  const { data: flagsRows } = await supabase.rpc("get_my_role_flags");
-  if (!flagsRows?.[0]?.can_manage_platform) {
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
+    p_module_key: "companies",
+  });
+  if (!flagsRows?.[0]?.can_manage) {
     redirect("/");
   }
 

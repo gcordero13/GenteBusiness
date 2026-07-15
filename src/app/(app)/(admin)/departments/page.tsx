@@ -13,8 +13,10 @@ import { DepartmentForm } from "./DepartmentForm";
 
 export default async function DepartmentsPage() {
   const supabase = await createClient();
-  const { data: flagsRows } = await supabase.rpc("get_my_role_flags");
-  if (!flagsRows?.[0]?.can_manage_platform) {
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
+    p_module_key: "departments",
+  });
+  if (!flagsRows?.[0]?.can_manage) {
     redirect("/");
   }
 

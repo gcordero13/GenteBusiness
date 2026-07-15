@@ -12,19 +12,19 @@ interface InviteUserResult {
   error?: string;
 }
 
-async function callerCanManagePlatform(): Promise<boolean> {
+async function callerCanManageUsers(): Promise<boolean> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return false;
 
-  const { data } = await supabase.rpc("get_my_role_flags");
-  return Boolean(data?.[0]?.can_manage_platform);
+  const { data } = await supabase.rpc("get_my_module_permissions", { p_module_key: "users" });
+  return Boolean(data?.[0]?.can_manage);
 }
 
 export async function inviteUser(input: InviteUserInput): Promise<InviteUserResult> {
-  if (!(await callerCanManagePlatform())) {
+  if (!(await callerCanManageUsers())) {
     return { error: "No autorizado" };
   }
 
