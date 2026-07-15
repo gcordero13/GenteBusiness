@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ShieldCheck } from "lucide-react";
 import { RoleProfileForm } from "./RoleProfileForm";
 
 export default async function RoleProfilesPage() {
@@ -25,32 +26,40 @@ export default async function RoleProfilesPage() {
         <h1 className="text-xl font-semibold">Perfiles de rol</h1>
         <RoleProfileForm />
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Ver</TableHead>
-            <TableHead>Agregar</TableHead>
-            <TableHead>Editar</TableHead>
-            <TableHead>Eliminar</TableHead>
-            <TableHead>Anular</TableHead>
-            <TableHead>Gestiona</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {(profiles ?? []).map((profile) => (
-            <TableRow key={profile.id}>
-              <TableCell className="font-medium">{profile.name}</TableCell>
-              <TableCell>{profile.can_view ? "✓" : "—"}</TableCell>
-              <TableCell>{profile.can_add ? "✓" : "—"}</TableCell>
-              <TableCell>{profile.can_edit ? "✓" : "—"}</TableCell>
-              <TableCell>{profile.can_delete ? "✓" : "—"}</TableCell>
-              <TableCell>{profile.can_deactivate ? "✓" : "—"}</TableCell>
-              <TableCell>{profile.can_manage_platform ? "✓" : "—"}</TableCell>
+      {(profiles ?? []).length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-16 text-center text-muted-foreground">
+          <ShieldCheck className="size-8" />
+          <p className="text-sm">No hay perfiles de rol todavía.</p>
+          <p className="text-xs">Crea el primero con el botón &quot;Nuevo perfil&quot;.</p>
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Ver</TableHead>
+              <TableHead>Agregar</TableHead>
+              <TableHead>Editar</TableHead>
+              <TableHead>Eliminar</TableHead>
+              <TableHead>Anular</TableHead>
+              <TableHead>Gestiona</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {(profiles ?? []).map((profile) => (
+              <TableRow key={profile.id}>
+                <TableCell className="font-medium">{profile.name}</TableCell>
+                <TableCell>{profile.can_view ? "✓" : "—"}</TableCell>
+                <TableCell>{profile.can_add ? "✓" : "—"}</TableCell>
+                <TableCell>{profile.can_edit ? "✓" : "—"}</TableCell>
+                <TableCell>{profile.can_delete ? "✓" : "—"}</TableCell>
+                <TableCell>{profile.can_deactivate ? "✓" : "—"}</TableCell>
+                <TableCell>{profile.can_manage_platform ? "✓" : "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </div>
   );
 }
