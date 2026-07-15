@@ -116,7 +116,9 @@ export function ContactForm({
         <Label>Empresa</Label>
         <Select value={form.company_id} onValueChange={(v) => field("company_id", v ?? "")}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Selecciona una empresa" />
+            <SelectValue placeholder="Selecciona una empresa">
+              {(value: string) => companies.find((c) => c.id === value)?.name ?? "Selecciona una empresa"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {companies.map((c) => (
@@ -131,7 +133,11 @@ export function ContactForm({
         <Label>Departamento</Label>
         <Select value={form.department_id} onValueChange={(v) => field("department_id", v ?? "")}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Selecciona un departamento" />
+            <SelectValue placeholder="Selecciona un departamento">
+              {(value: string) =>
+                departments.find((d) => d.id === value)?.name ?? "Selecciona un departamento"
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {departments.map((d) => (
@@ -146,7 +152,9 @@ export function ContactForm({
         <Label>Supervisor (jefe directo)</Label>
         <Select value={form.reports_to_id} onValueChange={(v) => field("reports_to_id", v ?? "")}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Sin supervisor" />
+            <SelectValue placeholder="Sin supervisor">
+              {(value: string) => supervisors.find((s) => s.id === value)?.name ?? "Sin supervisor"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {supervisors.map((s) => (

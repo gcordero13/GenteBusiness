@@ -50,7 +50,9 @@ export function SearchFilters({
         onValueChange={(value) => updateParam("company", value)}
       >
         <SelectTrigger className="w-48">
-          <SelectValue placeholder="Todas las empresas" />
+          <SelectValue placeholder="Todas las empresas">
+            {(value: string) => companies.find((c) => c.id === value)?.name ?? "Todas las empresas"}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {companies.map((c) => (
@@ -65,7 +67,11 @@ export function SearchFilters({
         onValueChange={(value) => updateParam("department", value)}
       >
         <SelectTrigger className="w-48">
-          <SelectValue placeholder="Todos los departamentos" />
+          <SelectValue placeholder="Todos los departamentos">
+            {(value: string) =>
+              departments.find((d) => d.id === value)?.name ?? "Todos los departamentos"
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {departments.map((d) => (

@@ -58,7 +58,9 @@ export function InviteUserForm({ profiles }: { profiles: Profile[] }) {
         />
         <Select value={roleProfileId} onValueChange={(v) => setRoleProfileId(v ?? "")}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Selecciona un perfil" />
+            <SelectValue placeholder="Selecciona un perfil">
+              {(value: string) => profiles.find((p) => p.id === value)?.name ?? "Selecciona un perfil"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {profiles.map((p) => (

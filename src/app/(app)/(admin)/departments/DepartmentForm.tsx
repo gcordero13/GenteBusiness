@@ -58,7 +58,9 @@ export function DepartmentForm({ companies }: { companies: Company[] }) {
         />
         <Select value={companyId} onValueChange={(v) => setCompanyId(v ?? "")}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Selecciona una empresa" />
+            <SelectValue placeholder="Selecciona una empresa">
+              {(value: string) => companies.find((c) => c.id === value)?.name ?? "Selecciona una empresa"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {companies.map((c) => (
