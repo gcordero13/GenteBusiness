@@ -6,6 +6,7 @@ import { SearchFilters } from "./SearchFilters";
 import { BirthdaysWidget } from "./BirthdaysWidget";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 import { ContactsCards } from "./ContactsCards";
+import { ContactsGrouped } from "./ContactsGrouped";
 
 export default async function ContactsPage({
   searchParams,
@@ -20,7 +21,8 @@ export default async function ContactsPage({
 }) {
   const { q, company, department, showInactive, view } = await searchParams;
 
-  const activeView = view === "cards" ? "cards" : "table";
+  const activeView =
+    view === "cards" ? "cards" : view === "grouped" ? "grouped" : view === "org" ? "org" : "table";
   function viewHref(target: string) {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
@@ -111,6 +113,12 @@ export default async function ContactsPage({
         >
           Tarjetas
         </a>
+        <a
+          href={viewHref("grouped")}
+          className={`rounded-lg px-3 py-1 ${activeView === "grouped" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted"}`}
+        >
+          Agrupado
+        </a>
       </div>
       <SearchFilters
         companies={companies ?? []}
@@ -127,6 +135,8 @@ export default async function ContactsPage({
         </div>
       ) : activeView === "cards" ? (
         <ContactsCards contacts={contactRows} />
+      ) : activeView === "grouped" ? (
+        <ContactsGrouped contacts={contactRows} />
       ) : (
         <ContactsTable contacts={contactRows} />
       )}
