@@ -9,6 +9,7 @@ import { ContactsTable, type ContactRow } from "./ContactsTable";
 import { ContactsCards } from "./ContactsCards";
 import { ContactsGrouped } from "./ContactsGrouped";
 import { ContactsOrgChart } from "./ContactsOrgChart";
+import { ExportContactsButton } from "./ExportContactsButton";
 
 export default async function ContactsPage({
   searchParams,
@@ -107,11 +108,14 @@ export default async function ContactsPage({
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Agenda de contactos</h1>
-        {flags.can_add && (
-          <a href="/contacts/new" className="text-sm underline">
-            Nuevo contacto
-          </a>
-        )}
+        <div className="flex items-center gap-2">
+          <ExportContactsButton />
+          {flags.can_add && (
+            <a href="/contacts/new" className="text-sm underline">
+              Nuevo contacto
+            </a>
+          )}
+        </div>
       </div>
       <div className="flex gap-1 text-sm">
         <a
