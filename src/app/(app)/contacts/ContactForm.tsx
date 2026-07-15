@@ -80,7 +80,7 @@ export function ContactForm({
   return (
     <div className="max-w-md space-y-4">
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div className="space-y-1">
           <Label>Nombre</Label>
           <Input value={form.first_name} onChange={(e) => field("first_name", e.target.value)} />
@@ -94,7 +94,7 @@ export function ContactForm({
         <Label>Correo</Label>
         <Input type="email" value={form.email} onChange={(e) => field("email", e.target.value)} />
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div className="space-y-1">
           <Label>Extensión</Label>
           <Input value={form.extension} onChange={(e) => field("extension", e.target.value)} />

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { Sidebar } from "./Sidebar";
+import { AppShell } from "./AppShell";
 import { logout } from "./actions";
 
 interface ModulePermissionRow {
@@ -28,18 +28,17 @@ export default async function AppLayout({
   );
 
   return (
-    <div className="flex min-h-screen flex-1">
-      <Sidebar
-        email={user?.email}
-        canViewContacts={Boolean(permissions.get("contacts")?.can_view)}
-        canManageUsers={Boolean(permissions.get("users")?.can_manage)}
-        canManageRoleProfiles={Boolean(permissions.get("role_profiles")?.can_manage)}
-        canManageCompanies={Boolean(permissions.get("companies")?.can_manage)}
-        canManageDepartments={Boolean(permissions.get("departments")?.can_manage)}
-        canManageActivities={Boolean(permissions.get("activities")?.can_manage)}
-        onLogout={logout}
-      />
-      <main className="flex-1">{children}</main>
-    </div>
+    <AppShell
+      email={user?.email}
+      canViewContacts={Boolean(permissions.get("contacts")?.can_view)}
+      canManageUsers={Boolean(permissions.get("users")?.can_manage)}
+      canManageRoleProfiles={Boolean(permissions.get("role_profiles")?.can_manage)}
+      canManageCompanies={Boolean(permissions.get("companies")?.can_manage)}
+      canManageDepartments={Boolean(permissions.get("departments")?.can_manage)}
+      canManageActivities={Boolean(permissions.get("activities")?.can_manage)}
+      onLogout={logout}
+    >
+      {children}
+    </AppShell>
   );
 }

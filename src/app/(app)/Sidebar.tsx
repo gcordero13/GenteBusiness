@@ -31,6 +31,7 @@ export function Sidebar({
   canManageDepartments,
   canManageActivities,
   onLogout,
+  onNavigate,
 }: {
   email?: string;
   canViewContacts: boolean;
@@ -40,6 +41,7 @@ export function Sidebar({
   canManageDepartments: boolean;
   canManageActivities: boolean;
   onLogout: () => Promise<void>;
+  onNavigate?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -71,8 +73,8 @@ export function Sidebar({
 
   return (
     <aside
-      className={`flex shrink-0 flex-col justify-between border-r bg-card p-3 transition-all duration-150 ${
-        collapsed ? "w-16" : "w-56"
+      className={`flex h-full shrink-0 flex-col justify-between border-r bg-card p-3 transition-all duration-150 ${
+        collapsed ? "w-16" : "w-64 md:w-56"
       }`}
     >
       <div className="space-y-6">
@@ -97,6 +99,7 @@ export function Sidebar({
               key={href}
               href={href}
               title={label}
+              onClick={onNavigate}
               className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
             >
               <Icon className="size-4 shrink-0" />
@@ -116,6 +119,7 @@ export function Sidebar({
                   key={href}
                   href={href}
                   title={label}
+                  onClick={onNavigate}
                   className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
                 >
                   <Icon className="size-4 shrink-0" />
