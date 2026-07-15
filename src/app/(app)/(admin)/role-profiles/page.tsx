@@ -1,5 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { RoleProfileForm } from "./RoleProfileForm";
 
 export default async function RoleProfilesPage() {
@@ -12,19 +20,37 @@ export default async function RoleProfilesPage() {
   const { data: profiles } = await supabase.from("role_profiles").select("*").order("name");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-6">
-      <h1 className="text-xl font-semibold">Perfiles de rol</h1>
-      <RoleProfileForm />
-      <ul className="space-y-2">
-        {(profiles ?? []).map((profile) => (
-          <li key={profile.id} className="rounded border p-3 text-sm">
-            <strong>{profile.name}</strong>: ver={String(profile.can_view)}, agregar=
-            {String(profile.can_add)}, editar={String(profile.can_edit)}, eliminar=
-            {String(profile.can_delete)}, anular={String(profile.can_deactivate)}, gestiona=
-            {String(profile.can_manage_platform)}
-          </li>
-        ))}
-      </ul>
+    <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Perfiles de rol</h1>
+        <RoleProfileForm />
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Ver</TableHead>
+            <TableHead>Agregar</TableHead>
+            <TableHead>Editar</TableHead>
+            <TableHead>Eliminar</TableHead>
+            <TableHead>Anular</TableHead>
+            <TableHead>Gestiona</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {(profiles ?? []).map((profile) => (
+            <TableRow key={profile.id}>
+              <TableCell className="font-medium">{profile.name}</TableCell>
+              <TableCell>{profile.can_view ? "✓" : "—"}</TableCell>
+              <TableCell>{profile.can_add ? "✓" : "—"}</TableCell>
+              <TableCell>{profile.can_edit ? "✓" : "—"}</TableCell>
+              <TableCell>{profile.can_delete ? "✓" : "—"}</TableCell>
+              <TableCell>{profile.can_deactivate ? "✓" : "—"}</TableCell>
+              <TableCell>{profile.can_manage_platform ? "✓" : "—"}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
