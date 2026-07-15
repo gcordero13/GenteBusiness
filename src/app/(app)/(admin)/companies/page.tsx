@@ -1,5 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { CompanyForm } from "./CompanyForm";
 
 export default async function CompaniesPage() {
@@ -13,13 +21,24 @@ export default async function CompaniesPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
-      <h1 className="text-xl font-semibold">Empresas</h1>
-      <CompanyForm />
-      <ul className="space-y-1 text-sm">
-        {(companies ?? []).map((c) => (
-          <li key={c.id}>{c.name}</li>
-        ))}
-      </ul>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Empresas</h1>
+        <CompanyForm />
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {(companies ?? []).map((c) => (
+            <TableRow key={c.id}>
+              <TableCell>{c.name}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
