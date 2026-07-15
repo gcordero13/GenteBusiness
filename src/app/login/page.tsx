@@ -14,7 +14,7 @@ export default async function LoginPage({
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center text-2xl font-semibold text-zinc-900">
-          GenteBusiness
+          Gente Sánchez Business
         </div>
         <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-8 shadow-lg">
           <h1 className="text-xl font-semibold text-zinc-900">Iniciar sesión</h1>

@@ -71,7 +71,7 @@ export function Sidebar({
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          {!collapsed && <span className="text-lg font-semibold">GenteBusiness</span>}
+          {!collapsed && <span className="text-lg font-semibold">Gente Sánchez Business</span>}
           <Button
             variant="ghost"
             size="icon-sm"
