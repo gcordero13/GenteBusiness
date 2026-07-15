@@ -37,3 +37,41 @@ export function escapeIlikePattern(value: string): string {
   const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   return `"%${escaped}%"`;
 }
+
+export interface OrgTreeContact {
+  id: string;
+  name: string;
+  position: string | null;
+  reports_to_id: string | null;
+}
+
+export interface OrgTreeNode<T> {
+  contact: T;
+  reports: OrgTreeNode<T>[];
+}
+
+export function buildOrgTree<T extends OrgTreeContact>(contacts: T[]): OrgTreeNode<T>[] {
+  const byId = new Map(contacts.map((c) => [c.id, c]));
+  const childrenOf = new Map<string, T[]>();
+  const roots: T[] = [];
+
+  for (const contact of contacts) {
+    const supervisorId = contact.reports_to_id;
+    if (supervisorId && byId.has(supervisorId)) {
+      const list = childrenOf.get(supervisorId) ?? [];
+      list.push(contact);
+      childrenOf.set(supervisorId, list);
+    } else {
+      roots.push(contact);
+    }
+  }
+
+  function toNode(contact: T, ancestors: Set<string>): OrgTreeNode<T> {
+    const children = (childrenOf.get(contact.id) ?? [])
+      .filter((child) => !ancestors.has(child.id))
+      .map((child) => toNode(child, new Set(ancestors).add(contact.id)));
+    return { contact, reports: children };
+  }
+
+  return roots.map((c) => toNode(c, new Set()));
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeIlikePattern, getUpcomingBirthdays, whatsappUrl } from "./contacts";
+import { buildOrgTree, escapeIlikePattern, getUpcomingBirthdays, whatsappUrl } from "./contacts";
 
 describe("getUpcomingBirthdays", () => {
   it("returns up to 5 contacts sorted by the nearest upcoming month/day", () => {
@@ -72,5 +72,55 @@ describe("escapeIlikePattern", () => {
 
   it("keeps commas and parentheses harmless by keeping them inside the quoted value", () => {
     expect(escapeIlikePattern("a,b(c)")).toBe('"%a,b(c)%"');
+  });
+});
+
+describe("buildOrgTree", () => {
+  it("nests a simple chain of supervisors", () => {
+    const contacts = [
+      { id: "a", name: "Ana (CEO)", position: "CEO", reports_to_id: null },
+      { id: "b", name: "Beto (Gerente)", position: "Gerente", reports_to_id: "a" },
+      { id: "c", name: "Carla (Analista)", position: "Analista", reports_to_id: "b" },
+    ];
+
+    const tree = buildOrgTree(contacts);
+
+    expect(tree).toHaveLength(1);
+    expect(tree[0].contact.id).toBe("a");
+    expect(tree[0].reports).toHaveLength(1);
+    expect(tree[0].reports[0].contact.id).toBe("b");
+    expect(tree[0].reports[0].reports).toHaveLength(1);
+    expect(tree[0].reports[0].reports[0].contact.id).toBe("c");
+  });
+
+  it("supports multiple roots when several contacts have no supervisor", () => {
+    const contacts = [
+      { id: "a", name: "Ana", position: null, reports_to_id: null },
+      { id: "b", name: "Beto", position: null, reports_to_id: null },
+    ];
+
+    const tree = buildOrgTree(contacts);
+
+    expect(tree.map((n) => n.contact.id).sort()).toEqual(["a", "b"]);
+  });
+
+  it("treats a contact whose supervisor is not in the list as a root", () => {
+    const contacts = [
+      { id: "a", name: "Ana", position: null, reports_to_id: "ghost-id-not-present" },
+    ];
+
+    const tree = buildOrgTree(contacts);
+
+    expect(tree).toHaveLength(1);
+    expect(tree[0].contact.id).toBe("a");
+  });
+
+  it("does not infinite-loop on a cyclic reports_to_id (defensive, shouldn't happen via the UI)", () => {
+    const contacts = [
+      { id: "a", name: "Ana", position: null, reports_to_id: "b" },
+      { id: "b", name: "Beto", position: null, reports_to_id: "a" },
+    ];
+
+    expect(() => buildOrgTree(contacts)).not.toThrow();
   });
 });
