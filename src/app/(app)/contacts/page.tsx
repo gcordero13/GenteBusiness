@@ -8,6 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { BookUser, Mail, MessageCircle, Pencil } from "lucide-react";
 import { escapeIlikePattern, getUpcomingBirthdays, whatsappUrl } from "@/lib/contacts";
 import { SearchFilters } from "./SearchFilters";
 import { BirthdaysWidget } from "./BirthdaysWidget";
@@ -34,7 +37,7 @@ export default async function ContactsPage({
   let query = supabase
     .from("contacts")
     .select(
-      "id, first_name, last_name, email, position, company_id, department_id, status, fleet_phone, has_whatsapp, birth_date, companies(name), departments(name)",
+      "id, first_name, last_name, email, position, company_id, department_id, status, fleet_phone, has_whatsapp, birth_date, photo_url, companies(name), departments(name)",
     )
     .order("first_name");
 
@@ -67,7 +70,7 @@ export default async function ContactsPage({
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Agenda de contactos</h1>
         {flags.can_add && (
@@ -82,56 +85,89 @@ export default async function ContactsPage({
         departments={departments ?? []}
         canSeeInactiveToggle={Boolean(flags.can_deactivate || flags.can_delete)}
       />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Correo</TableHead>
-            <TableHead>Flota</TableHead>
-            <TableHead>Puesto</TableHead>
-            <TableHead>Empresa</TableHead>
-            <TableHead>Departamento</TableHead>
-            <TableHead>Estado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {(contacts ?? []).map((c) => (
-            <TableRow key={c.id}>
-              <TableCell>
-                <a href={`/contacts/${c.id}`} className="underline">
-                  {c.first_name} {c.last_name}
-                </a>
-              </TableCell>
-              <TableCell>
-                {c.email && (
-                  <a href={`mailto:${c.email}`} className="underline">
-                    {c.email}
-                  </a>
-                )}
-              </TableCell>
-              <TableCell>
-                {c.fleet_phone &&
-                  (c.has_whatsapp ? (
-                    <a
-                      href={whatsappUrl(c.fleet_phone)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline"
-                    >
-                      {c.fleet_phone}
-                    </a>
-                  ) : (
-                    c.fleet_phone
-                  ))}
-              </TableCell>
-              <TableCell>{c.position}</TableCell>
-              <TableCell>{(c.companies as unknown as { name: string })?.name}</TableCell>
-              <TableCell>{(c.departments as unknown as { name: string })?.name}</TableCell>
-              <TableCell>{c.status === "active" ? "Activo" : "Anulado"}</TableCell>
+      {(contacts ?? []).length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-16 text-center text-muted-foreground">
+          <BookUser className="size-8" />
+          <p className="text-sm">No hay contactos todavía.</p>
+          {flags.can_add && (
+            <p className="text-xs">Crea el primero con el botón &quot;Nuevo contacto&quot;.</p>
+          )}
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Correo</TableHead>
+              <TableHead>Flota</TableHead>
+              <TableHead>Puesto</TableHead>
+              <TableHead>Empresa</TableHead>
+              <TableHead>Departamento</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {(contacts ?? []).map((c) => (
+              <TableRow key={c.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="size-8">
+                      <AvatarImage src={c.photo_url ?? undefined} alt="" />
+                      <AvatarFallback>
+                        {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <a href={`/contacts/${c.id}`} className="underline">
+                      {c.first_name} {c.last_name}
+                    </a>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {c.email && (
+                    <a
+                      href={`mailto:${c.email}`}
+                      className="inline-flex items-center gap-1 underline"
+                    >
+                      <Mail className="size-3.5" />
+                      {c.email}
+                    </a>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {c.fleet_phone &&
+                    (c.has_whatsapp ? (
+                      <a
+                        href={whatsappUrl(c.fleet_phone)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 underline"
+                      >
+                        <MessageCircle className="size-3.5" />
+                        {c.fleet_phone}
+                      </a>
+                    ) : (
+                      c.fleet_phone
+                    ))}
+                </TableCell>
+                <TableCell>{c.position}</TableCell>
+                <TableCell>{(c.companies as unknown as { name: string })?.name}</TableCell>
+                <TableCell>{(c.departments as unknown as { name: string })?.name}</TableCell>
+                <TableCell>
+                  <Badge variant={c.status === "active" ? "default" : "secondary"}>
+                    {c.status === "active" ? "Activo" : "Anulado"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <a href={`/contacts/${c.id}`} title="Editar">
+                    <Pencil className="size-4 text-muted-foreground hover:text-foreground" />
+                  </a>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </div>
   );
 }
