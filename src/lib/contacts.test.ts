@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildOrgTree, escapeIlikePattern, getUpcomingBirthdays, whatsappUrl } from "./contacts";
+import {
+  buildOrgTree,
+  escapeIlikePattern,
+  formatMonthDay,
+  getUpcomingBirthdays,
+  whatsappUrl,
+} from "./contacts";
 
 describe("getUpcomingBirthdays", () => {
   it("returns up to 5 contacts sorted by the nearest upcoming month/day", () => {
@@ -122,5 +128,19 @@ describe("buildOrgTree", () => {
     ];
 
     expect(() => buildOrgTree(contacts)).not.toThrow();
+  });
+});
+
+describe("formatMonthDay", () => {
+  it("formats a date string as 'day de month' in Spanish", () => {
+    expect(formatMonthDay("1990-07-14")).toBe("14 de julio");
+  });
+
+  it("does not zero-pad the day", () => {
+    expect(formatMonthDay("2026-01-05")).toBe("5 de enero");
+  });
+
+  it("covers December correctly", () => {
+    expect(formatMonthDay("2000-12-25")).toBe("25 de diciembre");
   });
 });

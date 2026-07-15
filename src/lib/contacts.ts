@@ -75,3 +75,13 @@ export function buildOrgTree<T extends OrgTreeContact>(contacts: T[]): OrgTreeNo
 
   return roots.map((c) => toNode(c, new Set()));
 }
+
+const MONTH_NAMES_ES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+export function formatMonthDay(dateString: string): string {
+  const [, month, day] = dateString.split("-").map(Number);
+  return `${day} de ${MONTH_NAMES_ES[month - 1]}`;
+}
