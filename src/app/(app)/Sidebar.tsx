@@ -9,6 +9,7 @@ import {
   Network,
   PanelLeftClose,
   PanelLeftOpen,
+  PartyPopper,
   Settings,
   ShieldCheck,
   Users,
@@ -58,6 +59,7 @@ export function Sidebar({
         { href: "/role-profiles", label: "Perfiles de rol", icon: ShieldCheck },
         { href: "/companies", label: "Empresas", icon: Building2 },
         { href: "/departments", label: "Departamentos", icon: Network },
+        { href: "/activities", label: "Actividades", icon: PartyPopper },
       ]
     : [];
 
