@@ -36,7 +36,9 @@ export default async function ContactsPage({
   }
 
   const supabase = await createClient();
-  const { data: flagsRows } = await supabase.rpc("get_my_role_flags");
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
+    p_module_key: "contacts",
+  });
   const flags = flagsRows?.[0];
   if (!flags?.can_view) {
     redirect("/");

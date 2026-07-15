@@ -4,7 +4,9 @@ import { ContactForm } from "../ContactForm";
 
 export default async function NewContactPage() {
   const supabase = await createClient();
-  const { data: flagsRows } = await supabase.rpc("get_my_role_flags");
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
+    p_module_key: "contacts",
+  });
   if (!flagsRows?.[0]?.can_add) {
     redirect("/contacts");
   }
