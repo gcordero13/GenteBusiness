@@ -7,6 +7,7 @@ import { BirthdaysWidget } from "./BirthdaysWidget";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 import { ContactsCards } from "./ContactsCards";
 import { ContactsGrouped } from "./ContactsGrouped";
+import { ContactsOrgChart } from "./ContactsOrgChart";
 
 export default async function ContactsPage({
   searchParams,
@@ -43,7 +44,7 @@ export default async function ContactsPage({
   let query = supabase
     .from("contacts")
     .select(
-      "id, first_name, last_name, email, position, company_id, department_id, status, fleet_phone, has_whatsapp, birth_date, photo_url, companies(name), departments(name)",
+      "id, first_name, last_name, email, position, company_id, department_id, status, fleet_phone, has_whatsapp, birth_date, photo_url, reports_to_id, companies(name), departments(name)",
     )
     .order("first_name");
 
@@ -85,6 +86,7 @@ export default async function ContactsPage({
     fleet_phone: c.fleet_phone,
     has_whatsapp: c.has_whatsapp,
     photo_url: c.photo_url,
+    reports_to_id: c.reports_to_id,
     companies: (c.companies as unknown as { name: string } | null) ?? null,
     departments: (c.departments as unknown as { name: string } | null) ?? null,
   }));
@@ -119,6 +121,12 @@ export default async function ContactsPage({
         >
           Agrupado
         </a>
+        <a
+          href={viewHref("org")}
+          className={`rounded-lg px-3 py-1 ${activeView === "org" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted"}`}
+        >
+          Organigrama
+        </a>
       </div>
       <SearchFilters
         companies={companies ?? []}
@@ -137,6 +145,8 @@ export default async function ContactsPage({
         <ContactsCards contacts={contactRows} />
       ) : activeView === "grouped" ? (
         <ContactsGrouped contacts={contactRows} />
+      ) : activeView === "org" ? (
+        <ContactsOrgChart contacts={contactRows} />
       ) : (
         <ContactsTable contacts={contactRows} />
       )}
