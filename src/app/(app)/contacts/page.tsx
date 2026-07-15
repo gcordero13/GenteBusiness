@@ -4,6 +4,7 @@ import { BookUser } from "lucide-react";
 import { escapeIlikePattern, getUpcomingBirthdays } from "@/lib/contacts";
 import { SearchFilters } from "./SearchFilters";
 import { BirthdaysWidget } from "./BirthdaysWidget";
+import { EventsWidget } from "./EventsWidget";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 import { ContactsCards } from "./ContactsCards";
 import { ContactsGrouped } from "./ContactsGrouped";
@@ -66,6 +67,14 @@ export default async function ContactsPage({
   const { data: companies } = await supabase.from("companies").select("id, name").order("name");
   const { data: departments } = await supabase.from("departments").select("id, name").order("name");
 
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: upcomingEvents } = await supabase
+    .from("company_events")
+    .select("id, name, event_date")
+    .gte("event_date", today)
+    .order("event_date")
+    .limit(5);
+
   const birthdayContacts = getUpcomingBirthdays(
     (contacts ?? []).map((c) => ({
       id: c.id,
@@ -102,7 +111,6 @@ export default async function ContactsPage({
           </a>
         )}
       </div>
-      <BirthdaysWidget contacts={birthdayContacts} />
       <div className="flex gap-1 text-sm">
         <a
           href={viewHref("table")}
@@ -150,6 +158,12 @@ export default async function ContactsPage({
         <ContactsOrgChart contacts={contactRows} />
       ) : (
         <ContactsTable contacts={contactRows} />
+      )}
+      {(birthdayContacts.length > 0 || (upcomingEvents ?? []).length > 0) && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <BirthdaysWidget contacts={birthdayContacts} />
+          <EventsWidget events={upcomingEvents ?? []} />
+        </div>
       )}
     </div>
   );
