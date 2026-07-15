@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Mail, MessageCircle, Pencil } from "lucide-react";
+import { Mail, MessageCircle } from "lucide-react";
 import { whatsappUrl } from "@/lib/contacts";
 
 export interface ContactRow {
@@ -28,75 +28,70 @@ export interface ContactRow {
 
 export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Nombre</TableHead>
-          <TableHead>Correo</TableHead>
-          <TableHead>Flota</TableHead>
-          <TableHead>Puesto</TableHead>
-          <TableHead>Empresa</TableHead>
-          <TableHead>Departamento</TableHead>
-          <TableHead>Estado</TableHead>
-          <TableHead />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {contacts.map((c) => (
-          <TableRow key={c.id}>
-            <TableCell>
-              <div className="flex items-center gap-3">
-                <Avatar className="size-8">
-                  <AvatarImage src={c.photo_url ?? undefined} alt="" />
-                  <AvatarFallback>
-                    {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <a href={`/contacts/${c.id}`} className="underline">
-                  {c.first_name} {c.last_name}
-                </a>
-              </div>
-            </TableCell>
-            <TableCell>
-              {c.email && (
-                <a href={`mailto:${c.email}`} className="inline-flex items-center gap-1 underline">
-                  <Mail className="size-3.5" />
-                  {c.email}
-                </a>
-              )}
-            </TableCell>
-            <TableCell>
-              {c.fleet_phone &&
-                (c.has_whatsapp ? (
-                  <a
-                    href={whatsappUrl(c.fleet_phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 underline"
-                  >
-                    <MessageCircle className="size-3.5" />
-                    {c.fleet_phone}
-                  </a>
-                ) : (
-                  c.fleet_phone
-                ))}
-            </TableCell>
-            <TableCell>{c.position}</TableCell>
-            <TableCell>{c.companies?.name}</TableCell>
-            <TableCell>{c.departments?.name}</TableCell>
-            <TableCell>
-              <Badge variant={c.status === "active" ? "default" : "secondary"}>
-                {c.status === "active" ? "Activo" : "Anulado"}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              <a href={`/contacts/${c.id}`} title="Editar">
-                <Pencil className="size-4 text-muted-foreground hover:text-foreground" />
-              </a>
-            </TableCell>
+    <div className="overflow-hidden rounded-xl border">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead className="py-3">Nombre</TableHead>
+            <TableHead className="py-3">Puesto</TableHead>
+            <TableHead className="py-3">Empresa</TableHead>
+            <TableHead className="py-3">Departamento</TableHead>
+            <TableHead className="py-3">Estado</TableHead>
+            <TableHead className="py-3 text-right">Contacto</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {contacts.map((c) => (
+            <TableRow key={c.id}>
+              <TableCell className="py-3">
+                <a
+                  href={`/contacts/${c.id}`}
+                  className="flex items-center gap-3 hover:underline"
+                >
+                  <Avatar className="size-8">
+                    <AvatarImage src={c.photo_url ?? undefined} alt="" />
+                    <AvatarFallback>
+                      {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium">
+                    {c.first_name} {c.last_name}
+                  </span>
+                </a>
+              </TableCell>
+              <TableCell className="py-3 text-muted-foreground">{c.position}</TableCell>
+              <TableCell className="py-3 text-muted-foreground">{c.companies?.name}</TableCell>
+              <TableCell className="py-3 text-muted-foreground">
+                {c.departments?.name}
+              </TableCell>
+              <TableCell className="py-3">
+                <Badge variant={c.status === "active" ? "default" : "secondary"}>
+                  {c.status === "active" ? "Activo" : "Anulado"}
+                </Badge>
+              </TableCell>
+              <TableCell className="py-3">
+                <div className="flex justify-end gap-3">
+                  {c.email && (
+                    <a href={`mailto:${c.email}`} title={c.email}>
+                      <Mail className="size-4 text-muted-foreground hover:text-foreground" />
+                    </a>
+                  )}
+                  {c.fleet_phone && c.has_whatsapp && (
+                    <a
+                      href={whatsappUrl(c.fleet_phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={c.fleet_phone}
+                    >
+                      <MessageCircle className="size-4 text-muted-foreground hover:text-foreground" />
+                    </a>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
