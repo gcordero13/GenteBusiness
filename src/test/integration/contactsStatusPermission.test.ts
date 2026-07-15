@@ -25,18 +25,28 @@ describe("contacts status change requires can_deactivate specifically", () => {
 
     const { data: profile } = await admin
       .from("role_profiles")
-      .insert({
-        name: `Edit Only ${Date.now()}`,
-        can_view: true,
-        can_add: true,
-        can_edit: true,
-        can_delete: false,
-        can_deactivate: false,
-        can_manage_platform: false,
-      })
+      .insert({ name: `Edit Only ${Date.now()}` })
       .select()
       .single();
     editOnlyProfileId = profile!.id;
+
+    const { data: contactsModule } = await admin
+      .from("modules")
+      .select("id")
+      .eq("key", "contacts")
+      .single();
+
+    await admin.from("role_profile_permissions").insert({
+      role_profile_id: editOnlyProfileId,
+      module_id: contactsModule!.id,
+      can_view: true,
+      can_add: true,
+      can_edit: true,
+      can_delete: false,
+      can_deactivate: false,
+      can_manage: false,
+      can_authorize: false,
+    });
 
     const { data: company } = await admin.from("companies").insert({ name: "Status Test Co" }).select().single();
     companyId = company!.id;
