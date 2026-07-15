@@ -1,5 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { InviteUserForm } from "./InviteUserForm";
 
 export default async function UsersPage() {
@@ -19,24 +27,26 @@ export default async function UsersPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
-      <h1 className="text-xl font-semibold">Usuarios</h1>
-      <InviteUserForm profiles={profiles ?? []} />
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left">
-            <th>Correo</th>
-            <th>Perfil</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Usuarios</h1>
+        <InviteUserForm profiles={profiles ?? []} />
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Correo</TableHead>
+            <TableHead>Perfil</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {(users ?? []).map((u) => (
-            <tr key={u.id}>
-              <td>{u.email}</td>
-              <td>{(u.role_profiles as unknown as { name: string })?.name}</td>
-            </tr>
+            <TableRow key={u.id}>
+              <TableCell>{u.email}</TableCell>
+              <TableCell>{(u.role_profiles as unknown as { name: string })?.name}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

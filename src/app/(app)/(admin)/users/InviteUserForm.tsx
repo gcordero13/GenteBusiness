@@ -3,6 +3,21 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { inviteUser } from "./actions";
 
 interface Profile {
@@ -11,6 +26,7 @@ interface Profile {
 }
 
 export function InviteUserForm({ profiles }: { profiles: Profile[] }) {
+  const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [roleProfileId, setRoleProfileId] = useState(profiles[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -20,32 +36,44 @@ export function InviteUserForm({ profiles }: { profiles: Profile[] }) {
     startTransition(async () => {
       const result = await inviteUser({ email, roleProfileId });
       setError(result.error ?? null);
-      if (!result.error) setEmail("");
+      if (!result.error) {
+        setEmail("");
+        setOpen(false);
+      }
     });
   }
 
   return (
-    <div className="space-y-2 rounded border p-4">
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <Input
-        placeholder="correo@empresa.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <select
-        className="w-full rounded border p-2 text-sm"
-        value={roleProfileId}
-        onChange={(e) => setRoleProfileId(e.target.value)}
-      >
-        {profiles.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-      <Button onClick={submit} disabled={isPending || !email || !roleProfileId}>
-        Invitar
-      </Button>
-    </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button>Invitar usuario</Button>} />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Invitar usuario</DialogTitle>
+        </DialogHeader>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <Input
+          placeholder="correo@empresa.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Select value={roleProfileId} onValueChange={(v) => setRoleProfileId(v ?? "")}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Selecciona un perfil" />
+          </SelectTrigger>
+          <SelectContent>
+            {profiles.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <DialogFooter>
+          <Button onClick={submit} disabled={isPending || !email || !roleProfileId}>
+            Invitar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
