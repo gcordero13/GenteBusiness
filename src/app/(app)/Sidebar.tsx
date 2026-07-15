@@ -24,13 +24,21 @@ interface NavLink {
 
 export function Sidebar({
   email,
-  canView,
-  canManagePlatform,
+  canViewContacts,
+  canManageUsers,
+  canManageRoleProfiles,
+  canManageCompanies,
+  canManageDepartments,
+  canManageActivities,
   onLogout,
 }: {
   email?: string;
-  canView: boolean;
-  canManagePlatform: boolean;
+  canViewContacts: boolean;
+  canManageUsers: boolean;
+  canManageRoleProfiles: boolean;
+  canManageCompanies: boolean;
+  canManageDepartments: boolean;
+  canManageActivities: boolean;
   onLogout: () => Promise<void>;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -50,18 +58,16 @@ export function Sidebar({
   }
 
   const mainLinks: NavLink[] = [
-    ...(canView ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
-    ...(canManagePlatform ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
+    ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
+    ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
   ];
 
-  const settingsLinks: NavLink[] = canManagePlatform
-    ? [
-        { href: "/role-profiles", label: "Perfiles de rol", icon: ShieldCheck },
-        { href: "/companies", label: "Empresas", icon: Building2 },
-        { href: "/departments", label: "Departamentos", icon: Network },
-        { href: "/activities", label: "Actividades", icon: PartyPopper },
-      ]
-    : [];
+  const settingsLinks: NavLink[] = [
+    ...(canManageRoleProfiles ? [{ href: "/role-profiles", label: "Perfiles de rol", icon: ShieldCheck }] : []),
+    ...(canManageCompanies ? [{ href: "/companies", label: "Empresas", icon: Building2 }] : []),
+    ...(canManageDepartments ? [{ href: "/departments", label: "Departamentos", icon: Network }] : []),
+    ...(canManageActivities ? [{ href: "/activities", label: "Actividades", icon: PartyPopper }] : []),
+  ];
 
   return (
     <aside
