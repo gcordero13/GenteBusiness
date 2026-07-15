@@ -5,6 +5,7 @@ import { escapeIlikePattern, getUpcomingBirthdays } from "@/lib/contacts";
 import { SearchFilters } from "./SearchFilters";
 import { BirthdaysWidget } from "./BirthdaysWidget";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
+import { ContactsCards } from "./ContactsCards";
 
 export default async function ContactsPage({
   searchParams,
@@ -14,9 +15,21 @@ export default async function ContactsPage({
     company?: string;
     department?: string;
     showInactive?: string;
+    view?: string;
   }>;
 }) {
-  const { q, company, department, showInactive } = await searchParams;
+  const { q, company, department, showInactive, view } = await searchParams;
+
+  const activeView = view === "cards" ? "cards" : "table";
+  function viewHref(target: string) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (company) params.set("company", company);
+    if (department) params.set("department", department);
+    if (showInactive) params.set("showInactive", showInactive);
+    params.set("view", target);
+    return `/contacts?${params.toString()}`;
+  }
 
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_role_flags");
@@ -85,6 +98,20 @@ export default async function ContactsPage({
         )}
       </div>
       <BirthdaysWidget contacts={birthdayContacts} />
+      <div className="flex gap-1 text-sm">
+        <a
+          href={viewHref("table")}
+          className={`rounded-lg px-3 py-1 ${activeView === "table" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted"}`}
+        >
+          Tabla
+        </a>
+        <a
+          href={viewHref("cards")}
+          className={`rounded-lg px-3 py-1 ${activeView === "cards" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted"}`}
+        >
+          Tarjetas
+        </a>
+      </div>
       <SearchFilters
         companies={companies ?? []}
         departments={departments ?? []}
@@ -98,6 +125,8 @@ export default async function ContactsPage({
             <p className="text-xs">Crea el primero con el botón &quot;Nuevo contacto&quot;.</p>
           )}
         </div>
+      ) : activeView === "cards" ? (
+        <ContactsCards contacts={contactRows} />
       ) : (
         <ContactsTable contacts={contactRows} />
       )}
