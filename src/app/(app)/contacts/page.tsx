@@ -1,19 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { BookUser, Mail, MessageCircle, Pencil } from "lucide-react";
-import { escapeIlikePattern, getUpcomingBirthdays, whatsappUrl } from "@/lib/contacts";
+import { BookUser } from "lucide-react";
+import { escapeIlikePattern, getUpcomingBirthdays } from "@/lib/contacts";
 import { SearchFilters } from "./SearchFilters";
 import { BirthdaysWidget } from "./BirthdaysWidget";
+import { ContactsTable, type ContactRow } from "./ContactsTable";
 
 export default async function ContactsPage({
   searchParams,
@@ -69,6 +60,20 @@ export default async function ContactsPage({
     5,
   );
 
+  const contactRows: ContactRow[] = (contacts ?? []).map((c) => ({
+    id: c.id,
+    first_name: c.first_name,
+    last_name: c.last_name,
+    email: c.email,
+    position: c.position,
+    status: c.status,
+    fleet_phone: c.fleet_phone,
+    has_whatsapp: c.has_whatsapp,
+    photo_url: c.photo_url,
+    companies: (c.companies as unknown as { name: string } | null) ?? null,
+    departments: (c.departments as unknown as { name: string } | null) ?? null,
+  }));
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -85,7 +90,7 @@ export default async function ContactsPage({
         departments={departments ?? []}
         canSeeInactiveToggle={Boolean(flags.can_deactivate || flags.can_delete)}
       />
-      {(contacts ?? []).length === 0 ? (
+      {contactRows.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-16 text-center text-muted-foreground">
           <BookUser className="size-8" />
           <p className="text-sm">No hay contactos todavía.</p>
@@ -94,79 +99,7 @@ export default async function ContactsPage({
           )}
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Correo</TableHead>
-              <TableHead>Flota</TableHead>
-              <TableHead>Puesto</TableHead>
-              <TableHead>Empresa</TableHead>
-              <TableHead>Departamento</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(contacts ?? []).map((c) => (
-              <TableRow key={c.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="size-8">
-                      <AvatarImage src={c.photo_url ?? undefined} alt="" />
-                      <AvatarFallback>
-                        {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <a href={`/contacts/${c.id}`} className="underline">
-                      {c.first_name} {c.last_name}
-                    </a>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {c.email && (
-                    <a
-                      href={`mailto:${c.email}`}
-                      className="inline-flex items-center gap-1 underline"
-                    >
-                      <Mail className="size-3.5" />
-                      {c.email}
-                    </a>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {c.fleet_phone &&
-                    (c.has_whatsapp ? (
-                      <a
-                        href={whatsappUrl(c.fleet_phone)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 underline"
-                      >
-                        <MessageCircle className="size-3.5" />
-                        {c.fleet_phone}
-                      </a>
-                    ) : (
-                      c.fleet_phone
-                    ))}
-                </TableCell>
-                <TableCell>{c.position}</TableCell>
-                <TableCell>{(c.companies as unknown as { name: string })?.name}</TableCell>
-                <TableCell>{(c.departments as unknown as { name: string })?.name}</TableCell>
-                <TableCell>
-                  <Badge variant={c.status === "active" ? "default" : "secondary"}>
-                    {c.status === "active" ? "Activo" : "Anulado"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <a href={`/contacts/${c.id}`} title="Editar">
-                    <Pencil className="size-4 text-muted-foreground hover:text-foreground" />
-                  </a>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ContactsTable contacts={contactRows} />
       )}
     </div>
   );
