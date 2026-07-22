@@ -36,6 +36,7 @@ export default async function AppLayout({
       canManageCompanies={Boolean(permissions.get("companies")?.can_manage)}
       canManageDepartments={Boolean(permissions.get("departments")?.can_manage)}
       canManageActivities={Boolean(permissions.get("activities")?.can_manage)}
+      canManageSettings={Boolean(permissions.get("settings")?.can_manage)}
       onLogout={logout}
     >
       {children}

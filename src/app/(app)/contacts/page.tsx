@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { BookUser } from "lucide-react";
 import { escapeIlikePattern, getUpcomingBirthdays } from "@/lib/contacts";
@@ -113,9 +114,9 @@ export default async function ContactsPage({
           <ExportContactsButton />
           {flags.can_add && <ImportContactsDialog />}
           {flags.can_add && (
-            <a href="/contacts/new" className="text-sm underline">
+            <Link href="/contacts/new" className="text-sm underline">
               Nuevo contacto
-            </a>
+            </Link>
           )}
         </div>
       </div>

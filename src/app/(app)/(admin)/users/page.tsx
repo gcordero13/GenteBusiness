@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Users as UsersIcon } from "lucide-react";
 import { InviteUserForm } from "./InviteUserForm";
+import { SetPasswordDialog } from "./SetPasswordDialog";
 
 export default async function UsersPage() {
   const supabase = await createClient();
@@ -46,6 +47,7 @@ export default async function UsersPage() {
             <TableRow>
               <TableHead>Correo</TableHead>
               <TableHead>Perfil</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -53,6 +55,9 @@ export default async function UsersPage() {
               <TableRow key={u.id}>
                 <TableCell>{u.email}</TableCell>
                 <TableCell>{(u.role_profiles as unknown as { name: string })?.name}</TableCell>
+                <TableCell className="text-right">
+                  <SetPasswordDialog userId={u.id} email={u.email} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

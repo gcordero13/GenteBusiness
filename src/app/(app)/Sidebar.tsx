@@ -30,6 +30,7 @@ export function Sidebar({
   canManageCompanies,
   canManageDepartments,
   canManageActivities,
+  canManageSettings,
   onLogout,
   onNavigate,
 }: {
@@ -40,13 +41,18 @@ export function Sidebar({
   canManageCompanies: boolean;
   canManageDepartments: boolean;
   canManageActivities: boolean;
+  canManageSettings: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
+    // One-time sync from localStorage on mount; deferred to an effect (rather
+    // than a lazy useState initializer) so server and client render the same
+    // initial markup and avoid a hydration mismatch.
     if (localStorage.getItem("sidebar-collapsed") === "true") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(true);
     }
   }, []);
@@ -69,6 +75,7 @@ export function Sidebar({
     ...(canManageCompanies ? [{ href: "/companies", label: "Empresas", icon: Building2 }] : []),
     ...(canManageDepartments ? [{ href: "/departments", label: "Departamentos", icon: Network }] : []),
     ...(canManageActivities ? [{ href: "/activities", label: "Actividades", icon: PartyPopper }] : []),
+    ...(canManageSettings ? [{ href: "/settings", label: "Correo (SMTP)", icon: Settings }] : []),
   ];
 
   return (

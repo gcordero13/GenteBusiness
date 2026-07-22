@@ -6,10 +6,21 @@ import { createClient } from "@/lib/supabase/server";
 interface InviteUserInput {
   email: string;
   roleProfileId: string;
+  /**
+   * When provided, the user is created directly with this password
+   * (email_confirm: true) instead of receiving an email invite. Useful when
+   * outbound email isn't configured/reliable yet.
+   */
+  password?: string;
 }
 
 interface InviteUserResult {
   error?: string;
+}
+
+interface SetUserPasswordInput {
+  userId: string;
+  password: string;
 }
 
 async function callerCanManageUsers(): Promise<boolean> {
@@ -30,20 +41,40 @@ export async function inviteUser(input: InviteUserInput): Promise<InviteUserResu
 
   const admin = createAdminClient();
 
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
-    input.email,
-  );
-  if (inviteError || !invited.user) {
-    return { error: inviteError?.message ?? "No se pudo invitar al usuario" };
+  const { data: created, error: createError } = input.password
+    ? await admin.auth.admin.createUser({
+        email: input.email,
+        password: input.password,
+        email_confirm: true,
+      })
+    : await admin.auth.admin.inviteUserByEmail(input.email);
+  if (createError || !created.user) {
+    return { error: createError?.message ?? "No se pudo crear al usuario" };
   }
 
   const { error: insertError } = await admin.from("app_users").insert({
-    id: invited.user.id,
+    id: created.user.id,
     email: input.email,
     role_profile_id: input.roleProfileId,
   });
   if (insertError) {
     return { error: insertError.message };
+  }
+
+  return {};
+}
+
+export async function setUserPassword(input: SetUserPasswordInput): Promise<InviteUserResult> {
+  if (!(await callerCanManageUsers())) {
+    return { error: "No autorizado" };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(input.userId, {
+    password: input.password,
+  });
+  if (error) {
+    return { error: error.message };
   }
 
   return {};
