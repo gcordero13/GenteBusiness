@@ -30,6 +30,7 @@ export function Sidebar({
   canManageCompanies,
   canManageDepartments,
   canManageActivities,
+  canManageSettings,
   onLogout,
   onNavigate,
 }: {
@@ -40,6 +41,7 @@ export function Sidebar({
   canManageCompanies: boolean;
   canManageDepartments: boolean;
   canManageActivities: boolean;
+  canManageSettings: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -73,6 +75,7 @@ export function Sidebar({
     ...(canManageCompanies ? [{ href: "/companies", label: "Empresas", icon: Building2 }] : []),
     ...(canManageDepartments ? [{ href: "/departments", label: "Departamentos", icon: Network }] : []),
     ...(canManageActivities ? [{ href: "/activities", label: "Actividades", icon: PartyPopper }] : []),
+    ...(canManageSettings ? [{ href: "/settings", label: "Correo (SMTP)", icon: Settings }] : []),
   ];
 
   return (
