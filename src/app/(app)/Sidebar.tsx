@@ -46,7 +46,11 @@ export function Sidebar({
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
+    // One-time sync from localStorage on mount; deferred to an effect (rather
+    // than a lazy useState initializer) so server and client render the same
+    // initial markup and avoid a hydration mismatch.
     if (localStorage.getItem("sidebar-collapsed") === "true") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(true);
     }
   }, []);
