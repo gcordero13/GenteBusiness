@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { escapeIlikePattern } from "@/lib/contacts";
 import { parseCsv, toCsv } from "@/lib/csv";
+import { provisionContactLogin } from "@/lib/supabase/provisionContactLogin";
 
 export interface ContactInput {
   id?: string;
@@ -43,6 +44,8 @@ export async function saveContact(input: ContactInput) {
 
   const { error } = await query;
   if (error) return { error: error.message };
+
+  await provisionContactLogin(payload.email);
 
   revalidatePath("/contacts");
   redirect("/contacts");
@@ -236,6 +239,7 @@ export async function importContactsCsv(
       continue;
     }
 
+    await provisionContactLogin(payload.email);
     successCount += 1;
   }
 
