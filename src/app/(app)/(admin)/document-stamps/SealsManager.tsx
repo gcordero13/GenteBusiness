@@ -41,7 +41,7 @@ export function SealsManager({
 
     const formData = new FormData();
     formData.set("companyId", companyId);
-    formData.set("name", name);
+    formData.set("name", name.trim());
     formData.set("file", file);
 
     startTransition(async () => {
@@ -56,7 +56,8 @@ export function SealsManager({
 
   function remove(id: string, storagePath: string) {
     startTransition(async () => {
-      await deleteSeal(id, storagePath);
+      const result = await deleteSeal(id, storagePath);
+      if (result.error) setError(result.error);
     });
   }
 
@@ -81,7 +82,7 @@ export function SealsManager({
         </Select>
         <Input placeholder="Nombre del sello" value={name} onChange={(e) => setName(e.target.value)} />
         <Input ref={fileInputRef} type="file" accept="image/png" />
-        <Button onClick={submit} disabled={isPending || !companyId || !name}>
+        <Button onClick={submit} disabled={isPending || !companyId || !name.trim()}>
           Subir
         </Button>
       </div>

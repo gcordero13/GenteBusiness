@@ -9,7 +9,7 @@ interface ActionResult {
 
 export async function uploadSeal(formData: FormData): Promise<ActionResult> {
   const companyId = String(formData.get("companyId") ?? "");
-  const name = String(formData.get("name") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
   const file = formData.get("file");
 
   if (!companyId || !name || !(file instanceof File) || file.size === 0) {
