@@ -36,14 +36,6 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function dataUrlToBytes(dataUrl: string): Uint8Array {
-  const base64 = dataUrl.split(",")[1];
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 export function PdfStamperTool({
   seals,
   signatures,
@@ -67,35 +59,53 @@ export function PdfStamperTool({
   const resizeRef = useRef<{ id: string; startX: number; startY: number; origW: number; origH: number } | null>(null);
 
   async function renderPage(doc: pdfjsLib.PDFDocumentProxy, pageNum: number) {
-    const page = await doc.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1.2 });
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    setOverlaySize({ width: viewport.width, height: viewport.height });
-    await page.render({ canvasContext: canvas.getContext("2d")!, canvas, viewport }).promise;
+    try {
+      const page = await doc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1.2 });
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      setOverlaySize({ width: viewport.width, height: viewport.height });
+      await page.render({ canvasContext: canvas.getContext("2d")!, canvas, viewport }).promise;
+    } catch (err) {
+      console.error(err);
+      setStatus("No se pudo mostrar la página.");
+    }
   }
 
   async function loadFile(file: File) {
     setStatus("Cargando PDF...");
-    const buffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    setPdfBytes(bytes);
-    const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
-    setPdfDoc(doc);
-    setTotalPages(doc.numPages);
-    setCurrentPage(1);
-    setItems({});
-    setSelectedId(null);
-    await renderPage(doc, 1);
-    setStatus(`PDF cargado: ${file.name}`);
+    try {
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
+      setPdfBytes(bytes);
+      setPdfDoc(doc);
+      setTotalPages(doc.numPages);
+      setCurrentPage(1);
+      setItems({});
+      setSelectedId(null);
+      await renderPage(doc, 1);
+      setStatus(`PDF cargado: ${file.name}`);
+    } catch (err) {
+      console.error(err);
+      setPdfBytes(null);
+      setPdfDoc(null);
+      setTotalPages(0);
+      setStatus("No se pudo cargar el PDF. Verifica que el archivo no esté dañado.");
+    }
   }
 
-  function goToPage(pageNum: number) {
+  async function goToPage(pageNum: number) {
     if (!pdfDoc || pageNum < 1 || pageNum > totalPages) return;
     setCurrentPage(pageNum);
-    renderPage(pdfDoc, pageNum);
+    try {
+      await renderPage(pdfDoc, pageNum);
+    } catch (err) {
+      console.error(err);
+      setStatus("No se pudo mostrar la página.");
+    }
   }
 
   function addItem(item: PageItem) {
@@ -226,38 +236,43 @@ export function PdfStamperTool({
     }
 
     setStatus("Generando PDF...");
-    const doc = await PDFDocument.load(pdfBytes);
+    try {
+      const doc = await PDFDocument.load(pdfBytes);
 
-    for (const [pageNumStr, pageItems] of Object.entries(items)) {
-      if (pageItems.length === 0) continue;
-      const pageNum = parseInt(pageNumStr, 10);
-      const page = doc.getPage(pageNum - 1);
-      const pageSize = page.getSize();
+      for (const [pageNumStr, pageItems] of Object.entries(items)) {
+        if (pageItems.length === 0) continue;
+        const pageNum = parseInt(pageNumStr, 10);
+        const page = doc.getPage(pageNum - 1);
+        const pageSize = page.getSize();
 
-      for (const item of pageItems) {
-        const response = await fetch(item.dataUrl);
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        const embedded = await doc.embedPng(bytes);
-        const rect = computePdfDrawRect(
-          item,
-          overlaySize.width,
-          overlaySize.height,
-          pageSize.width,
-          pageSize.height,
-        );
-        page.drawImage(embedded, rect);
+        for (const item of pageItems) {
+          const response = await fetch(item.dataUrl);
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          const embedded = await doc.embedPng(bytes);
+          const rect = computePdfDrawRect(
+            item,
+            overlaySize.width,
+            overlaySize.height,
+            pageSize.width,
+            pageSize.height,
+          );
+          page.drawImage(embedded, rect);
+        }
       }
-    }
 
-    const savedBytes = await doc.save();
-    const blob = new Blob([new Uint8Array(savedBytes)], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "documento_sellado.pdf";
-    a.click();
-    URL.revokeObjectURL(url);
-    setStatus("PDF descargado.");
+      const savedBytes = await doc.save();
+      const blob = new Blob([new Uint8Array(savedBytes)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "documento_sellado.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus("PDF descargado.");
+    } catch (err) {
+      console.error(err);
+      setStatus(`Error al generar el PDF: ${err instanceof Error ? err.message : "intenta de nuevo"}`);
+    }
   }
 
   const currentItems = items[currentPage] ?? [];
@@ -318,13 +333,13 @@ export function PdfStamperTool({
       >
         <canvas ref={canvasRef} className="border" />
         {currentItems.map((item) => (
-          // eslint-disable-next-line @next/next/no-img-element -- data URL / signed URL overlay item, not a static asset
           <div
             key={item.id}
             className={`absolute border ${item.id === selectedId ? "border-2 border-[#04B1AF]" : "border-transparent"}`}
             style={{ left: item.x, top: item.y, width: item.w, height: item.h }}
             onMouseDown={(e) => onItemMouseDown(e, item)}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element -- data URL / signed URL overlay item, not a static asset */}
             <img src={item.dataUrl} alt="" className="h-full w-full object-contain" draggable={false} />
             <div
               className="absolute -right-1 -bottom-1 h-3 w-3 cursor-se-resize bg-[#04B1AF]"
