@@ -27,12 +27,14 @@ export function SealsManager({
 }) {
   const [companyId, setCompanyId] = useState(companies[0]?.id ?? "");
   const [name, setName] = useState("");
+  const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    setFileName(file?.name ?? null);
     if (file) setName(file.name.replace(/\.[^/.]+$/, ""));
   }
 
@@ -53,6 +55,7 @@ export function SealsManager({
       setError(result.error ?? null);
       if (!result.error) {
         setName("");
+        setFileName(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     });
@@ -84,7 +87,21 @@ export function SealsManager({
             ))}
           </SelectContent>
         </Select>
-        <Input ref={fileInputRef} type="file" accept="image/png" onChange={handleFileChange} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-start truncate"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {fileName ?? "Elegir imagen PNG"}
+        </Button>
         <Input placeholder="Nombre del sello" value={name} onChange={(e) => setName(e.target.value)} />
         <Button className="w-full" onClick={submit} disabled={isPending || !companyId || !name.trim()}>
           Subir
