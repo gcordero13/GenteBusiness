@@ -2,13 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get("email"));
   const supabase = await createClient();
+  const siteUrl = await getSiteUrl();
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`,
+    redirectTo: `${siteUrl}/reset-password`,
   });
 
   // Only surface the rate-limit error — it's a transient "try again in a bit"

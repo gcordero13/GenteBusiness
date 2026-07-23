@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
 }));
+vi.mock("@/lib/siteUrl", () => ({
+  getSiteUrl: vi.fn().mockResolvedValue("https://gente-business.vercel.app"),
+}));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(() => {
     throw new Error("REDIRECT");
@@ -33,9 +36,8 @@ beforeEach(() => {
 
 describe("requestPasswordReset", () => {
   it("redirects to a generic success state even if the email isn't registered", async () => {
-    vi.mocked(createClient).mockResolvedValue(
-      mockServerClient({ error: { message: "User not found" } }) as never,
-    );
+    const client = mockServerClient({ error: { message: "User not found" } });
+    vi.mocked(createClient).mockResolvedValue(client as never);
 
     await expect(requestPasswordReset(formDataFor("nadie@empresa.com"))).rejects.toThrow(
       "REDIRECT",
@@ -45,13 +47,27 @@ describe("requestPasswordReset", () => {
   });
 
   it("redirects to a generic success state when the reset actually succeeds", async () => {
-    vi.mocked(createClient).mockResolvedValue(mockServerClient({ error: null }) as never);
+    const client = mockServerClient({ error: null });
+    vi.mocked(createClient).mockResolvedValue(client as never);
 
     await expect(requestPasswordReset(formDataFor("real@empresa.com"))).rejects.toThrow(
       "REDIRECT",
     );
 
     expect(redirect).toHaveBeenCalledWith("/forgot-password?sent=1");
+  });
+
+  it("builds the redirect URL from the current request's origin, not a fixed env var", async () => {
+    const client = mockServerClient({ error: null });
+    vi.mocked(createClient).mockResolvedValue(client as never);
+
+    await expect(requestPasswordReset(formDataFor("real@empresa.com"))).rejects.toThrow(
+      "REDIRECT",
+    );
+
+    expect(client.auth.resetPasswordForEmail).toHaveBeenCalledWith("real@empresa.com", {
+      redirectTo: "https://gente-business.vercel.app/reset-password",
+    });
   });
 
   it("surfaces a rate-limit error distinctly instead of the generic success message", async () => {
