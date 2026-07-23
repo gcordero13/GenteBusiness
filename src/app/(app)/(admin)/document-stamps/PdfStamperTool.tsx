@@ -58,19 +58,21 @@ export function PdfStamperTool({
   const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const resizeRef = useRef<{ id: string; startX: number; startY: number; origW: number; origH: number } | null>(null);
 
-  async function renderPage(doc: pdfjsLib.PDFDocumentProxy, pageNum: number) {
+  async function renderPage(doc: pdfjsLib.PDFDocumentProxy, pageNum: number): Promise<boolean> {
     try {
       const page = await doc.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1.2 });
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) return false;
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       setOverlaySize({ width: viewport.width, height: viewport.height });
       await page.render({ canvasContext: canvas.getContext("2d")!, canvas, viewport }).promise;
+      return true;
     } catch (err) {
       console.error(err);
       setStatus("No se pudo mostrar la página.");
+      return false;
     }
   }
 
@@ -86,8 +88,10 @@ export function PdfStamperTool({
       setCurrentPage(1);
       setItems({});
       setSelectedId(null);
-      await renderPage(doc, 1);
-      setStatus(`PDF cargado: ${file.name}`);
+      const renderedOk = await renderPage(doc, 1);
+      if (renderedOk) {
+        setStatus(`PDF cargado: ${file.name}`);
+      }
     } catch (err) {
       console.error(err);
       setPdfBytes(null);
@@ -100,12 +104,7 @@ export function PdfStamperTool({
   async function goToPage(pageNum: number) {
     if (!pdfDoc || pageNum < 1 || pageNum > totalPages) return;
     setCurrentPage(pageNum);
-    try {
-      await renderPage(pdfDoc, pageNum);
-    } catch (err) {
-      console.error(err);
-      setStatus("No se pudo mostrar la página.");
-    }
+    await renderPage(pdfDoc, pageNum);
   }
 
   function addItem(item: PageItem) {
