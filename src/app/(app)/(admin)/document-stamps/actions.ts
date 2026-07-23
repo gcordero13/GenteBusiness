@@ -16,12 +16,16 @@ export async function uploadSeal(formData: FormData): Promise<ActionResult> {
     return { error: "Completa todos los campos" };
   }
 
+  if (file.type !== "image/png") {
+    return { error: "El archivo debe ser una imagen PNG" };
+  }
+
   const supabase = await createClient();
   const path = `${companyId}/${Date.now()}_${file.name}`;
 
   const { error: uploadError } = await supabase.storage
     .from("company-seals")
-    .upload(path, file, { contentType: file.type || "image/png" });
+    .upload(path, file, { contentType: file.type });
   if (uploadError) return { error: uploadError.message };
 
   const { error: insertError } = await supabase.from("company_seals").insert({
@@ -56,6 +60,9 @@ export async function saveSignature(dataUrl: string): Promise<ActionResult> {
 
   const base64 = dataUrl.split(",")[1] ?? "";
   const bytes = Buffer.from(base64, "base64");
+  if (bytes.length === 0) {
+    return { error: "Firma inválida" };
+  }
   const path = `${user.id}/firma_${Date.now()}.png`;
 
   const { error: uploadError } = await supabase.storage

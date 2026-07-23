@@ -23,22 +23,27 @@ function mockSupabase({
   deleteError?: { message: string } | null;
   userId?: string;
 } = {}) {
+  const uploadMock = vi.fn().mockResolvedValue({ error: uploadError });
+  const removeMock = vi.fn().mockResolvedValue({ error: removeError });
+  const insertMock = vi.fn().mockResolvedValue({ error: insertError });
+  const eqMock = vi.fn().mockResolvedValue({ error: deleteError });
+  const deleteMock = vi.fn().mockReturnValue({ eq: eqMock });
+
   return {
     auth: {
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId } } }),
     },
     storage: {
       from: vi.fn().mockReturnValue({
-        upload: vi.fn().mockResolvedValue({ error: uploadError }),
-        remove: vi.fn().mockResolvedValue({ error: removeError }),
+        upload: uploadMock,
+        remove: removeMock,
       }),
     },
     from: vi.fn().mockReturnValue({
-      insert: vi.fn().mockResolvedValue({ error: insertError }),
-      delete: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: deleteError }),
-      }),
+      insert: insertMock,
+      delete: deleteMock,
     }),
+    _mocks: { uploadMock, removeMock, insertMock, eqMock, deleteMock },
   };
 }
 
@@ -61,6 +66,18 @@ describe("uploadSeal", () => {
     expect(result.error).toBe("Completa todos los campos");
   });
 
+  it("rejects files that are not PNG", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    const file = new File(["not-a-png"], "sello.jpg", { type: "image/jpeg" });
+
+    const result = await uploadSeal(formDataFor({ companyId: "company-1", name: "Sello oficial", file }));
+
+    expect(result.error).toBe("El archivo debe ser una imagen PNG");
+    expect(supabase._mocks.uploadMock).not.toHaveBeenCalled();
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
   it("uploads the file and inserts the row when everything succeeds", async () => {
     const supabase = mockSupabase();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
@@ -71,6 +88,13 @@ describe("uploadSeal", () => {
     expect(result.error).toBeUndefined();
     expect(supabase.storage.from).toHaveBeenCalledWith("company-seals");
     expect(supabase.from).toHaveBeenCalledWith("company_seals");
+    expect(supabase._mocks.insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        company_id: "company-1",
+        name: "Sello oficial",
+        storage_path: expect.stringMatching(/^company-1\/\d+_sello\.png$/),
+      }),
+    );
   });
 
   it("surfaces the storage error and does not insert a row if upload fails", async () => {
@@ -94,6 +118,9 @@ describe("deleteSeal", () => {
 
     expect(result.error).toBeUndefined();
     expect(supabase.storage.from).toHaveBeenCalledWith("company-seals");
+    expect(supabase._mocks.removeMock).toHaveBeenCalledWith(["company-1/123_sello.png"]);
+    expect(supabase.from).toHaveBeenCalledWith("company_seals");
+    expect(supabase._mocks.eqMock).toHaveBeenCalledWith("id", "seal-1");
   });
 });
 
@@ -108,6 +135,17 @@ describe("saveSignature", () => {
     expect(result.error).toBe("No autorizado");
   });
 
+  it("rejects malformed or empty signature data", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await saveSignature("not-a-data-url");
+
+    expect(result.error).toBe("Firma inválida");
+    expect(supabase._mocks.uploadMock).not.toHaveBeenCalled();
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
   it("uploads the decoded PNG under the user's own folder and inserts the row", async () => {
     const supabase = mockSupabase({ userId: "user-42" });
     vi.mocked(createClient).mockResolvedValue(supabase as never);
@@ -117,6 +155,12 @@ describe("saveSignature", () => {
     expect(result.error).toBeUndefined();
     expect(supabase.storage.from).toHaveBeenCalledWith("user-signatures");
     expect(supabase.from).toHaveBeenCalledWith("user_signatures");
+    expect(supabase._mocks.insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-42",
+        storage_path: expect.stringMatching(/^user-42\/firma_\d+\.png$/),
+      }),
+    );
   });
 });
 
@@ -129,5 +173,8 @@ describe("deleteSignature", () => {
 
     expect(result.error).toBeUndefined();
     expect(supabase.storage.from).toHaveBeenCalledWith("user-signatures");
+    expect(supabase._mocks.removeMock).toHaveBeenCalledWith(["user-42/firma_123.png"]);
+    expect(supabase.from).toHaveBeenCalledWith("user_signatures");
+    expect(supabase._mocks.eqMock).toHaveBeenCalledWith("id", "sig-1");
   });
 });
