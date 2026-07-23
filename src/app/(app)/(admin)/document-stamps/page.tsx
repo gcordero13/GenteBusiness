@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SealsManager } from "./SealsManager";
 
 export interface SealWithUrl {
   id: string;
@@ -74,6 +75,7 @@ export default async function DocumentStampsPage() {
         Carga un PDF, agrégale sellos, firmas o texto, y descárgalo. El documento nunca se sube a
         la plataforma — solo se procesa en tu navegador.
       </p>
+      <SealsManager companies={companies ?? []} seals={sealsWithUrls} />
     </div>
   );
 }
