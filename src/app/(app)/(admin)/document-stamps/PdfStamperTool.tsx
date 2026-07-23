@@ -18,6 +18,11 @@ import type { SealWithUrl, SignatureWithUrl } from "./page";
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://unpkg.com/pdfjs-dist@6.1.200/build/pdf.worker.min.mjs";
 
+const DEFAULT_SCALE = 1.2;
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 3;
+const ZOOM_STEP = 0.2;
+
 interface PageItem {
   id: string;
   dataUrl: string;
@@ -48,6 +53,7 @@ export function PdfStamperTool({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [overlaySize, setOverlaySize] = useState({ width: 0, height: 0 });
+  const [scale, setScale] = useState(DEFAULT_SCALE);
   const [items, setItems] = useState<Record<number, PageItem[]>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState("Arrastra un PDF o ábrelo con el botón");
@@ -58,10 +64,14 @@ export function PdfStamperTool({
   const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const resizeRef = useRef<{ id: string; startX: number; startY: number; origW: number; origH: number } | null>(null);
 
-  async function renderPage(doc: pdfjsLib.PDFDocumentProxy, pageNum: number): Promise<boolean> {
+  async function renderPage(
+    doc: pdfjsLib.PDFDocumentProxy,
+    pageNum: number,
+    scaleOverride?: number,
+  ): Promise<boolean> {
     try {
       const page = await doc.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1.2 });
+      const viewport = page.getViewport({ scale: scaleOverride ?? scale });
       const canvas = canvasRef.current;
       if (!canvas) return false;
       canvas.width = viewport.width;
@@ -91,7 +101,8 @@ export function PdfStamperTool({
       setCurrentPage(1);
       setItems({});
       setSelectedId(null);
-      const renderedOk = await renderPage(doc, 1);
+      setScale(DEFAULT_SCALE);
+      const renderedOk = await renderPage(doc, 1, DEFAULT_SCALE);
       if (renderedOk) {
         setStatus(`PDF cargado: ${file.name}`);
       }
@@ -108,6 +119,29 @@ export function PdfStamperTool({
     if (!pdfDoc || pageNum < 1 || pageNum > totalPages) return;
     setCurrentPage(pageNum);
     await renderPage(pdfDoc, pageNum);
+  }
+
+  async function changeZoom(delta: number) {
+    if (!pdfDoc) return;
+    const nextScale = Math.round(Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + delta)) * 100) / 100;
+    if (nextScale === scale) return;
+
+    const ratio = nextScale / scale;
+    setItems((prev) => {
+      const next: Record<number, PageItem[]> = {};
+      for (const [pageNumStr, pageItems] of Object.entries(prev)) {
+        next[Number(pageNumStr)] = pageItems.map((i) => ({
+          ...i,
+          x: i.x * ratio,
+          y: i.y * ratio,
+          w: i.w * ratio,
+          h: i.h * ratio,
+        }));
+      }
+      return next;
+    });
+    setScale(nextScale);
+    await renderPage(pdfDoc, currentPage, nextScale);
   }
 
   function addItem(item: PageItem) {
@@ -321,6 +355,26 @@ export function PdfStamperTool({
             disabled={currentPage >= totalPages}
           >
             Siguiente
+          </Button>
+          <span className="mx-1 h-4 w-px bg-border" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => changeZoom(-ZOOM_STEP)}
+            disabled={scale <= MIN_SCALE}
+            title="Alejar"
+          >
+            −
+          </Button>
+          <span className="w-12 text-center">{Math.round(scale * 100)}%</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => changeZoom(ZOOM_STEP)}
+            disabled={scale >= MAX_SCALE}
+            title="Acercar"
+          >
+            +
           </Button>
         </div>
       )}
