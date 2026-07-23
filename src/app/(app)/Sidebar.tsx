@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 import {
   BookUser,
   Building2,
+  FileSignature,
   LogOut,
   Network,
   PanelLeftClose,
@@ -31,6 +32,7 @@ export function Sidebar({
   canManageDepartments,
   canManageActivities,
   canManageSettings,
+  canUseDocumentStamps,
   onLogout,
   onNavigate,
 }: {
@@ -42,6 +44,7 @@ export function Sidebar({
   canManageDepartments: boolean;
   canManageActivities: boolean;
   canManageSettings: boolean;
+  canUseDocumentStamps: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -67,6 +70,7 @@ export function Sidebar({
 
   const mainLinks: NavLink[] = [
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
+    ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),
     ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
   ];
 

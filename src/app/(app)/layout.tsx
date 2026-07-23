@@ -37,6 +37,7 @@ export default async function AppLayout({
       canManageDepartments={Boolean(permissions.get("departments")?.can_manage)}
       canManageActivities={Boolean(permissions.get("activities")?.can_manage)}
       canManageSettings={Boolean(permissions.get("settings")?.can_manage)}
+      canUseDocumentStamps={Boolean(permissions.get("document_stamps")?.can_add)}
       onLogout={logout}
     >
       {children}
