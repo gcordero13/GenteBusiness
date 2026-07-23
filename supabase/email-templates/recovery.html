@@ -4,7 +4,14 @@
   Supabase project via the Management API (config/auth -> mailer_templates_
   recovery_content), not through a DB migration — this file is kept here as
   the source of truth / reference so it can be reapplied or edited later.
-  Supabase's {{ .ConfirmationURL }} template variable is required as-is.
+
+  Links to our own /auth/confirm route handler (src/app/auth/confirm/route.ts)
+  instead of {{ .ConfirmationURL }} — the latter redirects through Supabase's
+  hosted /verify endpoint and hands off the session via a URL hash fragment,
+  which a server-rendered page can never see. /auth/confirm verifies the
+  token_hash server-side (via supabase.auth.verifyOtp) and sets real session
+  cookies before redirecting to /reset-password, which is what fixes the
+  "Auth session missing!" error.
 -->
 <div style="background-color:#fafafa;padding:40px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;">
@@ -22,7 +29,7 @@
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
           <tr>
             <td style="border-radius:8px;background-color:#04b1af;">
-              <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
+              <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
                 Elegir nueva clave
               </a>
             </td>
