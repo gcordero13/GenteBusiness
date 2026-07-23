@@ -81,7 +81,10 @@ export function PdfStamperTool({
     try {
       const buffer = await file.arrayBuffer();
       const bytes = new Uint8Array(buffer);
-      const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
+      // pdfjs transfers (detaches) the buffer of the array it's handed off to its
+      // worker, so it must get its own copy — otherwise `bytes` goes empty and
+      // pdf-lib fails later with "No PDF header found" when downloading.
+      const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
       setPdfBytes(bytes);
       setPdfDoc(doc);
       setTotalPages(doc.numPages);
