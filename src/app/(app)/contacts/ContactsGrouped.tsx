@@ -1,6 +1,12 @@
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 
-export function ContactsGrouped({ contacts }: { contacts: ContactRow[] }) {
+export function ContactsGrouped({
+  contacts,
+  canEdit = false,
+}: {
+  contacts: ContactRow[];
+  canEdit?: boolean;
+}) {
   const groups = new Map<string, ContactRow[]>();
   for (const contact of contacts) {
     const key = contact.companies?.name ?? "Sin empresa";
@@ -18,7 +24,7 @@ export function ContactsGrouped({ contacts }: { contacts: ContactRow[] }) {
             {companyName} ({groupContacts.length})
           </summary>
           <div className="border-t p-2">
-            <ContactsTable contacts={groupContacts} />
+            <ContactsTable contacts={groupContacts} canEdit={canEdit} />
           </div>
         </details>
       ))}

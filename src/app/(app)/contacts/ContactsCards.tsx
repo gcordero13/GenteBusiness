@@ -2,9 +2,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Mail, MessageCircle, Phone } from "lucide-react";
 import { whatsappUrl } from "@/lib/contacts";
+import { ContactViewDialog } from "./ContactViewDialog";
 import type { ContactRow } from "./ContactsTable";
 
-export function ContactsCards({ contacts }: { contacts: ContactRow[] }) {
+export function ContactsCards({
+  contacts,
+  canEdit = false,
+}: {
+  contacts: ContactRow[];
+  canEdit?: boolean;
+}) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {contacts.map((c) => (
@@ -18,9 +25,11 @@ export function ContactsCards({ contacts }: { contacts: ContactRow[] }) {
               {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <a href={`/contacts/${c.id}`} className="font-medium underline">
-            {c.first_name} {c.last_name}
-          </a>
+          <ContactViewDialog contact={c} canEdit={canEdit}>
+            <span className="font-medium underline">
+              {c.first_name} {c.last_name}
+            </span>
+          </ContactViewDialog>
           {c.position && <p className="text-xs text-muted-foreground">{c.position}</p>}
           <p className="text-xs text-muted-foreground">
             {c.companies?.name}

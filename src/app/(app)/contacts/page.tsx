@@ -160,13 +160,13 @@ export default async function ContactsPage({
           )}
         </div>
       ) : activeView === "cards" ? (
-        <ContactsCards contacts={contactRows} />
+        <ContactsCards contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       ) : activeView === "grouped" ? (
-        <ContactsGrouped contacts={contactRows} />
+        <ContactsGrouped contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       ) : activeView === "org" ? (
         <ContactsOrgChart contacts={contactRows} />
       ) : (
-        <ContactsTable contacts={contactRows} />
+        <ContactsTable contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       )}
       {(birthdayContacts.length > 0 || (upcomingEvents ?? []).length > 0) && (
         <div className="grid gap-4 sm:grid-cols-2">

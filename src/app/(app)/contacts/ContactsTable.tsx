@@ -9,6 +9,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, MessageCircle } from "lucide-react";
 import { whatsappUrl } from "@/lib/contacts";
+import { ContactViewDialog } from "./ContactViewDialog";
 
 export interface ContactRow {
   id: string;
@@ -26,7 +27,13 @@ export interface ContactRow {
   departments: { name: string } | null;
 }
 
-export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
+export function ContactsTable({
+  contacts,
+  canEdit = false,
+}: {
+  contacts: ContactRow[];
+  canEdit?: boolean;
+}) {
   return (
     <div className="overflow-hidden rounded-xl border">
       <Table>
@@ -44,20 +51,19 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
           {contacts.map((c) => (
             <TableRow key={c.id}>
               <TableCell className="py-3">
-                <a
-                  href={`/contacts/${c.id}`}
-                  className="flex items-center gap-3 hover:underline"
-                >
-                  <Avatar className="size-8">
-                    <AvatarImage src={c.photo_url ?? undefined} alt="" />
-                    <AvatarFallback>
-                      {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium">
-                    {c.first_name} {c.last_name}
+                <ContactViewDialog contact={c} canEdit={canEdit}>
+                  <span className="flex items-center gap-3 hover:underline">
+                    <Avatar className="size-8">
+                      <AvatarImage src={c.photo_url ?? undefined} alt="" />
+                      <AvatarFallback>
+                        {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium">
+                      {c.first_name} {c.last_name}
+                    </span>
                   </span>
-                </a>
+                </ContactViewDialog>
               </TableCell>
               <TableCell className="py-3 text-muted-foreground">{c.position}</TableCell>
               <TableCell className="py-3 text-muted-foreground">{c.companies?.name}</TableCell>
