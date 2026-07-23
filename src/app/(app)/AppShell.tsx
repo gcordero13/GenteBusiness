@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "./Sidebar";
 
@@ -12,7 +12,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen flex-1">
+    <div className="flex h-screen overflow-hidden">
       {mobileOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/50 md:hidden"
@@ -26,12 +26,19 @@ export function AppShell({
       >
         <Sidebar {...sidebarProps} onNavigate={() => setMobileOpen(false)} />
       </div>
-      <div className="flex flex-1 flex-col overflow-x-hidden">
-        <header className="flex items-center gap-2 border-b p-3 md:hidden">
-          <Button variant="ghost" size="icon-sm" onClick={() => setMobileOpen(true)}>
-            <Menu className="size-5" />
-          </Button>
-          <span className="font-semibold">Gente Sánchez Business</span>
+      <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+        <header className="flex items-center justify-between gap-2 border-b p-3 md:hidden">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon-sm" onClick={() => setMobileOpen(true)}>
+              <Menu className="size-5" />
+            </Button>
+            <span className="font-semibold">Gente Sánchez Business</span>
+          </div>
+          <form action={sidebarProps.onLogout}>
+            <Button type="submit" variant="ghost" size="icon-sm" title="Cerrar sesión">
+              <LogOut className="size-5" />
+            </Button>
+          </form>
         </header>
         <main className="flex-1">{children}</main>
       </div>

@@ -137,7 +137,7 @@ export function Sidebar({
           )}
         </nav>
       </div>
-      <div className="space-y-2">
+      <div className="hidden space-y-2 md:block">
         {!collapsed && <p className="truncate px-2 text-xs text-muted-foreground">{email}</p>}
         <form action={onLogout}>
           <Button
