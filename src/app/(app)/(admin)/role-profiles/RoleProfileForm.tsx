@@ -108,7 +108,7 @@ export function RoleProfileForm({
           )
         }
       />
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initial ? "Editar perfil de rol" : "Nuevo perfil de rol"}</DialogTitle>
         </DialogHeader>
