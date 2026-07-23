@@ -33,9 +33,10 @@ export default async function DocumentStampsPage() {
 
   const sealsWithUrls: SealWithUrl[] = await Promise.all(
     (seals ?? []).map(async (s) => {
-      const { data } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from("company-seals")
-        .createSignedUrl(s.storage_path, 3600);
+        .createSignedUrl(s.storage_path, 14400);
+      if (error) console.error(`Failed to sign URL for seal ${s.id} (${s.storage_path}):`, error.message);
       return {
         id: s.id,
         name: s.name,
@@ -58,9 +59,10 @@ export default async function DocumentStampsPage() {
 
   const signaturesWithUrls: SignatureWithUrl[] = await Promise.all(
     (signatures ?? []).map(async (s) => {
-      const { data } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from("user-signatures")
-        .createSignedUrl(s.storage_path, 3600);
+        .createSignedUrl(s.storage_path, 14400);
+      if (error) console.error(`Failed to sign URL for signature ${s.id} (${s.storage_path}):`, error.message);
       return { id: s.id, storagePath: s.storage_path, url: data?.signedUrl ?? "" };
     }),
   );
