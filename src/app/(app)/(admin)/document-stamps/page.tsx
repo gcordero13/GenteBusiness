@@ -70,14 +70,18 @@ export default async function DocumentStampsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-6">
       <h1 className="text-xl font-semibold">Sellos y Firmas</h1>
       <p className="text-sm text-muted-foreground">
         Carga un PDF, agrégale sellos, firmas o texto, y descárgalo. El documento nunca se sube a
         la plataforma — solo se procesa en tu navegador.
       </p>
-      <PdfStamperTool seals={sealsWithUrls} signatures={signaturesWithUrls} />
-      <SealsManager companies={companies ?? []} seals={sealsWithUrls} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <PdfStamperTool seals={sealsWithUrls} signatures={signaturesWithUrls} />
+        <div className="lg:sticky lg:top-6">
+          <SealsManager companies={companies ?? []} seals={sealsWithUrls} />
+        </div>
+      </div>
     </div>
   );
 }

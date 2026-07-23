@@ -31,6 +31,11 @@ export function SealsManager({
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) setName(file.name.replace(/\.[^/.]+$/, ""));
+  }
+
   function submit() {
     const file = fileInputRef.current?.files?.[0];
     if (!file) {
@@ -64,9 +69,9 @@ export function SealsManager({
     <div className="space-y-4 rounded-lg border p-4">
       <h2 className="text-sm font-semibold">Sellos de empresa</h2>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+      <div className="space-y-2">
         <Select value={companyId} onValueChange={(v) => setCompanyId(v ?? "")}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Empresa">
               {(value: string) => companies.find((c) => c.id === value)?.name ?? "Empresa"}
             </SelectValue>
@@ -79,16 +84,16 @@ export function SealsManager({
             ))}
           </SelectContent>
         </Select>
+        <Input ref={fileInputRef} type="file" accept="image/png" onChange={handleFileChange} />
         <Input placeholder="Nombre del sello" value={name} onChange={(e) => setName(e.target.value)} />
-        <Input ref={fileInputRef} type="file" accept="image/png" />
-        <Button onClick={submit} disabled={isPending || !companyId || !name.trim()}>
+        <Button className="w-full" onClick={submit} disabled={isPending || !companyId || !name.trim()}>
           Subir
         </Button>
       </div>
       {seals.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay sellos todavía.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3">
           {seals.map((seal) => (
             <div key={seal.id} className="space-y-1 rounded border p-2 text-center">
               {/* eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL, not a static asset */}
