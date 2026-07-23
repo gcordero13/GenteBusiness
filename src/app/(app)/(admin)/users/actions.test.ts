@@ -9,7 +9,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { inviteUser, setUserPassword } from "./actions";
+import { inviteUser, setUserPassword, updateUserRoleProfile } from "./actions";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -27,12 +27,16 @@ function mockAdminClient({
   inviteUserByEmail,
   updateUserById,
   insertError,
+  updateEqError,
 }: {
   createUser?: ReturnType<typeof vi.fn>;
   inviteUserByEmail?: ReturnType<typeof vi.fn>;
   updateUserById?: ReturnType<typeof vi.fn>;
   insertError?: { message: string } | null;
+  updateEqError?: { message: string } | null;
 } = {}) {
+  const eqMock = vi.fn().mockResolvedValue({ error: updateEqError ?? null });
+  const updateMock = vi.fn().mockReturnValue({ eq: eqMock });
   return {
     auth: {
       admin: {
@@ -43,7 +47,9 @@ function mockAdminClient({
     },
     from: vi.fn().mockReturnValue({
       insert: vi.fn().mockResolvedValue({ error: insertError ?? null }),
+      update: updateMock,
     }),
+    _mocks: { updateMock, eqMock },
   };
 }
 
@@ -118,5 +124,41 @@ describe("setUserPassword", () => {
 
     expect(result.error).toBeUndefined();
     expect(updateUserById).toHaveBeenCalledWith("user-1", { password: "secret123" });
+  });
+});
+
+describe("updateUserRoleProfile", () => {
+  it("rejects callers without can_manage on the users module", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      mockServerClient({ can_manage: false }) as never,
+    );
+
+    const result = await updateUserRoleProfile({ userId: "user-1", roleProfileId: "profile-2" });
+
+    expect(result.error).toBe("No autorizado");
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("updates the user's role profile when the caller can manage users", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const admin = mockAdminClient();
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await updateUserRoleProfile({ userId: "user-1", roleProfileId: "profile-2" });
+
+    expect(result.error).toBeUndefined();
+    expect(admin.from).toHaveBeenCalledWith("app_users");
+    expect(admin._mocks.updateMock).toHaveBeenCalledWith({ role_profile_id: "profile-2" });
+    expect(admin._mocks.eqMock).toHaveBeenCalledWith("id", "user-1");
+  });
+
+  it("surfaces the error when the update fails", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const admin = mockAdminClient({ updateEqError: { message: "update failed" } });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await updateUserRoleProfile({ userId: "user-1", roleProfileId: "profile-2" });
+
+    expect(result.error).toBe("update failed");
   });
 });

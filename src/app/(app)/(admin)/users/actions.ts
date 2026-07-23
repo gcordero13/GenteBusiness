@@ -23,6 +23,11 @@ interface SetUserPasswordInput {
   password: string;
 }
 
+interface UpdateUserRoleProfileInput {
+  userId: string;
+  roleProfileId: string;
+}
+
 async function callerCanManageUsers(): Promise<boolean> {
   const supabase = await createClient();
   const {
@@ -73,6 +78,25 @@ export async function setUserPassword(input: SetUserPasswordInput): Promise<Invi
   const { error } = await admin.auth.admin.updateUserById(input.userId, {
     password: input.password,
   });
+  if (error) {
+    return { error: error.message };
+  }
+
+  return {};
+}
+
+export async function updateUserRoleProfile(
+  input: UpdateUserRoleProfileInput,
+): Promise<InviteUserResult> {
+  if (!(await callerCanManageUsers())) {
+    return { error: "No autorizado" };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("app_users")
+    .update({ role_profile_id: input.roleProfileId })
+    .eq("id", input.userId);
   if (error) {
     return { error: error.message };
   }

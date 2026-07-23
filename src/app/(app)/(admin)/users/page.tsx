@@ -11,6 +11,7 @@ import {
 import { Users as UsersIcon } from "lucide-react";
 import { InviteUserForm } from "./InviteUserForm";
 import { SetPasswordDialog } from "./SetPasswordDialog";
+import { RoleProfileSelect } from "./RoleProfileSelect";
 
 export default async function UsersPage() {
   const supabase = await createClient();
@@ -25,7 +26,7 @@ export default async function UsersPage() {
 
   const { data: users } = await supabase
     .from("app_users")
-    .select("id, email, full_name, role_profiles(name)")
+    .select("id, email, full_name, role_profile_id, role_profiles(name)")
     .order("email");
   const { data: profiles } = await supabase.from("role_profiles").select("id, name").order("name");
 
@@ -54,7 +55,13 @@ export default async function UsersPage() {
             {(users ?? []).map((u) => (
               <TableRow key={u.id}>
                 <TableCell>{u.email}</TableCell>
-                <TableCell>{(u.role_profiles as unknown as { name: string })?.name}</TableCell>
+                <TableCell>
+                  <RoleProfileSelect
+                    userId={u.id}
+                    currentProfileId={u.role_profile_id}
+                    profiles={profiles ?? []}
+                  />
+                </TableCell>
                 <TableCell className="text-right">
                   <SetPasswordDialog userId={u.id} email={u.email} />
                 </TableCell>
