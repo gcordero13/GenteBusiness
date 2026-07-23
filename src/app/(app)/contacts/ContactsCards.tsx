@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Mail, MessageCircle } from "lucide-react";
+import { Mail, MessageCircle, Phone } from "lucide-react";
 import { whatsappUrl } from "@/lib/contacts";
 import type { ContactRow } from "./ContactsTable";
 
@@ -27,6 +27,17 @@ export function ContactsCards({ contacts }: { contacts: ContactRow[] }) {
             {c.companies?.name && c.departments?.name ? " · " : ""}
             {c.departments?.name}
           </p>
+          {c.extension && (
+            <span
+              className="flex items-center gap-1.5 text-xs text-muted-foreground"
+              title={`Extensión ${c.extension}`}
+            >
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted">
+                <Phone className="size-3" />
+              </span>
+              Ext. {c.extension}
+            </span>
+          )}
           <Badge variant={c.status === "active" ? "default" : "secondary"}>
             {c.status === "active" ? "Activo" : "Anulado"}
           </Badge>
