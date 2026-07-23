@@ -23,6 +23,7 @@ export function SignatureDialog({
   const [open, setOpen] = useState(false);
   const [color, setColor] = useState("#000000");
   const [lineWidth, setLineWidth] = useState(2);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
@@ -76,7 +77,11 @@ export function SignatureDialog({
     if (!canvas || pointCountRef.current < 3) return;
     const dataUrl = canvas.toDataURL("image/png");
     startTransition(async () => {
-      await saveSignature(dataUrl);
+      const result = await saveSignature(dataUrl);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
       onPick(dataUrl);
       setOpen(false);
       clear();
@@ -90,17 +95,25 @@ export function SignatureDialog({
 
   function removeSaved(id: string, storagePath: string) {
     startTransition(async () => {
-      await deleteSignature(id, storagePath);
+      const result = await deleteSignature(id, storagePath);
+      if (result.error) setError(result.error);
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setError(null);
+      }}
+    >
       <DialogTrigger render={<Button variant="outline">Firma</Button>} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Firma</DialogTitle>
         </DialogHeader>
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="space-y-3">
           <canvas
             ref={canvasRef}
