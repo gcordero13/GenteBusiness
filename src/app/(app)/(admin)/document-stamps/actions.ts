@@ -7,6 +7,13 @@ interface ActionResult {
   error?: string;
 }
 
+function sanitizeFileName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
 export async function uploadSeal(formData: FormData): Promise<ActionResult> {
   const companyId = String(formData.get("companyId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
@@ -21,7 +28,7 @@ export async function uploadSeal(formData: FormData): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  const path = `${companyId}/${Date.now()}_${file.name}`;
+  const path = `${companyId}/${Date.now()}_${sanitizeFileName(file.name)}`;
 
   const { error: uploadError } = await supabase.storage
     .from("company-seals")

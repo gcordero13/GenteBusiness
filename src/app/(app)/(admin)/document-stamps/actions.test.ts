@@ -97,6 +97,21 @@ describe("uploadSeal", () => {
     );
   });
 
+  it("sanitizes accented characters and spaces in the file name for the storage key", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    const file = new File(["png-bytes"], "JOSÉ SÁNCHEZ COMERCIAL.png", { type: "image/png" });
+
+    const result = await uploadSeal(formDataFor({ companyId: "company-1", name: "Sello José", file }));
+
+    expect(result.error).toBeUndefined();
+    expect(supabase._mocks.insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storage_path: expect.stringMatching(/^company-1\/\d+_JOSE_SANCHEZ_COMERCIAL\.png$/),
+      }),
+    );
+  });
+
   it("surfaces the storage error and does not insert a row if upload fails", async () => {
     const supabase = mockSupabase({ uploadError: { message: "upload failed" } });
     vi.mocked(createClient).mockResolvedValue(supabase as never);
