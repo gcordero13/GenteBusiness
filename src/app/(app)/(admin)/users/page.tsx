@@ -16,7 +16,8 @@ import { InviteUserForm } from "./InviteUserForm";
 import { SetPasswordDialog } from "./SetPasswordDialog";
 import { RoleProfileSelect } from "./RoleProfileSelect";
 import { EditUserDialog } from "./EditUserDialog";
-import { deleteUser, setUserStatus } from "./actions";
+import { DeleteUserDialog } from "./DeleteUserDialog";
+import { setUserStatus } from "./actions";
 
 function initialsFor(fullName: string | null, email: string): string {
   const trimmedName = fullName?.trim();
@@ -82,11 +83,6 @@ export default async function UsersPage() {
                   });
                 }
 
-                async function remove() {
-                  "use server";
-                  await deleteUser(u.id);
-                }
-
                 return (
                   <TableRow key={u.id}>
                     <TableCell className="py-3">
@@ -125,11 +121,7 @@ export default async function UsersPage() {
                             {u.status === "active" ? "Anular" : "Reactivar"}
                           </Button>
                         </form>
-                        <form action={remove}>
-                          <Button type="submit" variant="destructive" size="sm">
-                            Eliminar
-                          </Button>
-                        </form>
+                        <DeleteUserDialog userId={u.id} email={u.email} />
                       </div>
                     </TableCell>
                   </TableRow>
