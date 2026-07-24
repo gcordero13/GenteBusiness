@@ -107,7 +107,7 @@ export default async function ContactsPage({
   }));
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
+    <div className="max-w-6xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Agenda de contactos</h1>
         <div className="flex items-center gap-2">
