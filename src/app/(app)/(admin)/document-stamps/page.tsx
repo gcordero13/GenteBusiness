@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PdfStamperTool } from "./PdfStamperTool";
+import { PdfStamperToolClient } from "./PdfStamperToolClient";
 import { SealsManager } from "./SealsManager";
 
 export interface SealWithUrl {
@@ -77,7 +77,7 @@ export default async function DocumentStampsPage() {
         la plataforma — solo se procesa en tu navegador.
       </p>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <PdfStamperTool seals={sealsWithUrls} signatures={signaturesWithUrls} />
+        <PdfStamperToolClient seals={sealsWithUrls} signatures={signaturesWithUrls} />
         <div className="lg:sticky lg:top-6">
           <SealsManager companies={companies ?? []} seals={sealsWithUrls} />
         </div>
