@@ -45,7 +45,7 @@ export default async function UsersPage() {
   const { data: profiles } = await supabase.from("role_profiles").select("id, name").order("name");
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Usuarios</h1>
