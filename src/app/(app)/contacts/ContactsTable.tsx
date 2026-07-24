@@ -40,9 +40,9 @@ export function ContactsTable({
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
             <TableHead className="py-3">Nombre</TableHead>
-            <TableHead className="py-3">Puesto</TableHead>
-            <TableHead className="py-3">Empresa</TableHead>
-            <TableHead className="py-3">Departamento</TableHead>
+            <TableHead className="hidden py-3 md:table-cell">Puesto</TableHead>
+            <TableHead className="hidden py-3 md:table-cell">Empresa</TableHead>
+            <TableHead className="hidden py-3 lg:table-cell">Departamento</TableHead>
             <TableHead className="py-3">Extensión</TableHead>
             <TableHead className="py-3 text-right">Contacto</TableHead>
           </TableRow>
@@ -65,9 +65,13 @@ export function ContactsTable({
                   </span>
                 </ContactViewDialog>
               </TableCell>
-              <TableCell className="py-3 text-muted-foreground">{c.position}</TableCell>
-              <TableCell className="py-3 text-muted-foreground">{c.companies?.name}</TableCell>
-              <TableCell className="py-3 text-muted-foreground">
+              <TableCell className="hidden py-3 text-muted-foreground md:table-cell">
+                {c.position}
+              </TableCell>
+              <TableCell className="hidden py-3 text-muted-foreground md:table-cell">
+                {c.companies?.name}
+              </TableCell>
+              <TableCell className="hidden py-3 text-muted-foreground lg:table-cell">
                 {c.departments?.name}
               </TableCell>
               <TableCell className="py-3 text-muted-foreground">{c.extension}</TableCell>

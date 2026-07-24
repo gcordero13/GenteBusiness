@@ -38,18 +38,18 @@ export function SearchFilters({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
       <Input
         placeholder="Buscar por nombre"
         defaultValue={searchParams.get("q") ?? ""}
         onChange={(e) => updateParam("q", e.target.value)}
-        className="max-w-xs"
+        className="w-full sm:max-w-xs"
       />
       <Select
         value={searchParams.get("company") ?? ""}
         onValueChange={(value) => updateParam("company", value)}
       >
-        <SelectTrigger className="w-48">
+        <SelectTrigger className="w-full sm:w-48">
           <SelectValue placeholder="Todas las empresas">
             {(value: string) => companies.find((c) => c.id === value)?.name ?? "Todas las empresas"}
           </SelectValue>
@@ -66,7 +66,7 @@ export function SearchFilters({
         value={searchParams.get("department") ?? ""}
         onValueChange={(value) => updateParam("department", value)}
       >
-        <SelectTrigger className="w-48">
+        <SelectTrigger className="w-full sm:w-48">
           <SelectValue placeholder="Todos los departamentos">
             {(value: string) =>
               departments.find((d) => d.id === value)?.name ?? "Todos los departamentos"
@@ -82,7 +82,7 @@ export function SearchFilters({
         </SelectContent>
       </Select>
       {canSeeInactiveToggle && (
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 py-1 text-sm sm:py-0">
           <input
             type="checkbox"
             checked={searchParams.get("showInactive") === "true"}

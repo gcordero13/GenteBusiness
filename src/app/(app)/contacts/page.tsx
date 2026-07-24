@@ -108,9 +108,9 @@ export default async function ContactsPage({
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold">Agenda de contactos</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ExportContactsButton />
           {flags.can_add && <ImportContactsDialog />}
           {flags.can_add && (
@@ -120,7 +120,7 @@ export default async function ContactsPage({
           )}
         </div>
       </div>
-      <div className="flex gap-1 text-sm">
+      <div className="flex flex-wrap gap-1 text-sm">
         <a
           href={viewHref("table")}
           className={`rounded-lg px-3 py-1 ${activeView === "table" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted"}`}
