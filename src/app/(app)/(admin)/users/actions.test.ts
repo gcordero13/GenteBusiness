@@ -6,10 +6,20 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(),
 }));
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { inviteUser, setUserPassword, updateUserRoleProfile } from "./actions";
+import {
+  deleteUser,
+  inviteUser,
+  setUserPassword,
+  setUserStatus,
+  updateUserFullName,
+  updateUserRoleProfile,
+} from "./actions";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -26,12 +36,14 @@ function mockAdminClient({
   createUser,
   inviteUserByEmail,
   updateUserById,
+  deleteUser: deleteUserMock,
   insertError,
   updateEqError,
 }: {
   createUser?: ReturnType<typeof vi.fn>;
   inviteUserByEmail?: ReturnType<typeof vi.fn>;
   updateUserById?: ReturnType<typeof vi.fn>;
+  deleteUser?: ReturnType<typeof vi.fn>;
   insertError?: { message: string } | null;
   updateEqError?: { message: string } | null;
 } = {}) {
@@ -42,7 +54,8 @@ function mockAdminClient({
       admin: {
         createUser: createUser ?? vi.fn(),
         inviteUserByEmail: inviteUserByEmail ?? vi.fn(),
-        updateUserById: updateUserById ?? vi.fn(),
+        updateUserById: updateUserById ?? vi.fn().mockResolvedValue({ error: null }),
+        deleteUser: deleteUserMock ?? vi.fn().mockResolvedValue({ error: null }),
       },
     },
     from: vi.fn().mockReturnValue({
@@ -160,5 +173,150 @@ describe("updateUserRoleProfile", () => {
     const result = await updateUserRoleProfile({ userId: "user-1", roleProfileId: "profile-2" });
 
     expect(result.error).toBe("update failed");
+  });
+});
+
+describe("updateUserFullName", () => {
+  it("rejects callers without can_manage on the users module", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      mockServerClient({ can_manage: false }) as never,
+    );
+
+    const result = await updateUserFullName({ userId: "user-1", fullName: "Ana Pérez" });
+
+    expect(result.error).toBe("No autorizado");
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("updates the user's full name when the caller can manage users", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const admin = mockAdminClient();
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await updateUserFullName({ userId: "user-1", fullName: "Ana Pérez" });
+
+    expect(result.error).toBeUndefined();
+    expect(admin.from).toHaveBeenCalledWith("app_users");
+    expect(admin._mocks.updateMock).toHaveBeenCalledWith({ full_name: "Ana Pérez" });
+    expect(admin._mocks.eqMock).toHaveBeenCalledWith("id", "user-1");
+  });
+
+  it("stores an empty name as null", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const admin = mockAdminClient();
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    await updateUserFullName({ userId: "user-1", fullName: "" });
+
+    expect(admin._mocks.updateMock).toHaveBeenCalledWith({ full_name: null });
+  });
+
+  it("surfaces the error when the update fails", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const admin = mockAdminClient({ updateEqError: { message: "update failed" } });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await updateUserFullName({ userId: "user-1", fullName: "Ana Pérez" });
+
+    expect(result.error).toBe("update failed");
+  });
+});
+
+describe("setUserStatus", () => {
+  it("rejects callers without can_manage on the users module", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      mockServerClient({ can_manage: false }) as never,
+    );
+
+    const result = await setUserStatus({ userId: "user-1", status: "deactivated" });
+
+    expect(result.error).toBe("No autorizado");
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("bans the user and marks them deactivated", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const updateUserById = vi.fn().mockResolvedValue({ error: null });
+    const admin = mockAdminClient({ updateUserById });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await setUserStatus({ userId: "user-1", status: "deactivated" });
+
+    expect(result.error).toBeUndefined();
+    expect(updateUserById).toHaveBeenCalledWith("user-1", { ban_duration: expect.any(String) });
+    expect(updateUserById.mock.calls[0][1].ban_duration).not.toBe("none");
+    expect(admin._mocks.updateMock).toHaveBeenCalledWith({ status: "deactivated" });
+    expect(admin._mocks.eqMock).toHaveBeenCalledWith("id", "user-1");
+  });
+
+  it("lifts the ban and marks the user active again", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const updateUserById = vi.fn().mockResolvedValue({ error: null });
+    const admin = mockAdminClient({ updateUserById });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await setUserStatus({ userId: "user-1", status: "active" });
+
+    expect(result.error).toBeUndefined();
+    expect(updateUserById).toHaveBeenCalledWith("user-1", { ban_duration: "none" });
+    expect(admin._mocks.updateMock).toHaveBeenCalledWith({ status: "active" });
+  });
+
+  it("surfaces the error when banning the user fails, without touching the status column", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const updateUserById = vi.fn().mockResolvedValue({ error: { message: "ban failed" } });
+    const admin = mockAdminClient({ updateUserById });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await setUserStatus({ userId: "user-1", status: "deactivated" });
+
+    expect(result.error).toBe("ban failed");
+    expect(admin._mocks.updateMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the error when the status column update fails", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const admin = mockAdminClient({ updateEqError: { message: "update failed" } });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await setUserStatus({ userId: "user-1", status: "deactivated" });
+
+    expect(result.error).toBe("update failed");
+  });
+});
+
+describe("deleteUser", () => {
+  it("rejects callers without can_manage on the users module", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      mockServerClient({ can_manage: false }) as never,
+    );
+
+    const result = await deleteUser("user-1");
+
+    expect(result.error).toBe("No autorizado");
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("deletes the auth user when the caller can manage users", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const deleteUserMock = vi.fn().mockResolvedValue({ error: null });
+    const admin = mockAdminClient({ deleteUser: deleteUserMock });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await deleteUser("user-1");
+
+    expect(result.error).toBeUndefined();
+    expect(deleteUserMock).toHaveBeenCalledWith("user-1");
+  });
+
+  it("surfaces the error when deletion fails", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const deleteUserMock = vi.fn().mockResolvedValue({ error: { message: "delete failed" } });
+    const admin = mockAdminClient({ deleteUser: deleteUserMock });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await deleteUser("user-1");
+
+    expect(result.error).toBe("delete failed");
   });
 });

@@ -1,7 +1,10 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+
+const DEACTIVATE_BAN_DURATION = "876000h"; // ~100 years; effectively indefinite until reactivated
 
 interface InviteUserInput {
   email: string;
@@ -26,6 +29,16 @@ interface SetUserPasswordInput {
 interface UpdateUserRoleProfileInput {
   userId: string;
   roleProfileId: string;
+}
+
+interface UpdateUserFullNameInput {
+  userId: string;
+  fullName: string;
+}
+
+interface SetUserStatusInput {
+  userId: string;
+  status: "active" | "deactivated";
 }
 
 async function callerCanManageUsers(): Promise<boolean> {
@@ -101,5 +114,65 @@ export async function updateUserRoleProfile(
     return { error: error.message };
   }
 
+  return {};
+}
+
+export async function updateUserFullName(
+  input: UpdateUserFullNameInput,
+): Promise<InviteUserResult> {
+  if (!(await callerCanManageUsers())) {
+    return { error: "No autorizado" };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("app_users")
+    .update({ full_name: input.fullName || null })
+    .eq("id", input.userId);
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/users");
+  return {};
+}
+
+export async function setUserStatus(input: SetUserStatusInput): Promise<InviteUserResult> {
+  if (!(await callerCanManageUsers())) {
+    return { error: "No autorizado" };
+  }
+
+  const admin = createAdminClient();
+  const { error: banError } = await admin.auth.admin.updateUserById(input.userId, {
+    ban_duration: input.status === "deactivated" ? DEACTIVATE_BAN_DURATION : "none",
+  });
+  if (banError) {
+    return { error: banError.message };
+  }
+
+  const { error } = await admin
+    .from("app_users")
+    .update({ status: input.status })
+    .eq("id", input.userId);
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/users");
+  return {};
+}
+
+export async function deleteUser(userId: string): Promise<InviteUserResult> {
+  if (!(await callerCanManageUsers())) {
+    return { error: "No autorizado" };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/users");
   return {};
 }
