@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,22 +13,30 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { createActivity } from "./actions";
+import { saveActivity } from "./actions";
 
-export function ActivityForm() {
+interface ActivityInput {
+  id: string;
+  name: string;
+  eventDate: string;
+}
+
+export function ActivityForm({ initial }: { initial?: ActivityInput }) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [eventDate, setEventDate] = useState("");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [eventDate, setEventDate] = useState(initial?.eventDate ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function submit() {
     startTransition(async () => {
-      const result = await createActivity(name, eventDate);
+      const result = await saveActivity(initial?.id, name, eventDate);
       setError(result.error ?? null);
       if (!result.error) {
-        setName("");
-        setEventDate("");
+        if (!initial) {
+          setName("");
+          setEventDate("");
+        }
         setOpen(false);
       }
     });
@@ -35,10 +44,22 @@ export function ActivityForm() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>Nueva actividad</Button>} />
+      <DialogTrigger
+        render={
+          initial ? (
+            <Button variant="ghost" size="icon-sm" title="Editar">
+              <Pencil className="size-4" />
+            </Button>
+          ) : (
+            <Button>Nueva actividad</Button>
+          )
+        }
+      />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nueva actividad o día de fiesta</DialogTitle>
+          <DialogTitle>
+            {initial ? "Editar actividad o día de fiesta" : "Nueva actividad o día de fiesta"}
+          </DialogTitle>
         </DialogHeader>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="space-y-1">
@@ -55,7 +76,7 @@ export function ActivityForm() {
         </div>
         <DialogFooter>
           <Button onClick={submit} disabled={isPending || !name || !eventDate}>
-            Agregar
+            {initial ? "Guardar" : "Agregar"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -2,9 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { BookUser } from "lucide-react";
-import { escapeIlikePattern, getUpcomingBirthdays } from "@/lib/contacts";
+import { escapeIlikePattern } from "@/lib/contacts";
 import { SearchFilters } from "./SearchFilters";
-import { BirthdaysWidget } from "./BirthdaysWidget";
 import { EventsWidget } from "./EventsWidget";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 import { ContactsCards } from "./ContactsCards";
@@ -79,16 +78,6 @@ export default async function ContactsPage({
     .gte("event_date", today)
     .order("event_date")
     .limit(5);
-
-  const birthdayContacts = getUpcomingBirthdays(
-    (contacts ?? []).map((c) => ({
-      id: c.id,
-      name: `${c.first_name} ${c.last_name}`,
-      birth_date: c.birth_date,
-    })),
-    new Date(),
-    5,
-  );
 
   const contactRows: ContactRow[] = (contacts ?? []).map((c) => ({
     id: c.id,
@@ -168,12 +157,7 @@ export default async function ContactsPage({
       ) : (
         <ContactsTable contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       )}
-      {(birthdayContacts.length > 0 || (upcomingEvents ?? []).length > 0) && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <BirthdaysWidget contacts={birthdayContacts} />
-          <EventsWidget events={upcomingEvents ?? []} />
-        </div>
-      )}
+      {(upcomingEvents ?? []).length > 0 && <EventsWidget events={upcomingEvents ?? []} />}
     </div>
   );
 }

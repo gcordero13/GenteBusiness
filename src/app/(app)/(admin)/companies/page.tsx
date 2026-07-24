@@ -39,12 +39,16 @@ export default async function CompaniesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {(companies ?? []).map((c) => (
               <TableRow key={c.id}>
-                <TableCell>{c.name}</TableCell>
+                <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell>
+                  <CompanyForm initial={{ id: c.id, name: c.name }} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

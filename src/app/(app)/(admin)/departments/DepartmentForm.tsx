@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,26 +19,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createDepartment } from "./actions";
+import { saveDepartment } from "./actions";
 
 interface Company {
   id: string;
   name: string;
 }
 
-export function DepartmentForm({ companies }: { companies: Company[] }) {
+interface DepartmentInput {
+  id: string;
+  name: string;
+  companyId: string;
+}
+
+export function DepartmentForm({
+  companies,
+  initial,
+}: {
+  companies: Company[];
+  initial?: DepartmentInput;
+}) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [companyId, setCompanyId] = useState(companies[0]?.id ?? "");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [companyId, setCompanyId] = useState(initial?.companyId ?? companies[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function submit() {
     startTransition(async () => {
-      const result = await createDepartment(name, companyId);
+      const result = await saveDepartment(initial?.id, name, companyId);
       setError(result.error ?? null);
       if (!result.error) {
-        setName("");
+        if (!initial) setName("");
         setOpen(false);
       }
     });
@@ -45,10 +58,20 @@ export function DepartmentForm({ companies }: { companies: Company[] }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>Nuevo departamento</Button>} />
+      <DialogTrigger
+        render={
+          initial ? (
+            <Button variant="ghost" size="icon-sm" title="Editar">
+              <Pencil className="size-4" />
+            </Button>
+          ) : (
+            <Button>Nuevo departamento</Button>
+          )
+        }
+      />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nuevo departamento</DialogTitle>
+          <DialogTitle>{initial ? "Editar departamento" : "Nuevo departamento"}</DialogTitle>
         </DialogHeader>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Input
@@ -72,7 +95,7 @@ export function DepartmentForm({ companies }: { companies: Company[] }) {
         </Select>
         <DialogFooter>
           <Button onClick={submit} disabled={isPending || !name || !companyId}>
-            Agregar
+            {initial ? "Guardar" : "Agregar"}
           </Button>
         </DialogFooter>
       </DialogContent>

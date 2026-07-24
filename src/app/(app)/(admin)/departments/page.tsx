@@ -22,7 +22,7 @@ export default async function DepartmentsPage() {
 
   const { data: departments } = await supabase
     .from("departments")
-    .select("id, name, companies(name)")
+    .select("id, name, company_id, companies(name)")
     .order("name");
   const { data: companies } = await supabase.from("companies").select("id, name").order("name");
 
@@ -44,13 +44,20 @@ export default async function DepartmentsPage() {
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Empresa</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {(departments ?? []).map((d) => (
               <TableRow key={d.id}>
-                <TableCell>{d.name}</TableCell>
+                <TableCell className="font-medium">{d.name}</TableCell>
                 <TableCell>{(d.companies as unknown as { name: string })?.name}</TableCell>
+                <TableCell>
+                  <DepartmentForm
+                    companies={companies ?? []}
+                    initial={{ id: d.id, name: d.name, companyId: d.company_id }}
+                  />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -44,13 +44,17 @@ export default async function ActivitiesPage() {
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Fecha</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {(events ?? []).map((e) => (
               <TableRow key={e.id}>
-                <TableCell>{e.name}</TableCell>
+                <TableCell className="font-medium">{e.name}</TableCell>
                 <TableCell>{formatMonthDay(e.event_date)}</TableCell>
+                <TableCell>
+                  <ActivityForm initial={{ id: e.id, name: e.name, eventDate: e.event_date }} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

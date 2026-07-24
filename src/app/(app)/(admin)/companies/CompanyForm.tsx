@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,20 +12,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { createCompany } from "./actions";
+import { saveCompany } from "./actions";
 
-export function CompanyForm() {
+interface CompanyInput {
+  id: string;
+  name: string;
+}
+
+export function CompanyForm({ initial }: { initial?: CompanyInput }) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initial?.name ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function submit() {
     startTransition(async () => {
-      const result = await createCompany(name);
+      const result = await saveCompany(initial?.id, name);
       setError(result.error ?? null);
       if (!result.error) {
-        setName("");
+        if (!initial) setName("");
         setOpen(false);
       }
     });
@@ -32,10 +38,20 @@ export function CompanyForm() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>Nueva empresa</Button>} />
+      <DialogTrigger
+        render={
+          initial ? (
+            <Button variant="ghost" size="icon-sm" title="Editar">
+              <Pencil className="size-4" />
+            </Button>
+          ) : (
+            <Button>Nueva empresa</Button>
+          )
+        }
+      />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nueva empresa</DialogTitle>
+          <DialogTitle>{initial ? "Editar empresa" : "Nueva empresa"}</DialogTitle>
         </DialogHeader>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Input
@@ -45,7 +61,7 @@ export function CompanyForm() {
         />
         <DialogFooter>
           <Button onClick={submit} disabled={isPending || !name}>
-            Agregar
+            {initial ? "Guardar" : "Agregar"}
           </Button>
         </DialogFooter>
       </DialogContent>
