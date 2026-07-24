@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   Table,
   TableBody,
@@ -17,6 +18,7 @@ import { SetPasswordDialog } from "./SetPasswordDialog";
 import { RoleProfileSelect } from "./RoleProfileSelect";
 import { EditUserDialog } from "./EditUserDialog";
 import { DeleteUserDialog } from "./DeleteUserDialog";
+import { InviteFromContactDialog } from "./InviteFromContactDialog";
 import { setUserStatus } from "./actions";
 
 function initialsFor(fullName: string | null, email: string): string {
@@ -45,6 +47,18 @@ export default async function UsersPage() {
     .order("email");
   const { data: profiles } = await supabase.from("role_profiles").select("id, name").order("name");
 
+  const admin = createAdminClient();
+  const { data: contactsWithEmail } = await admin
+    .from("contacts")
+    .select("id, first_name, last_name, email")
+    .not("email", "is", null)
+    .eq("status", "active")
+    .order("first_name");
+  const existingEmails = new Set((users ?? []).map((u) => u.email.toLowerCase()));
+  const availableContacts = (contactsWithEmail ?? [])
+    .filter((c) => c.email && !existingEmails.has(c.email.toLowerCase()))
+    .map((c) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, email: c.email! }));
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
@@ -54,7 +68,10 @@ export default async function UsersPage() {
             Administra el acceso, el perfil y la contraseña de cada usuario de la plataforma.
           </p>
         </div>
-        <InviteUserForm profiles={profiles ?? []} />
+        <div className="flex flex-wrap items-center gap-2">
+          <InviteFromContactDialog contacts={availableContacts} />
+          <InviteUserForm profiles={profiles ?? []} />
+        </div>
       </div>
       {(users ?? []).length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-16 text-center text-muted-foreground">

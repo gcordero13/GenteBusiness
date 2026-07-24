@@ -162,6 +162,61 @@ export async function setUserStatus(input: SetUserStatusInput): Promise<InviteUs
   return {};
 }
 
+export async function inviteContactAsUser(contactId: string): Promise<InviteUserResult> {
+  if (!(await callerCanManageUsers())) {
+    return { error: "No autorizado" };
+  }
+
+  const admin = createAdminClient();
+
+  const { data: contact, error: contactError } = await admin
+    .from("contacts")
+    .select("first_name, last_name, email")
+    .eq("id", contactId)
+    .single();
+  if (contactError || !contact?.email) {
+    return { error: "El contacto no tiene un correo válido" };
+  }
+
+  const { data: existing } = await admin
+    .from("app_users")
+    .select("id")
+    .eq("email", contact.email)
+    .maybeSingle();
+  if (existing) {
+    return { error: "Este correo ya tiene acceso a la plataforma" };
+  }
+
+  const { data: viewerProfile } = await admin
+    .from("role_profiles")
+    .select("id")
+    .eq("name", "Viewer")
+    .maybeSingle();
+  if (!viewerProfile) {
+    return { error: "No se encontró el perfil Viewer" };
+  }
+
+  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
+    contact.email,
+  );
+  if (inviteError || !invited.user) {
+    return { error: inviteError?.message ?? "No se pudo invitar al usuario" };
+  }
+
+  const { error: insertError } = await admin.from("app_users").insert({
+    id: invited.user.id,
+    email: contact.email,
+    full_name: `${contact.first_name} ${contact.last_name}`,
+    role_profile_id: viewerProfile.id,
+  });
+  if (insertError) {
+    return { error: insertError.message };
+  }
+
+  revalidatePath("/users");
+  return {};
+}
+
 export async function deleteUser(userId: string): Promise<InviteUserResult> {
   if (!(await callerCanManageUsers())) {
     return { error: "No autorizado" };

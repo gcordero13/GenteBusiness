@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   deleteUser,
+  inviteContactAsUser,
   inviteUser,
   setUserPassword,
   setUserStatus,
@@ -282,6 +283,128 @@ describe("setUserStatus", () => {
     const result = await setUserStatus({ userId: "user-1", status: "deactivated" });
 
     expect(result.error).toBe("update failed");
+  });
+});
+
+describe("inviteContactAsUser", () => {
+  function buildAdmin({
+    contact = { first_name: "Ana", last_name: "Pérez", email: "ana@example.com" },
+    contactError = null,
+    existingUser = null,
+    viewerProfile = { id: "viewer-profile-id" },
+    inviteUserByEmail,
+    insertError = null,
+  }: {
+    contact?: { first_name: string; last_name: string; email: string | null } | null;
+    contactError?: { message: string } | null;
+    existingUser?: { id: string } | null;
+    viewerProfile?: { id: string } | null;
+    inviteUserByEmail?: ReturnType<typeof vi.fn>;
+    insertError?: { message: string } | null;
+  } = {}) {
+    const insertMock = vi.fn().mockResolvedValue({ error: insertError });
+    const from = vi.fn((table: string) => {
+      if (table === "contacts") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: contact, error: contactError }),
+            }),
+          }),
+        };
+      }
+      if (table === "app_users") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({ data: existingUser, error: null }),
+            }),
+          }),
+          insert: insertMock,
+        };
+      }
+      if (table === "role_profiles") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({ data: viewerProfile, error: null }),
+            }),
+          }),
+        };
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    return {
+      auth: {
+        admin: {
+          inviteUserByEmail:
+            inviteUserByEmail ??
+            vi.fn().mockResolvedValue({ data: { user: { id: "new-auth-id" } }, error: null }),
+        },
+      },
+      from,
+      _mocks: { insertMock },
+    };
+  }
+
+  it("rejects callers without can_manage on the users module", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: false }) as never);
+
+    const result = await inviteContactAsUser("contact-1");
+
+    expect(result.error).toBe("No autorizado");
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("invites the contact's email and creates an app_users row with the Viewer profile", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const admin = buildAdmin();
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await inviteContactAsUser("contact-1");
+
+    expect(result.error).toBeUndefined();
+    expect(admin.auth.admin.inviteUserByEmail).toHaveBeenCalledWith("ana@example.com");
+    expect(admin._mocks.insertMock).toHaveBeenCalledWith({
+      id: "new-auth-id",
+      email: "ana@example.com",
+      full_name: "Ana Pérez",
+      role_profile_id: "viewer-profile-id",
+    });
+  });
+
+  it("rejects a contact without an email", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const admin = buildAdmin({ contact: { first_name: "Ana", last_name: "Pérez", email: null } });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await inviteContactAsUser("contact-1");
+
+    expect(result.error).toBe("El contacto no tiene un correo válido");
+  });
+
+  it("rejects when that email already has platform access", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const admin = buildAdmin({ existingUser: { id: "existing-id" } });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await inviteContactAsUser("contact-1");
+
+    expect(result.error).toBe("Este correo ya tiene acceso a la plataforma");
+  });
+
+  it("surfaces the error when the invite fails", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const inviteUserByEmail = vi
+      .fn()
+      .mockResolvedValue({ data: { user: null }, error: { message: "invite failed" } });
+    const admin = buildAdmin({ inviteUserByEmail });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await inviteContactAsUser("contact-1");
+
+    expect(result.error).toBe("invite failed");
   });
 });
 
