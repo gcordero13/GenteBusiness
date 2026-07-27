@@ -40,6 +40,9 @@ yarn-error.log*
 # brainstorming visual companion
 .superpowers/
 
+# git worktrees
+.worktrees/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
