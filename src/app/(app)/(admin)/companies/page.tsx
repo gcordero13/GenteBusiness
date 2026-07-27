@@ -38,6 +38,7 @@ export default async function CompaniesPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead />
               <TableHead>Nombre</TableHead>
               <TableHead />
             </TableRow>
@@ -45,9 +46,17 @@ export default async function CompaniesPage() {
           <TableBody>
             {(companies ?? []).map((c) => (
               <TableRow key={c.id}>
+                <TableCell>
+                  {c.logo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL
+                    <img src={c.logo_url} alt="" className="size-8 rounded object-contain" />
+                  ) : (
+                    <Building2 className="size-8 text-muted-foreground" />
+                  )}
+                </TableCell>
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell>
-                  <CompanyForm initial={{ id: c.id, name: c.name }} />
+                  <CompanyForm initial={{ id: c.id, name: c.name, logo_url: c.logo_url }} />
                 </TableCell>
               </TableRow>
             ))}
