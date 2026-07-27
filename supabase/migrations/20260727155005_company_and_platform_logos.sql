@@ -43,6 +43,10 @@ for update
 using (
   bucket_id = 'company-logos'
   and (storage.foldername(name))[1] = 'platform'
+)
+with check (
+  bucket_id = 'company-logos'
+  and (storage.foldername(name))[1] = 'platform'
   and coalesce((select can_manage from public.get_my_module_permissions('settings')), false)
 );
 
@@ -57,6 +61,10 @@ with check (
 create policy "company_logos_update_companies" on storage.objects
 for update
 using (
+  bucket_id = 'company-logos'
+  and (storage.foldername(name))[1] is null
+)
+with check (
   bucket_id = 'company-logos'
   and (storage.foldername(name))[1] is null
   and coalesce((select can_manage from public.get_my_module_permissions('companies')), false)

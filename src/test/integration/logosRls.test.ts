@@ -118,4 +118,60 @@ describe("company-logos storage RLS", () => {
     expect(error).toBeNull();
     await createAdminClient().storage.from("company-logos").remove([path]);
   });
+
+  it("lets a Super Admin overwrite an existing company logo at the bucket root", async () => {
+    admin = await createTestUser("Super Admin");
+    const path = `${randomUUID()}-logo.png`;
+
+    await createAdminClient().storage.from("company-logos").upload(path, fakePng());
+
+    const { error } = await admin.client.storage
+      .from("company-logos")
+      .upload(path, fakePng(), { upsert: true });
+
+    expect(error).toBeNull();
+    await createAdminClient().storage.from("company-logos").remove([path]);
+  });
+
+  it("blocks an Editor from overwriting an existing company logo at the bucket root", async () => {
+    editor = await createTestUser("Editor");
+    const path = `${randomUUID()}-logo.png`;
+
+    await createAdminClient().storage.from("company-logos").upload(path, fakePng());
+
+    const { error } = await editor.client.storage
+      .from("company-logos")
+      .upload(path, fakePng(), { upsert: true });
+
+    expect(error).not.toBeNull();
+    await createAdminClient().storage.from("company-logos").remove([path]);
+  });
+
+  it("lets a Super Admin overwrite an existing logo in the platform/ folder", async () => {
+    admin = await createTestUser("Super Admin");
+    const path = `platform/${randomUUID()}-logo.png`;
+
+    await createAdminClient().storage.from("company-logos").upload(path, fakePng());
+
+    const { error } = await admin.client.storage
+      .from("company-logos")
+      .upload(path, fakePng(), { upsert: true });
+
+    expect(error).toBeNull();
+    await createAdminClient().storage.from("company-logos").remove([path]);
+  });
+
+  it("blocks an Editor from overwriting an existing logo in the platform/ folder", async () => {
+    editor = await createTestUser("Editor");
+    const path = `platform/${randomUUID()}-logo.png`;
+
+    await createAdminClient().storage.from("company-logos").upload(path, fakePng());
+
+    const { error } = await editor.client.storage
+      .from("company-logos")
+      .upload(path, fakePng(), { upsert: true });
+
+    expect(error).not.toBeNull();
+    await createAdminClient().storage.from("company-logos").remove([path]);
+  });
 });
