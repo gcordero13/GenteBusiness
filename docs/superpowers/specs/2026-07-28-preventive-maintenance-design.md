@@ -98,7 +98,11 @@ Nuevo módulo `src/lib/maintenancePdfReport.ts`: construye el documento con `pdf
 
 ## Envío de correo
 
-Server Action que usa `nodemailer` con las credenciales SMTP ya configuradas en Ajustes (mismas que usa `saveSmtpSettings`/`updateAuthConfig`), sin provisionar un servicio nuevo. Al completarse el registro, envía en el mismo momento:
+**Hallazgo durante la planeación:** las credenciales SMTP que hoy se guardan en Ajustes solo configuran el mailer interno de Supabase Auth (invitaciones, reset de contraseña) vía la Management API de Supabase — no existe una tabla local con host/usuario/contraseña que nuestro propio código pueda leer, y esa API no expone la contraseña de vuelta. `nodemailer` tampoco es una dependencia actual del proyecto.
+
+**Decisión:** se añade una tabla nueva `email_settings` (fila única/singleton) que guarda las mismas credenciales SMTP que el admin ya captura en el formulario de Ajustes — `saveSmtpSettings` se extiende para, además de llamar a `updateAuthConfig` (Supabase Auth), hacer upsert de esas credenciales en `email_settings`. No se agrega una pantalla nueva; se reutiliza el formulario existente de Ajustes. La tabla queda protegida por RLS: solo lectura para `service_role`/admin client (las Server Actions de envío de correo usan el cliente admin, nunca se expone al cliente).
+
+Server Action que usa `nodemailer` (nueva dependencia) con las credenciales de `email_settings`. Al completarse el registro, envía en el mismo momento:
 
 1. PDF adjunto a `acusesdeti@sanchezbusinesscorp.com`, asunto `Mantenimiento - {nombre del usuario} - {fecha}`.
 2. Enlace de la encuesta (`/encuesta/[token]`) al correo del usuario.
