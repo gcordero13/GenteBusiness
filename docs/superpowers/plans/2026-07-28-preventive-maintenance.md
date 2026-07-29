@@ -575,7 +575,7 @@ git commit -m "feat: add maintenance link expiry check"
 
 - [ ] **Step 1: Add the module flags in `layout.tsx`**
 
-In `src/app/(app)/layout.tsx`, add `canViewMaintenance` and `canAddMaintenance` to the `<AppShell>` props:
+In `src/app/(app)/layout.tsx`, add `canViewMaintenance` to the `<AppShell>` props:
 
 ```tsx
     <AppShell
