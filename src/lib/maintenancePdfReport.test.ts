@@ -71,4 +71,48 @@ describe("buildMaintenancePdfBytes", () => {
     const reloaded = await PDFDocument.load(bytes);
     expect(reloaded.getPageCount()).toBe(1);
   });
+
+  it("paginates onto a new page instead of silently clipping long content", async () => {
+    const pngBytes = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      ),
+      (c) => c.charCodeAt(0),
+    );
+
+    // A realistic Spanish sentence repeated well past the ~150-165 word
+    // threshold that forces the findings/observations text to overflow the
+    // bottom margin of a single page.
+    const longSentence =
+      "Se realizó limpieza completa del equipo, actualización de controladores y verificación de temperatura del procesador sin anomalías detectadas durante la revisión. ";
+    const longText = longSentence.repeat(20);
+
+    const bytes = await buildMaintenancePdfBytes(
+      {
+        firstName: "Ana",
+        lastName: "García",
+        position: "Analista",
+        companyName: "Sanchez Business Corp",
+        departmentName: "TI",
+        email: "ana@example.com",
+        hostName: "DESKTOP-ANA",
+        ram: "16 GB",
+        os: "Windows 11",
+        storageTotal: "512 GB",
+        storageUsed: "200 GB",
+        storageFree: "312 GB",
+        checklist: [
+          { label: "Punto de restauración creado", value: true },
+          { label: "Limpieza de archivos temporales", value: false },
+        ],
+        findings: longText,
+        observations: longText,
+        completedAt: new Date("2026-07-28T15:00:00Z"),
+      },
+      { technicianPng: pngBytes, userPng: pngBytes },
+    );
+
+    const reloaded = await PDFDocument.load(bytes);
+    expect(reloaded.getPageCount()).toBeGreaterThanOrEqual(2);
+  });
 });
