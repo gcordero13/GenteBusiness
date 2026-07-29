@@ -1,8 +1,8 @@
 create table public.maintenance_records (
   id uuid primary key default gen_random_uuid(),
   token text not null unique,
-  contact_id uuid not null references public.contacts (id),
-  created_by uuid not null references public.app_users (id),
+  contact_id uuid references public.contacts (id) on delete set null,
+  created_by uuid references public.app_users (id) on delete set null,
 
   -- Snapshot of the contact at creation time (see design spec: the signed
   -- report must reflect the contact's state on the day of the visit, not
@@ -62,7 +62,10 @@ using ( coalesce((select can_view from public.get_my_module_permissions('mainten
 
 create policy "maintenance_records_insert" on public.maintenance_records
 for insert
-with check ( coalesce((select can_add from public.get_my_module_permissions('maintenance')), false) );
+with check (
+  coalesce((select can_add from public.get_my_module_permissions('maintenance')), false)
+  and created_by = auth.uid()
+);
 
 create policy "maintenance_records_delete" on public.maintenance_records
 for delete
