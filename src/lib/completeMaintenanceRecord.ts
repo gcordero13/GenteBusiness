@@ -71,19 +71,34 @@ export async function completeMaintenanceRecord(record: MaintenanceRecordForComp
     { technicianPng, userPng },
   );
 
+  // upsert: true keeps this step retry-safe — a retry after a partial
+  // failure later in this function must be able to re-upload the same PDF
+  // without hitting a 409 "resource already exists" error.
   const pdfPath = `${record.id}.pdf`;
   const { error: uploadError } = await admin.storage
     .from("maintenance-reports")
-    .upload(pdfPath, pdfBytes, { contentType: "application/pdf" });
+    .upload(pdfPath, pdfBytes, { contentType: "application/pdf", upsert: true });
   if (uploadError) throw new Error(uploadError.message);
 
-  const surveyToken = generateMaintenanceToken();
-  const { error: surveyError } = await admin.from("maintenance_surveys").insert({
-    maintenance_record_id: record.id,
-    technician_id: record.created_by,
-    token: surveyToken,
-  });
-  if (surveyError) throw new Error(surveyError.message);
+  // maintenance_record_id is unique on maintenance_surveys, so a naive
+  // insert would throw on retry once the survey row already exists. Reuse
+  // the existing token instead so an already-sent survey link stays valid.
+  const { data: existingSurvey } = await admin
+    .from("maintenance_surveys")
+    .select("token")
+    .eq("maintenance_record_id", record.id)
+    .maybeSingle();
+
+  const surveyToken = existingSurvey?.token ?? generateMaintenanceToken();
+
+  if (!existingSurvey) {
+    const { error: surveyError } = await admin.from("maintenance_surveys").insert({
+      maintenance_record_id: record.id,
+      technician_id: record.created_by,
+      token: surveyToken,
+    });
+    if (surveyError) throw new Error(surveyError.message);
+  }
 
   const userName = `${record.first_name} ${record.last_name}`;
   const completedDate = formatDateForFilename(completedAt);

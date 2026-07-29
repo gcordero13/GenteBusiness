@@ -54,7 +54,13 @@ function mockAdmin({
   downloadError = null,
   updateError = null,
   surveyInsertError = null,
-}: { downloadError?: { message: string } | null; updateError?: { message: string } | null; surveyInsertError?: { message: string } | null } = {}) {
+  existingSurvey = null,
+}: {
+  downloadError?: { message: string } | null;
+  updateError?: { message: string } | null;
+  surveyInsertError?: { message: string } | null;
+  existingSurvey?: { token: string } | null;
+} = {}) {
   const downloadMock = vi.fn().mockResolvedValue({
     data: downloadError ? null : new Blob([new Uint8Array([1, 2, 3])]),
     error: downloadError,
@@ -63,21 +69,29 @@ function mockAdmin({
   const updateEqMock = vi.fn().mockResolvedValue({ error: updateError });
   const updateMock = vi.fn().mockReturnValue({ eq: updateEqMock });
   const insertMock = vi.fn().mockResolvedValue({ error: surveyInsertError });
+  const maybeSingleMock = vi.fn().mockResolvedValue({ data: existingSurvey, error: null });
+  const selectEqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
+  const selectMock = vi.fn().mockReturnValue({ eq: selectEqMock });
 
   return {
     storage: { from: vi.fn().mockReturnValue({ download: downloadMock, upload: uploadMock }) },
     from: vi.fn((table: string) => {
       if (table === "maintenance_records") return { update: updateMock };
-      if (table === "maintenance_surveys") return { insert: insertMock };
+      if (table === "maintenance_surveys") return { insert: insertMock, select: selectMock };
       throw new Error(`unexpected table ${table}`);
     }),
-    _mocks: { downloadMock, uploadMock, updateMock, updateEqMock, insertMock },
+    _mocks: { downloadMock, uploadMock, updateMock, updateEqMock, insertMock, selectMock, selectEqMock, maybeSingleMock },
   };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(buildMaintenancePdfBytes).mockResolvedValue(new Uint8Array([9, 9, 9]));
+  // clearAllMocks() only clears call history, not implementations set via
+  // mockRejectedValue/mockResolvedValue in a prior test — reassert the
+  // happy-path default here so tests don't leak rejections into each other.
+  vi.mocked(sendMaintenanceReportEmail).mockResolvedValue(undefined as never);
+  vi.mocked(sendSurveyEmail).mockResolvedValue(undefined as never);
 });
 
 describe("completeMaintenanceRecord", () => {
@@ -123,6 +137,40 @@ describe("completeMaintenanceRecord", () => {
 
     expect(admin._mocks.updateMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: "completado", email_error: "smtp down" }),
+    );
+  });
+
+  it("does not mark the record completed if downloading a signature fails", async () => {
+    const admin = mockAdmin({ downloadError: { message: "signature missing" } });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    await expect(completeMaintenanceRecord(BASE_RECORD as never)).rejects.toThrow(/firma/i);
+
+    expect(admin._mocks.updateMock).not.toHaveBeenCalled();
+  });
+
+  it("does not mark the record completed if the survey insert fails and no existing survey is found", async () => {
+    const admin = mockAdmin({ surveyInsertError: { message: "insert boom" } });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    await expect(completeMaintenanceRecord(BASE_RECORD as never)).rejects.toThrow("insert boom");
+
+    expect(admin._mocks.updateMock).not.toHaveBeenCalled();
+  });
+
+  it("reuses an existing survey token and does not re-insert when a survey already exists (retry-safe)", async () => {
+    const admin = mockAdmin({ existingSurvey: { token: "already-sent-token" } });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    await completeMaintenanceRecord(BASE_RECORD as never);
+
+    expect(admin._mocks.selectEqMock).toHaveBeenCalledWith("maintenance_record_id", "record-1");
+    expect(admin._mocks.insertMock).not.toHaveBeenCalled();
+    expect(sendSurveyEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ surveyUrl: "https://example.com/encuesta/already-sent-token" }),
+    );
+    expect(admin._mocks.updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "completado" }),
     );
   });
 });
