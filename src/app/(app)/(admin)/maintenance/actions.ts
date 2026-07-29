@@ -44,7 +44,11 @@ export async function createMaintenanceRecord(contactId: string): Promise<Action
 
 export async function deleteMaintenanceRecord(recordId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("maintenance_records").delete().eq("id", recordId);
+  const { error } = await supabase
+    .from("maintenance_records")
+    .delete()
+    .eq("id", recordId)
+    .eq("status", "pendiente");
   if (error) return { error: error.message };
 
   revalidatePath("/maintenance");

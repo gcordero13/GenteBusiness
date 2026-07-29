@@ -11,7 +11,7 @@ vi.mock("@/lib/maintenanceToken", () => ({
 }));
 
 import { createClient } from "@/lib/supabase/server";
-import { createMaintenanceRecord } from "./actions";
+import { createMaintenanceRecord, deleteMaintenanceRecord } from "./actions";
 
 function mockSupabase({
   userId = "tech-1",
@@ -98,5 +98,44 @@ describe("createMaintenanceRecord", () => {
     const result = await createMaintenanceRecord("contact-1");
 
     expect(result.error).toBe("insert failed");
+  });
+});
+
+function mockSupabaseDelete({
+  deleteError = null,
+}: {
+  deleteError?: { message: string } | null;
+} = {}) {
+  const secondEqMock = vi.fn().mockResolvedValue({ error: deleteError });
+  const firstEqMock = vi.fn().mockReturnValue({ eq: secondEqMock });
+  const deleteMock = vi.fn().mockReturnValue({ eq: firstEqMock });
+
+  return {
+    from: vi.fn().mockReturnValue({ delete: deleteMock }),
+    _mocks: { deleteMock, firstEqMock, secondEqMock },
+  };
+}
+
+describe("deleteMaintenanceRecord", () => {
+  it("scopes the delete query to the record id and pendiente status", async () => {
+    const supabase = mockSupabaseDelete();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await deleteMaintenanceRecord("record-1");
+
+    expect(result.error).toBeUndefined();
+    expect(supabase.from).toHaveBeenCalledWith("maintenance_records");
+    expect(supabase._mocks.deleteMock).toHaveBeenCalled();
+    expect(supabase._mocks.firstEqMock).toHaveBeenCalledWith("id", "record-1");
+    expect(supabase._mocks.secondEqMock).toHaveBeenCalledWith("status", "pendiente");
+  });
+
+  it("surfaces the delete error", async () => {
+    const supabase = mockSupabaseDelete({ deleteError: { message: "delete failed" } });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await deleteMaintenanceRecord("record-1");
+
+    expect(result.error).toBe("delete failed");
   });
 });
