@@ -517,7 +517,7 @@ git commit -m "feat: add maintenance token generator"
 - Create: `src/lib/maintenanceAccess.ts`
 - Test: `src/lib/maintenanceAccess.test.ts`
 
-This task only covers the pure, unit-testable expiry check. The DB-backed lookup (`loadMaintenanceRecordByToken`) is added in Task 15 once the public route that needs it exists.
+This task only covers the pure, unit-testable expiry check. The DB-backed lookup (`loadMaintenanceRecordByToken`) is added in Task 17 once the public route that needs it exists.
 
 - [ ] **Step 1: Write the failing test**
 
