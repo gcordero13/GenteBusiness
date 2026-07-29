@@ -14,6 +14,7 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -33,6 +34,7 @@ export function Sidebar({
   canManageActivities,
   canManageSettings,
   canUseDocumentStamps,
+  canViewMaintenance,
   onLogout,
   onNavigate,
 }: {
@@ -45,6 +47,7 @@ export function Sidebar({
   canManageActivities: boolean;
   canManageSettings: boolean;
   canUseDocumentStamps: boolean;
+  canViewMaintenance: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -71,6 +74,7 @@ export function Sidebar({
   const mainLinks: NavLink[] = [
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
     ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),
+    ...(canViewMaintenance ? [{ href: "/maintenance", label: "Mantenimientos", icon: Wrench }] : []),
     ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
   ];
 
