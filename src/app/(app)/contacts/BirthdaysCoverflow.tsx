@@ -78,7 +78,7 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
                 </Avatar>
                 {isActive && (
                   <>
-                    <span className="max-w-[180px] truncate text-lg font-semibold">{c.name}</span>
+                    <span className="max-w-[220px] text-center text-lg font-semibold">{c.name}</span>
                     <span className="text-sm text-muted-foreground">
                       {c.birth_date ? formatMonthDay(c.birth_date) : ""}
                     </span>
