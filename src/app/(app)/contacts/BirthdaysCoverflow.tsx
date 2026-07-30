@@ -71,7 +71,7 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
                 className="flex flex-col items-center gap-1"
               >
                 <Avatar
-                  className={`size-36 border-4 shadow-md ${isActive ? "border-[#04B1AF]" : "border-background"}`}
+                  className={`size-36 border-2 shadow-md ${isActive ? "border-[#04B1AF]" : "border-background"}`}
                 >
                   <AvatarImage src={c.photo_url ?? undefined} alt="" />
                   <AvatarFallback className="text-3xl">{getInitials(c.name)}</AvatarFallback>
