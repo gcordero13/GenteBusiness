@@ -2,6 +2,7 @@ export interface BirthdayContact {
   id: string;
   name: string;
   birth_date: string | null;
+  photo_url: string | null;
 }
 
 function nextOccurrence(birthDate: string, today: Date): number {
@@ -84,4 +85,19 @@ const MONTH_NAMES_ES = [
 export function formatMonthDay(dateString: string): string {
   const [, month, day] = dateString.split("-").map(Number);
   return `${day} de ${MONTH_NAMES_ES[month - 1]}`;
+}
+
+export function isTodayBirthday(birthDate: string | null, today: Date = new Date()): boolean {
+  if (!birthDate) return false;
+  const [, month, day] = birthDate.split("-").map(Number);
+  return month === today.getUTCMonth() + 1 && day === today.getUTCDate();
+}
+
+export function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
 }
