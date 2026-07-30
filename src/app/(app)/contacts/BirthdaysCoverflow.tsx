@@ -77,7 +77,7 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
                   <AvatarFallback className="text-3xl">{getInitials(c.name)}</AvatarFallback>
                 </Avatar>
                 {isActive && (
-                  <>
+                  <div className="mt-4 flex flex-col items-center gap-1 rounded-xl bg-gradient-to-b from-background/95 to-background/70 px-3 py-1.5 backdrop-blur-sm">
                     <span className="max-w-[220px] text-center text-lg font-semibold">{c.name}</span>
                     <span className="text-sm text-muted-foreground">
                       {c.birth_date ? formatMonthDay(c.birth_date) : ""}
@@ -87,7 +87,7 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
                         ¡Hoy!
                       </span>
                     )}
-                  </>
+                  </div>
                 )}
               </Link>
             );
