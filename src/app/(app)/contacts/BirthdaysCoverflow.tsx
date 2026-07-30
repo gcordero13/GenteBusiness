@@ -11,7 +11,7 @@ const MAX_VISIBLE = 2;
 const DEPTH = 90;
 const STEP_X = 82;
 const TILT = 10;
-const AUTOPLAY_MS = 5 * 60 * 1000;
+const AUTOPLAY_MS = 3 * 1000;
 const TRANSITION = "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)";
 
 export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }) {
