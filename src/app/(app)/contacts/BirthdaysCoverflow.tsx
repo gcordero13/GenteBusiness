@@ -48,6 +48,7 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
             const isActive = rel === 0;
             const scale = Math.max(0.5, 1 - ax * SCALE_STEP);
             const tx = rel * STEP_X;
+            const ty = ax === 1 ? -24 : 0;
             const tz = -ax * DEPTH;
             const ry = -rel * TILT;
             const today = isTodayBirthday(c.birth_date);
@@ -63,7 +64,7 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
                   position: "absolute",
                   left: "50%",
                   top: "50%",
-                  transform: `translate(-50%, -50%) translateX(${tx}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${scale})`,
+                  transform: `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${scale})`,
                   transition: TRANSITION,
                   opacity: visible ? 1 : 0,
                   pointerEvents: visible ? "auto" : "none",
