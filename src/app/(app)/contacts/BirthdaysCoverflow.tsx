@@ -5,11 +5,11 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatMonthDay, getInitials, isTodayBirthday, type BirthdayContact } from "@/lib/contacts";
 
-const PERSPECTIVE = 900;
+const PERSPECTIVE = 1000;
 const SCALE_STEP = 0.22;
 const MAX_VISIBLE = 2;
-const DEPTH = 70;
-const STEP_X = 62;
+const DEPTH = 90;
+const STEP_X = 82;
 const TILT = 10;
 const AUTOPLAY_MS = 5 * 60 * 1000;
 const TRANSITION = "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)";
@@ -34,7 +34,7 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
 
   return (
     <div
-      className="relative flex h-44 items-center justify-center"
+      className="relative flex h-64 items-center justify-center"
       style={{ perspective: `${PERSPECTIVE}px` }}
     >
       <div className="relative size-full" style={{ transformStyle: "preserve-3d" }}>
@@ -70,19 +70,23 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
               className="flex flex-col items-center gap-1"
             >
               <Avatar
-                className={`size-20 border-2 shadow-md ${isActive ? "border-[#04B1AF]" : "border-background"}`}
+                className={`size-36 border-4 shadow-md ${isActive ? "border-[#04B1AF]" : "border-background"}`}
               >
                 <AvatarImage src={c.photo_url ?? undefined} alt="" />
-                <AvatarFallback className="text-base">{getInitials(c.name)}</AvatarFallback>
+                <AvatarFallback className="text-3xl">{getInitials(c.name)}</AvatarFallback>
               </Avatar>
-              <span className="max-w-[110px] truncate text-xs font-medium">{c.name}</span>
-              <span className="text-[11px] text-muted-foreground">
-                {c.birth_date ? formatMonthDay(c.birth_date) : ""}
-              </span>
-              {today && (
-                <span className="animate-pulse rounded-full bg-[#04B1AF] px-1.5 py-0.5 text-[10px] font-medium text-white">
-                  ¡Hoy!
-                </span>
+              {isActive && (
+                <>
+                  <span className="max-w-[180px] truncate text-lg font-semibold">{c.name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {c.birth_date ? formatMonthDay(c.birth_date) : ""}
+                  </span>
+                  {today && (
+                    <span className="animate-pulse rounded-full bg-[#04B1AF] px-2 py-0.5 text-xs font-medium text-white">
+                      ¡Hoy!
+                    </span>
+                  )}
+                </>
               )}
             </Link>
           );
