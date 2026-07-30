@@ -16,7 +16,7 @@ export default async function Home() {
   if (flagsRows?.[0]?.can_view) {
     const { data: contacts } = await supabase
       .from("contacts")
-      .select("id, first_name, last_name, birth_date")
+      .select("id, first_name, last_name, birth_date, photo_url")
       .eq("status", "active");
 
     birthdayContacts = getUpcomingBirthdays(
@@ -24,6 +24,7 @@ export default async function Home() {
         id: c.id,
         name: `${c.first_name} ${c.last_name}`,
         birth_date: c.birth_date,
+        photo_url: c.photo_url,
       })),
       new Date(),
       5,
