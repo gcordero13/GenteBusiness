@@ -37,6 +37,34 @@ interface PendingRecordLookup {
   expires_at: string;
 }
 
+// Server Actions are reachable via a raw POST to their action-id endpoint,
+// not just through the typed client call — a forged request could attach
+// extra fields (status, created_by, pdf_path, ...) that aren't in
+// MaintenanceProgressInput. Explicitly allowlisting which columns this
+// public, token-authenticated action may write closes that gap; the TS
+// interface alone is compile-time only and doesn't guard at runtime.
+const ALLOWED_PROGRESS_FIELDS = [
+  "host_name",
+  "ram",
+  "os",
+  "storage_total",
+  "storage_used",
+  "storage_free",
+  "findings",
+  "observations",
+  ...MAINTENANCE_CHECKLIST_ITEMS.map((item) => item.key),
+] as const satisfies readonly (keyof MaintenanceProgressInput)[];
+
+function pickAllowedProgressFields(input: MaintenanceProgressInput): MaintenanceProgressInput {
+  const payload: MaintenanceProgressInput = {};
+  for (const key of ALLOWED_PROGRESS_FIELDS) {
+    if (key in input) {
+      (payload as Record<string, unknown>)[key] = input[key];
+    }
+  }
+  return payload;
+}
+
 async function loadPendingRecord(token: string): Promise<{ record: PendingRecordLookup } | { error: string }> {
   const result = await loadMaintenanceRecordByToken<PendingRecordLookup>(token);
   if (!result.ok) return { error: "Enlace inválido o expirado" };
@@ -52,7 +80,10 @@ export async function saveMaintenanceProgress(
   if ("error" in lookup) return { error: lookup.error };
 
   const admin = createAdminClient();
-  const { error } = await admin.from("maintenance_records").update(input).eq("id", lookup.record.id);
+  const { error } = await admin
+    .from("maintenance_records")
+    .update(pickAllowedProgressFields(input))
+    .eq("id", lookup.record.id);
   if (error) return { error: error.message };
 
   revalidatePath(`/mantenimiento/${token}`);
