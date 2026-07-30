@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatMonthDay, getInitials, isTodayBirthday, type BirthdayContact } from "@/lib/contacts";
@@ -18,11 +18,6 @@ const TRANSITION =
 export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }) {
   const n = contacts.length;
   const [active, setActive] = useState(0);
-  const prevActiveRef = useRef(active);
-
-  useEffect(() => {
-    prevActiveRef.current = active;
-  }, [active]);
 
   useEffect(() => {
     setActive((a) => Math.max(0, Math.min(n - 1, a)));
@@ -58,11 +53,7 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
             const tz = -ax * DEPTH;
             const ry = -rel * TILT;
             const today = isTodayBirthday(c.birth_date);
-
-            let prevRel = i - prevActiveRef.current;
-            if (prevRel > n / 2) prevRel -= n;
-            if (prevRel < -n / 2) prevRel += n;
-            const justWrapped = Math.abs(rel - prevRel) > 1;
+            const aboutToWrap = rel === -MAX_VISIBLE;
 
             return (
               <Link
@@ -76,7 +67,7 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
                   left: "50%",
                   top: "50%",
                   transform: `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${scale})`,
-                  filter: justWrapped ? "blur(6px)" : "blur(0px)",
+                  filter: aboutToWrap ? "blur(6px)" : "blur(0px)",
                   transition: TRANSITION,
                   opacity: visible ? 1 : 0,
                   pointerEvents: visible ? "auto" : "none",
