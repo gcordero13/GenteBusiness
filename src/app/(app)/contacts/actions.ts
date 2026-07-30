@@ -51,6 +51,33 @@ export async function saveContact(input: ContactInput) {
   redirect("/contacts");
 }
 
+export interface OwnContactFieldsInput {
+  id: string;
+  position: string;
+  fleet_phone: string;
+  extension: string;
+  has_whatsapp: boolean;
+}
+
+export async function updateOwnContactFields(input: OwnContactFieldsInput) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("contacts")
+    .update({
+      position: input.position || null,
+      fleet_phone: input.fleet_phone || null,
+      extension: input.extension || null,
+      has_whatsapp: input.has_whatsapp,
+    })
+    .eq("id", input.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/contacts");
+  revalidatePath(`/contacts/${input.id}`);
+  return {};
+}
+
 export async function setContactStatus(id: string, status: "active" | "deactivated") {
   const supabase = await createClient();
   const { error } = await supabase.from("contacts").update({ status }).eq("id", id);
