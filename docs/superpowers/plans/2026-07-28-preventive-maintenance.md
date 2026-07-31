@@ -3689,8 +3689,16 @@ Verified 2026-07-31 against production (`https://gente-business.vercel.app`, com
 - [ ] **Step 4: Manual walkthrough — error and expiry paths**
 
 1. Open `/mantenimiento/does-not-exist` and confirm the generic "Enlace no disponible" message (not a stack trace or Next.js error page).
+
+   Verified 2026-07-31 against production: confirmed.
+
 2. In the local DB, manually set a pending test record's `expires_at` to a past timestamp (`update maintenance_records set expires_at = now() - interval '1 day' where id = '...';`), reload its link, and confirm it now shows the same "Enlace no disponible" message and that the row's `status` flipped to `expirado` in the DB.
+
+   Verified 2026-07-31 against production: created a temporary test record, confirmed it rendered the form while unexpired, set `expires_at` to the past, confirmed the link then showed "Enlace no disponible" and the row's `status` flipped to `expirado`, then deleted the test record.
+
 3. Temporarily break the SMTP settings in `/settings` (wrong password), complete a maintenance record end-to-end, and confirm: the record still reaches `completado`, the PDF is still downloadable from `/maintenance/[id]`, and a "Reenviar correo" button appears with the error message. Restore the correct SMTP settings and click "Reenviar correo"; confirm the email arrives and the button disappears on reload.
+
+   Not yet verified — this means deliberately breaking the now-working production SMTP config; deferred pending explicit go-ahead since it's disruptive rather than read-only.
 
 - [ ] **Step 5: Manual walkthrough — permissions**
 
