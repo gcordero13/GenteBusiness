@@ -3665,7 +3665,7 @@ Expected: all tests pass, including every test added in Tasks 6–8, 10, 14–19
 
 Verified 2026-07-31: 156/156 tests passed (32 test files) on `feature/preventive-maintenance`.
 
-- [ ] **Step 2: Manual walkthrough — in-person scenario**
+- [x] **Step 2: Manual walkthrough — in-person scenario**
 
 1. Sign in as a Super Admin (or a role with `maintenance` view/add). Go to `/maintenance`.
 2. Click "Nuevo mantenimiento", pick a real contact, confirm the row appears with status "Pendiente".
@@ -3676,6 +3676,8 @@ Verified 2026-07-31: 156/156 tests passed (32 test files) on `feature/preventive
 7. Confirm the real email arrives (using the SMTP configured in `/settings`) at `acusesdeti@sanchezbusinesscorp.com` with subject `Mantenimiento - {nombre} - {fecha}` and the PDF attached; open the PDF and confirm all sections (user info, equipment, checklist, hallazgos, observaciones, both signatures) render correctly.
 8. Confirm a second email with the survey link arrives at the test contact's email address.
 9. Back in the app, confirm `/maintenance` shows the record as "Completado" and `/maintenance/[id]` shows "Descargar PDF" with no "Reenviar correo" button (no `email_error`).
+
+Verified 2026-07-31 against production (`https://gente-business.vercel.app`, commit `3db5d95`): completed maintenance record `548ae0c8-050a-481d-ba4e-aac7cc50b1b5` shows `email_error: null` and a linked `maintenance_surveys` row (token `rVikG3i2S9zdSlMNf9GrLUUv_YpvRuqe`); user confirmed the survey email arrived at `gcordero@sanchezbusinesscorp.com`. This was reached via local dev during the feature build (steps 1-6 exercised repeatedly while building/fixing the flow) with the final send/receive confirmation happening in production after the local-network SMTP block (ETIMEDOUT on port 587, unrelated to app code) was worked around by testing from a hosted deployment instead of local dev.
 
 - [ ] **Step 3: Manual walkthrough — remote / partial-completion scenario**
 
