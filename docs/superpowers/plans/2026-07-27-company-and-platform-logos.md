@@ -19,7 +19,7 @@
 - Test: `src/test/integration/logosRls.test.ts`
 - Test: `src/test/integration/companyLogosStorage.test.ts`
 
-- [ ] **Step 1: Write the failing RLS tests first**
+- [x] **Step 1: Write the failing RLS tests first**
 
 `src/test/integration/logosRls.test.ts`:
 ```typescript
@@ -157,12 +157,12 @@ describe("company-logos storage bucket", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/test/integration/logosRls.test.ts src/test/integration/companyLogosStorage.test.ts`
 Expected: FAIL — `relation "public.platform_settings" does not exist` (and the bucket test fails with a null bucket / not-found error).
 
-- [ ] **Step 3: Generate and write the migration**
+- [x] **Step 3: Generate and write the migration**
 
 Run: `npx supabase migration new company_and_platform_logos`
 
@@ -234,16 +234,16 @@ using (
 
 `companies.logo_url` needs no new RLS policy of its own — the table's existing `companies_write_platform_managers` / `companies_update_platform_managers` policies (from `20260714130015_companies_and_departments.sql`, re-pointed at `get_my_module_permissions('companies')` by `20260715120543_per_module_permissions.sql`) already gate every column on every row, including this new one.
 
-- [ ] **Step 4: Apply the migration**
+- [x] **Step 4: Apply the migration**
 
 Apply this SQL to the live Supabase project (via the SQL Editor in the Supabase dashboard, or the Management API, same method used for every earlier migration in this repo).
 
-- [ ] **Step 5: Run the tests again to verify they pass**
+- [x] **Step 5: Run the tests again to verify they pass**
 
 Run: `npx vitest run src/test/integration/logosRls.test.ts src/test/integration/companyLogosStorage.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add supabase/migrations src/test/integration/logosRls.test.ts src/test/integration/companyLogosStorage.test.ts
@@ -258,7 +258,7 @@ git commit -m "feat: add platform_settings table, companies.logo_url, and compan
 - Create: `src/lib/platformSettings.ts`
 - Test: `src/lib/platformSettings.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -309,12 +309,12 @@ describe("getPlatformLogoUrl", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/platformSettings.test.ts`
 Expected: FAIL — `Cannot find module './platformSettings'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```typescript
 import "server-only";
@@ -331,12 +331,12 @@ export async function getPlatformLogoUrl(): Promise<string | null> {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/platformSettings.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/platformSettings.ts src/lib/platformSettings.test.ts
@@ -351,7 +351,7 @@ git commit -m "feat: add getPlatformLogoUrl helper"
 - Modify: `src/app/(app)/(admin)/companies/actions.ts`
 - Test: `src/app/(app)/(admin)/companies/actions.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -415,12 +415,12 @@ describe("saveCompany", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run "src/app/(app)/(admin)/companies/actions.test.ts"`
 Expected: FAIL — `saveCompany` called with 2 args in current implementation, `logo_url` never passed to `insert`/`update`, so the `toHaveBeenCalledWith` assertions fail.
 
-- [ ] **Step 3: Update the implementation**
+- [x] **Step 3: Update the implementation**
 
 ```typescript
 "use server";
@@ -440,12 +440,12 @@ export async function saveCompany(id: string | undefined, name: string, logoUrl:
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run "src/app/(app)/(admin)/companies/actions.test.ts"`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/companies/actions.ts" "src/app/(app)/(admin)/companies/actions.test.ts"
@@ -459,7 +459,7 @@ git commit -m "feat: let saveCompany store a logo_url"
 **Files:**
 - Modify: `src/app/(app)/(admin)/companies/CompanyForm.tsx`
 
-- [ ] **Step 1: Add the upload field and wire it into submit**
+- [x] **Step 1: Add the upload field and wire it into submit**
 
 ```tsx
 "use client";
@@ -571,11 +571,11 @@ export function CompanyForm({ initial }: { initial?: CompanyInput }) {
 }
 ```
 
-- [ ] **Step 2: Manual verification**
+- [x] **Step 2: Manual verification**
 
 Run `npm run dev`, log in as a user with `can_manage` on `companies`, open "Nueva empresa", pick a PNG, save, confirm no error. Edit that same company again and confirm the logo preview shows.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/companies/CompanyForm.tsx"
@@ -589,7 +589,7 @@ git commit -m "feat: add logo upload field to CompanyForm"
 **Files:**
 - Modify: `src/app/(app)/(admin)/companies/page.tsx`
 
-- [ ] **Step 1: Add a thumbnail column and pass `logo_url` into `CompanyForm`**
+- [x] **Step 1: Add a thumbnail column and pass `logo_url` into `CompanyForm`**
 
 ```tsx
 import { redirect } from "next/navigation";
@@ -662,11 +662,11 @@ export default async function CompaniesPage() {
 }
 ```
 
-- [ ] **Step 2: Manual verification**
+- [x] **Step 2: Manual verification**
 
 Run `npm run dev`, visit `/companies`. Confirm companies with a logo show it in the first column, and companies without one show the default building icon.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/companies/page.tsx"
