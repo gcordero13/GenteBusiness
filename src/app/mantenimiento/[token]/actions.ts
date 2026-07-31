@@ -140,5 +140,3 @@ export async function saveMaintenanceSignature(
   revalidatePath(`/mantenimiento/${token}`);
   return {};
 }
-
-export { MAINTENANCE_CHECKLIST_ITEMS };
