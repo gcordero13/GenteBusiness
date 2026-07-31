@@ -18,7 +18,7 @@ Reference spec: `docs/superpowers/specs/2026-07-30-birthdays-coverflow-design.md
 - Modify: `src/lib/contacts.ts`
 - Test: `src/lib/contacts.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add these two new `describe` blocks to the end of `src/lib/contacts.test.ts` (after the existing `formatMonthDay` block, before end of file). Also update the import line at the top of the file.
 
@@ -101,12 +101,12 @@ to:
 
 Do this for all contact literals in all 4 tests in that `describe` block (ids `"1"` through `"6"` across the 4 tests).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run src/lib/contacts.test.ts`
 Expected: FAIL — `isTodayBirthday` and `getInitials` are not exported yet (import error), and/or type errors from the missing `photo_url` field once TypeScript checks the file.
 
-- [ ] **Step 3: Implement `photo_url`, `isTodayBirthday`, and `getInitials`**
+- [x] **Step 3: Implement `photo_url`, `isTodayBirthday`, and `getInitials`**
 
 In `src/lib/contacts.ts`, change the `BirthdayContact` interface (currently lines 1-5) from:
 
@@ -148,17 +148,17 @@ export function getInitials(name: string): string {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/lib/contacts.test.ts`
 Expected: PASS (all tests in the file, including the 4 pre-existing `getUpcomingBirthdays` tests and the 7 new ones)
 
-- [ ] **Step 5: Type-check**
+- [x] **Step 5: Type-check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors. (This will surface any other file that constructs a `BirthdayContact` literal without `photo_url` — the only other place is `src/app/(app)/page.tsx`, fixed in Task 2.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/contacts.ts src/lib/contacts.test.ts
@@ -172,7 +172,7 @@ git commit -m "feat: add photo_url to BirthdayContact, isTodayBirthday and getIn
 **Files:**
 - Modify: `src/app/(app)/page.tsx`
 
-- [ ] **Step 1: Update the query and mapping**
+- [x] **Step 1: Update the query and mapping**
 
 In `src/app/(app)/page.tsx`, change:
 
@@ -213,12 +213,12 @@ to:
     );
 ```
 
-- [ ] **Step 2: Type-check**
+- [x] **Step 2: Type-check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add "src/app/(app)/page.tsx"
@@ -232,7 +232,7 @@ git commit -m "feat: fetch photo_url for upcoming birthdays"
 **Files:**
 - Create: `src/app/(app)/contacts/BirthdaysCoverflow.tsx`
 
-- [ ] **Step 1: Write the component**
+- [x] **Step 1: Write the component**
 
 Create `src/app/(app)/contacts/BirthdaysCoverflow.tsx`:
 
@@ -332,12 +332,12 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
 }
 ```
 
-- [ ] **Step 2: Type-check**
+- [x] **Step 2: Type-check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add "src/app/(app)/contacts/BirthdaysCoverflow.tsx"
@@ -351,7 +351,7 @@ git commit -m "feat: add BirthdaysCoverflow carousel component"
 **Files:**
 - Modify: `src/app/(app)/contacts/BirthdaysWidget.tsx`
 
-- [ ] **Step 1: Replace the file contents**
+- [x] **Step 1: Replace the file contents**
 
 Replace the full contents of `src/app/(app)/contacts/BirthdaysWidget.tsx` (currently a `Cake` icon import, a local `isTodayBirthday` function, and a `<ul>` of text rows) with:
 
@@ -383,12 +383,12 @@ export function BirthdaysWidget({ contacts }: { contacts: BirthdayContact[] }) {
 
 Note: `formatMonthDay` is no longer imported here — it moved into `BirthdaysCoverflow.tsx`, which is the only place it's still needed in this widget.
 
-- [ ] **Step 2: Type-check**
+- [x] **Step 2: Type-check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add "src/app/(app)/contacts/BirthdaysWidget.tsx"
@@ -401,12 +401,12 @@ git commit -m "feat: render BirthdaysCoverflow inside BirthdaysWidget"
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `npm run test`
 Expected: all tests pass except the 2 known pre-existing, unrelated failures in `src/test/integration/roleProfiles.test.ts` (module-count mismatch from an unrelated in-progress "maintenance module" feature — confirmed pre-existing before this work started).
 
-- [ ] **Step 2: Manual visual check**
+- [x] **Step 2: Manual visual check**
 
 Start the dev server (`npm run dev`), open the home page (`/`) as a logged-in user with `can_view` on the `contacts` module and at least 2 contacts with upcoming birthdays. Confirm:
 - The "Próximos cumpleaños" card shows a 3D coverflow carousel instead of a text list.
@@ -415,6 +415,6 @@ Start the dev server (`npm run dev`), open the home page (`/`) as a logged-in us
 - Clicking any visible card (not just the centered one) navigates to that contact's `/contacts/[id]` page.
 - Leave the page open for 5 minutes (or temporarily lower `AUTOPLAY_MS` locally to confirm, then revert) and confirm the carousel advances on its own.
 
-- [ ] **Step 3: Commit (only if fixes were needed)**
+- [x] **Step 3: Commit (only if fixes were needed)**
 
 If the manual check surfaced issues and you fixed them, commit each fix individually with a descriptive message. If nothing needed fixing, skip this step.
