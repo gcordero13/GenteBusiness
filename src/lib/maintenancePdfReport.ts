@@ -101,6 +101,13 @@ export function formatDateForFilename(date: Date): string {
   return `${day}-${month}-${year}`;
 }
 
+function formatDisplayDate(date: Date): string {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 async function embedLogoImage(doc: PDFDocument, bytes: Uint8Array) {
   try {
     if (bytes.length > 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
@@ -327,24 +334,21 @@ function drawChecklistTable(cursor: PdfCursor, columns: [{ label: string; value:
   const rows = Math.max(columns[0].length, columns[1].length);
   const height = rows * 18 + 12;
 
-  cursor.page.drawRectangle({
-    x: MARGIN,
-    y: topY - height,
-    width: CONTENT_WIDTH,
-    height,
-    borderColor: LINE_COLOR,
-    borderWidth: 1,
-  });
-  cursor.page.drawLine({
-    start: { x: MARGIN + PANEL_WIDTH + PANEL_GAP / 2, y: topY },
-    end: { x: MARGIN + PANEL_WIDTH + PANEL_GAP / 2, y: topY - height },
-    thickness: 0.5,
-    color: LINE_COLOR,
+  // Zebra row fills are drawn first so the outer border and column divider
+  // (drawn last, below) paint on top of them instead of being covered by them.
+  columns.forEach((column, colIndex) => {
+    const colLeft = MARGIN + colIndex * (PANEL_WIDTH + PANEL_GAP);
+    column.forEach((_item, rowIndex) => {
+      if (rowIndex % 2 !== 1) return;
+      const rowY = topY - 14 - rowIndex * 18;
+      cursor.page.drawRectangle({ x: colLeft, y: rowY - 13, width: PANEL_WIDTH, height: 18, color: ZEBRA_COLOR });
+    });
   });
 
   const boxSize = 10;
   columns.forEach((column, colIndex) => {
-    const colX = MARGIN + colIndex * (PANEL_WIDTH + PANEL_GAP) + 10;
+    const colLeft = MARGIN + colIndex * (PANEL_WIDTH + PANEL_GAP);
+    const colX = colLeft + 10;
     column.forEach((item, rowIndex) => {
       const rowY = topY - 14 - rowIndex * 18;
       const boxY = rowY - boxSize + 2;
@@ -381,6 +385,21 @@ function drawChecklistTable(cursor: PdfCursor, columns: [{ label: string; value:
         color: TEXT_COLOR,
       });
     });
+  });
+
+  cursor.page.drawRectangle({
+    x: MARGIN,
+    y: topY - height,
+    width: CONTENT_WIDTH,
+    height,
+    borderColor: LINE_COLOR,
+    borderWidth: 1,
+  });
+  cursor.page.drawLine({
+    start: { x: MARGIN + PANEL_WIDTH + PANEL_GAP / 2, y: topY },
+    end: { x: MARGIN + PANEL_WIDTH + PANEL_GAP / 2, y: topY - height },
+    thickness: 0.5,
+    color: LINE_COLOR,
   });
 
   cursor.y = topY - height - 14;
@@ -462,7 +481,7 @@ async function drawSignatures(
   cursor.page.drawImage(userImage, { x: MARGIN + 270, y, width: 140, height: 60 });
   cursor.page.drawText("Técnico", { x: MARGIN, y: y - 18, size: 10, font: cursor.bold, color: TEXT_COLOR });
   cursor.page.drawText("Usuario", { x: MARGIN + 260, y: y - 18, size: 10, font: cursor.bold, color: TEXT_COLOR });
-  cursor.page.drawText(`Fecha: ${completedAt.toLocaleDateString("es-MX")}`, {
+  cursor.page.drawText(`Fecha: ${formatDisplayDate(completedAt)}`, {
     x: MARGIN,
     y: y - 38,
     size: 10,
