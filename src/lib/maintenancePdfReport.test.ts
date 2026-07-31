@@ -115,4 +115,75 @@ describe("buildMaintenancePdfBytes", () => {
     const reloaded = await PDFDocument.load(bytes);
     expect(reloaded.getPageCount()).toBeGreaterThanOrEqual(2);
   });
+
+  it("embeds a valid PNG logo in the header without breaking the report", async () => {
+    const pngBytes = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      ),
+      (c) => c.charCodeAt(0),
+    );
+
+    const bytes = await buildMaintenancePdfBytes(
+      {
+        firstName: "Ana",
+        lastName: "García",
+        position: null,
+        companyName: null,
+        departmentName: null,
+        email: null,
+        hostName: null,
+        ram: null,
+        os: null,
+        storageTotal: null,
+        storageUsed: null,
+        storageFree: null,
+        checklist: [{ label: "Punto de restauración creado", value: true }],
+        findings: null,
+        observations: null,
+        completedAt: new Date("2026-07-28T15:00:00Z"),
+      },
+      { technicianPng: pngBytes, userPng: pngBytes },
+      pngBytes,
+    );
+
+    const reloaded = await PDFDocument.load(bytes);
+    expect(reloaded.getPageCount()).toBe(1);
+  });
+
+  it("does not throw when logoBytes is not a supported image format", async () => {
+    const pngBytes = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      ),
+      (c) => c.charCodeAt(0),
+    );
+    const notAnImage = new Uint8Array([0x3c, 0x73, 0x76, 0x67, 0x3e]); // "<svg>" as raw bytes
+
+    const bytes = await buildMaintenancePdfBytes(
+      {
+        firstName: "Ana",
+        lastName: "García",
+        position: null,
+        companyName: null,
+        departmentName: null,
+        email: null,
+        hostName: null,
+        ram: null,
+        os: null,
+        storageTotal: null,
+        storageUsed: null,
+        storageFree: null,
+        checklist: [{ label: "Punto de restauración creado", value: true }],
+        findings: null,
+        observations: null,
+        completedAt: new Date("2026-07-28T15:00:00Z"),
+      },
+      { technicianPng: pngBytes, userPng: pngBytes },
+      notAnImage,
+    );
+
+    const reloaded = await PDFDocument.load(bytes);
+    expect(reloaded.getPageCount()).toBe(1);
+  });
 });

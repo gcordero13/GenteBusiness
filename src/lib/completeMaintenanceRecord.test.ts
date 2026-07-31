@@ -55,11 +55,13 @@ function mockAdmin({
   updateError = null,
   surveyInsertError = null,
   existingSurvey = null,
+  logoUrl = null,
 }: {
   downloadError?: { message: string } | null;
   updateError?: { message: string } | null;
   surveyInsertError?: { message: string } | null;
   existingSurvey?: { token: string } | null;
+  logoUrl?: string | null;
 } = {}) {
   const downloadMock = vi.fn().mockResolvedValue({
     data: downloadError ? null : new Blob([new Uint8Array([1, 2, 3])]),
@@ -73,14 +75,31 @@ function mockAdmin({
   const selectEqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
   const selectMock = vi.fn().mockReturnValue({ eq: selectEqMock });
 
+  const logoMaybeSingleMock = vi.fn().mockResolvedValue({ data: { logo_url: logoUrl }, error: null });
+  const logoEqMock = vi.fn().mockReturnValue({ maybeSingle: logoMaybeSingleMock });
+  const logoSelectMock = vi.fn().mockReturnValue({ eq: logoEqMock });
+
   return {
     storage: { from: vi.fn().mockReturnValue({ download: downloadMock, upload: uploadMock }) },
     from: vi.fn((table: string) => {
       if (table === "maintenance_records") return { update: updateMock };
       if (table === "maintenance_surveys") return { insert: insertMock, select: selectMock };
+      if (table === "platform_settings") return { select: logoSelectMock };
       throw new Error(`unexpected table ${table}`);
     }),
-    _mocks: { downloadMock, uploadMock, updateMock, updateEqMock, insertMock, selectMock, selectEqMock, maybeSingleMock },
+    _mocks: {
+      downloadMock,
+      uploadMock,
+      updateMock,
+      updateEqMock,
+      insertMock,
+      selectMock,
+      selectEqMock,
+      maybeSingleMock,
+      logoSelectMock,
+      logoEqMock,
+      logoMaybeSingleMock,
+    },
   };
 }
 
@@ -172,5 +191,51 @@ describe("completeMaintenanceRecord", () => {
     expect(admin._mocks.updateMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: "completado" }),
     );
+  });
+
+  it("fetches the platform logo and passes its bytes to the PDF builder when one is configured", async () => {
+    const admin = mockAdmin({ logoUrl: "https://cdn.example.com/logo.png" });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+    const logoBytes = new Uint8Array([1, 2, 3, 4]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(logoBytes.buffer) }),
+    );
+
+    await completeMaintenanceRecord(BASE_RECORD as never);
+
+    expect(fetch).toHaveBeenCalledWith("https://cdn.example.com/logo.png");
+    expect(buildMaintenancePdfBytes).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      new Uint8Array([1, 2, 3, 4]),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it("still completes when the platform logo fetch fails, building the PDF without a logo", async () => {
+    const admin = mockAdmin({ logoUrl: "https://cdn.example.com/logo.png" });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+
+    await completeMaintenanceRecord(BASE_RECORD as never);
+
+    expect(buildMaintenancePdfBytes).toHaveBeenCalledWith(expect.anything(), expect.anything(), null);
+    expect(admin._mocks.updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "completado" }),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it("does not attempt to fetch a logo when none is configured", async () => {
+    const admin = mockAdmin({ logoUrl: null });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+    vi.stubGlobal("fetch", vi.fn());
+
+    await completeMaintenanceRecord(BASE_RECORD as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(buildMaintenancePdfBytes).toHaveBeenCalledWith(expect.anything(), expect.anything(), null);
+    vi.unstubAllGlobals();
   });
 });

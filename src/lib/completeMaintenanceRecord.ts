@@ -34,13 +34,32 @@ async function downloadSignature(admin: ReturnType<typeof createAdminClient>, pa
   return new Uint8Array(await data.arrayBuffer());
 }
 
+// The platform logo is a nice-to-have on the report, not a requirement —
+// a missing table row, a bad URL, or a network hiccup must never block
+// maintenance completion, so every failure here resolves to null instead
+// of throwing.
+async function fetchPlatformLogoBytes(admin: ReturnType<typeof createAdminClient>): Promise<Uint8Array | null> {
+  try {
+    const { data } = await admin.from("platform_settings").select("logo_url").eq("id", true).maybeSingle();
+    const logoUrl = data?.logo_url;
+    if (!logoUrl) return null;
+
+    const response = await fetch(logoUrl);
+    if (!response.ok) return null;
+    return new Uint8Array(await response.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
 export async function completeMaintenanceRecord(record: MaintenanceRecordForCompletion): Promise<void> {
   const admin = createAdminClient();
   const completedAt = new Date();
 
-  const [technicianPng, userPng] = await Promise.all([
+  const [technicianPng, userPng, logoBytes] = await Promise.all([
     downloadSignature(admin, record.technician_signature_path),
     downloadSignature(admin, record.user_signature_path),
+    fetchPlatformLogoBytes(admin),
   ]);
 
   // Generation failures throw here and intentionally leave the record
@@ -69,6 +88,7 @@ export async function completeMaintenanceRecord(record: MaintenanceRecordForComp
       completedAt,
     },
     { technicianPng, userPng },
+    logoBytes,
   );
 
   // upsert: true keeps this step retry-safe — a retry after a partial
