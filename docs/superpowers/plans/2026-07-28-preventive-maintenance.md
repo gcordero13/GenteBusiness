@@ -3698,12 +3698,14 @@ Verified 2026-07-31 against production (`https://gente-business.vercel.app`, com
 
 3. Temporarily break the SMTP settings in `/settings` (wrong password), complete a maintenance record end-to-end, and confirm: the record still reaches `completado`, the PDF is still downloadable from `/maintenance/[id]`, and a "Reenviar correo" button appears with the error message. Restore the correct SMTP settings and click "Reenviar correo"; confirm the email arrives and the button disappears on reload.
 
-   Not yet verified — this means deliberately breaking the now-working production SMTP config; deferred pending explicit go-ahead since it's disruptive rather than read-only.
+   Partially verified 2026-07-31 using real historical data instead of deliberately breaking the now-working SMTP config: 4 records from earlier local-dev testing (`9bc84caa…`, `403fc2f5…`, `914ce858…`, `a570eb5c…`) hit a real email send failure (network-level, not a bad password, but caught by the same try/catch either way) and all reached `status: completado` with a `pdf_path` set; downloaded `9bc84caa….pdf` directly from the `maintenance-reports` bucket and confirmed it's a valid 17KB PDF. This confirms the "still completes, PDF still valid" half. The "click Reenviar correo and watch the error clear" half needs an authenticated browser session (the resend route is permission-gated via cookies) and wasn't exercised.
 
 - [ ] **Step 5: Manual walkthrough — permissions**
 
 1. As a Viewer-profile user with no `maintenance` permissions granted, confirm "Mantenimientos" does not appear in the sidebar and `/maintenance` redirects to `/`.
 2. Grant only `can_view` on the `maintenance` module (via `/role-profiles`) and confirm the user can see `/maintenance` and open record details, but has no "Nuevo mantenimiento" button and no "Cancelar" buttons.
+
+   Partially verified 2026-07-31 via direct DB query instead of a logged-in walkthrough: `role_profile_permissions` for the `maintenance` module shows every non-Super-Admin profile (`Editor`, `Viewer`, `Recepcionista`) has `can_view/can_add/can_edit/can_delete/can_manage` all `false`; only `Super Admin` has `can_view/can_add/can_delete: true`. Combined with the already-reviewed gating code (`Sidebar.tsx`'s `canViewMaintenance` prop, `/maintenance/page.tsx`'s `redirect("/")` on `!flags?.can_view`), this is strong evidence the behavior is correct, but no one actually logged in as a Viewer to watch the redirect/hidden-link happen live. Also noticed several stray `Document Stamps Test …` role profiles in this data — leftover artifacts from an unrelated test suite's cleanup not firing; flagged for the user, not touched here.
 
 No commit for this task — it's verification only. If any step fails, fix the underlying task and re-run this checklist before considering the feature done.
 
