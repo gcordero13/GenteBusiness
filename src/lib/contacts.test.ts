@@ -3,7 +3,9 @@ import {
   buildOrgTree,
   escapeIlikePattern,
   formatMonthDay,
+  getInitials,
   getUpcomingBirthdays,
+  isTodayBirthday,
   whatsappUrl,
 } from "./contacts";
 
@@ -11,12 +13,12 @@ describe("getUpcomingBirthdays", () => {
   it("returns up to 5 contacts sorted by the nearest upcoming month/day", () => {
     const today = new Date("2026-07-14T00:00:00Z");
     const contacts = [
-      { id: "1", name: "A", birth_date: "1990-07-20" },
-      { id: "2", name: "B", birth_date: "1985-07-15" },
-      { id: "3", name: "C", birth_date: "1992-08-01" },
-      { id: "4", name: "D", birth_date: "1980-12-25" },
-      { id: "5", name: "E", birth_date: "1975-01-05" },
-      { id: "6", name: "F", birth_date: "1999-07-14" },
+      { id: "1", name: "A", birth_date: "1990-07-20", photo_url: null },
+      { id: "2", name: "B", birth_date: "1985-07-15", photo_url: null },
+      { id: "3", name: "C", birth_date: "1992-08-01", photo_url: null },
+      { id: "4", name: "D", birth_date: "1980-12-25", photo_url: null },
+      { id: "5", name: "E", birth_date: "1975-01-05", photo_url: null },
+      { id: "6", name: "F", birth_date: "1999-07-14", photo_url: null },
     ];
 
     const result = getUpcomingBirthdays(contacts, today, 5);
@@ -27,9 +29,9 @@ describe("getUpcomingBirthdays", () => {
   it("wraps around the end of the year correctly", () => {
     const today = new Date("2026-12-20T00:00:00Z");
     const contacts = [
-      { id: "1", name: "A", birth_date: "1990-01-05" },
-      { id: "2", name: "B", birth_date: "1990-12-31" },
-      { id: "3", name: "C", birth_date: "1990-06-01" },
+      { id: "1", name: "A", birth_date: "1990-01-05", photo_url: null },
+      { id: "2", name: "B", birth_date: "1990-12-31", photo_url: null },
+      { id: "3", name: "C", birth_date: "1990-06-01", photo_url: null },
     ];
 
     const result = getUpcomingBirthdays(contacts, today, 5);
@@ -40,8 +42,8 @@ describe("getUpcomingBirthdays", () => {
   it("ignores contacts with no birth_date", () => {
     const today = new Date("2026-07-14T00:00:00Z");
     const contacts = [
-      { id: "1", name: "A", birth_date: null },
-      { id: "2", name: "B", birth_date: "1990-07-20" },
+      { id: "1", name: "A", birth_date: null, photo_url: null },
+      { id: "2", name: "B", birth_date: "1990-07-20", photo_url: null },
     ];
 
     const result = getUpcomingBirthdays(contacts, today, 5);
@@ -51,7 +53,7 @@ describe("getUpcomingBirthdays", () => {
 
   it("returns an empty array when no contact has a birth_date", () => {
     const today = new Date("2026-07-14T00:00:00Z");
-    const contacts = [{ id: "1", name: "A", birth_date: null }];
+    const contacts = [{ id: "1", name: "A", birth_date: null, photo_url: null }];
 
     expect(getUpcomingBirthdays(contacts, today, 5)).toEqual([]);
   });
@@ -142,5 +144,40 @@ describe("formatMonthDay", () => {
 
   it("covers December correctly", () => {
     expect(formatMonthDay("2000-12-25")).toBe("25 de diciembre");
+  });
+});
+
+describe("isTodayBirthday", () => {
+  it("returns true when month and day match today (UTC)", () => {
+    const today = new Date("2026-07-14T12:00:00Z");
+    expect(isTodayBirthday("1990-07-14", today)).toBe(true);
+  });
+
+  it("returns false when month or day don't match today", () => {
+    const today = new Date("2026-07-14T12:00:00Z");
+    expect(isTodayBirthday("1990-07-15", today)).toBe(false);
+    expect(isTodayBirthday("1990-08-14", today)).toBe(false);
+  });
+
+  it("returns false for a null birth date", () => {
+    expect(isTodayBirthday(null)).toBe(false);
+  });
+});
+
+describe("getInitials", () => {
+  it("takes the first letter of the first two words, uppercased", () => {
+    expect(getInitials("James Walker")).toBe("JW");
+  });
+
+  it("handles a single-word name", () => {
+    expect(getInitials("Madonna")).toBe("M");
+  });
+
+  it("ignores extra whitespace between words", () => {
+    expect(getInitials("  Ana   Torres  ")).toBe("AT");
+  });
+
+  it("returns an empty string for an empty name", () => {
+    expect(getInitials("")).toBe("");
   });
 });

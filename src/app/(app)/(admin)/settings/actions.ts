@@ -73,3 +73,22 @@ export async function saveSmtpSettings(input: SaveSmtpSettingsInput): Promise<Ac
   revalidatePath("/settings");
   return {};
 }
+
+export async function savePlatformLogo(logoUrl: string): Promise<ActionResult> {
+  if (!(await callerCanManageSettings())) {
+    return { error: "No autorizado" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("platform_settings")
+    .update({ logo_url: logoUrl })
+    .eq("id", true);
+  if (error) return { error: error.message };
+
+  revalidatePath("/settings");
+  revalidatePath("/login");
+  revalidatePath("/forgot-password");
+  revalidatePath("/reset-password");
+  return {};
+}

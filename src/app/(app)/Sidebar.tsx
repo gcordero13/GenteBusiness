@@ -13,6 +13,7 @@ import {
   PartyPopper,
   Settings,
   ShieldCheck,
+  UserCircle,
   Users,
   Wrench,
 } from "lucide-react";
@@ -72,6 +73,7 @@ export function Sidebar({
   }
 
   const mainLinks: NavLink[] = [
+    { href: "/my-profile", label: "Mi perfil", icon: UserCircle },
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
     ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),
     ...(canViewMaintenance ? [{ href: "/maintenance", label: "Mantenimientos", icon: Wrench }] : []),
@@ -94,7 +96,11 @@ export function Sidebar({
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          {!collapsed && <span className="text-lg font-semibold">Gente Sánchez Business</span>}
+          {!collapsed && (
+            <a href="/" className="text-lg font-semibold">
+              Gente Sánchez Business
+            </a>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"

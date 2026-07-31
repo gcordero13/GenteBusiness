@@ -1,22 +1,29 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ContactForm } from "../ContactForm";
+import { SelfEditForm } from "../SelfEditForm";
 import { setContactStatus, deleteContact } from "../actions";
 import { Button } from "@/components/ui/button";
 
 export default async function EditContactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
     p_module_key: "contacts",
   });
   const flags = flagsRows?.[0];
-  if (!flags?.can_view) {
-    redirect("/");
-  }
 
   const { data: contact } = await supabase.from("contacts").select("*").eq("id", id).single();
   if (!contact) notFound();
+
+  const isSelf = Boolean(user?.email && contact.email && user.email === contact.email);
+
+  if (!flags?.can_view && !isSelf) {
+    redirect("/");
+  }
 
   const { data: companies } = await supabase.from("companies").select("id, name").order("name");
   const { data: departments } = await supabase.from("departments").select("id, name").order("name");
@@ -39,7 +46,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
   return (
     <div className="mx-auto max-w-md space-y-6 p-6">
       <h1 className="text-xl font-semibold">Editar contacto</h1>
-      {flags.can_edit ? (
+      {flags?.can_edit ? (
         <ContactForm
           companies={companies ?? []}
           departments={departments ?? []}
@@ -63,20 +70,28 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
             photo_url: contact.photo_url ?? "",
           }}
         />
+      ) : isSelf ? (
+        <SelfEditForm
+          initial={{
+            id: contact.id,
+            position: contact.position ?? "",
+            fleet_phone: contact.fleet_phone ?? "",
+            extension: contact.extension ?? "",
+            has_whatsapp: contact.has_whatsapp,
+          }}
+        />
       ) : (
-        <p className="text-sm text-muted-foreground">
-          No tienes permiso para editar este contacto.
-        </p>
+        <p className="text-sm text-muted-foreground">No tienes permiso para editar este contacto.</p>
       )}
       <div className="flex gap-2">
-        {flags.can_deactivate && (
+        {flags?.can_deactivate && (
           <form action={toggleStatus}>
             <Button type="submit" variant="outline">
               {contact.status === "active" ? "Anular" : "Reactivar"}
             </Button>
           </form>
         )}
-        {flags.can_delete && (
+        {flags?.can_delete && (
           <form action={remove}>
             <Button type="submit" variant="destructive">
               Eliminar permanentemente

@@ -32,7 +32,9 @@ export function AppShell({
             <Button variant="ghost" size="icon-sm" onClick={() => setMobileOpen(true)}>
               <Menu className="size-5" />
             </Button>
-            <span className="font-semibold">Gente Sánchez Business</span>
+            <a href="/" className="font-semibold">
+              Gente Sánchez Business
+            </a>
           </div>
           <form action={sidebarProps.onLogout}>
             <Button type="submit" variant="ghost" size="icon-sm" title="Cerrar sesión">
