@@ -23,11 +23,10 @@ describe("submitSurveyResponse", () => {
     vi.mocked(createAdminClient).mockReturnValue(mockAdmin() as never);
 
     const result = await submitSurveyResponse("bad-token", {
-      nps_score: 9,
       quality_score: 5,
-      punctuality_score: 5,
       professionalism_score: 5,
       clarity_score: 5,
+      satisfaction_score: 5,
       comments: "",
     });
 
@@ -38,11 +37,10 @@ describe("submitSurveyResponse", () => {
     vi.mocked(createAdminClient).mockReturnValue(mockAdmin({ record: { id: "s1", status: "respondida" } }) as never);
 
     const result = await submitSurveyResponse("token-1", {
-      nps_score: 9,
       quality_score: 5,
-      punctuality_score: 5,
       professionalism_score: 5,
       clarity_score: 5,
+      satisfaction_score: 5,
       comments: "",
     });
 
@@ -54,11 +52,10 @@ describe("submitSurveyResponse", () => {
     vi.mocked(createAdminClient).mockReturnValue(admin as never);
 
     const result = await submitSurveyResponse("token-1", {
-      nps_score: 9,
       quality_score: 5,
-      punctuality_score: 4,
       professionalism_score: 5,
       clarity_score: 4,
+      satisfaction_score: 5,
       comments: "Muy buen servicio",
     });
 
@@ -66,11 +63,10 @@ describe("submitSurveyResponse", () => {
     expect(admin._mocks.updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "respondida",
-        nps_score: 9,
         quality_score: 5,
-        punctuality_score: 4,
         professionalism_score: 5,
         clarity_score: 4,
+        satisfaction_score: 5,
         comments: "Muy buen servicio",
       }),
     );

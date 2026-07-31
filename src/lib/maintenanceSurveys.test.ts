@@ -1,22 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { computeAverageNpsByTechnician } from "./maintenanceSurveys";
+import { computeAverageSatisfactionByTechnician } from "./maintenanceSurveys";
 
-describe("computeAverageNpsByTechnician", () => {
+describe("computeAverageSatisfactionByTechnician", () => {
   it("averages scores per technician and ignores unanswered surveys", () => {
-    const result = computeAverageNpsByTechnician([
-      { technician_id: "t1", technician_name: "Luis", nps_score: 9 },
-      { technician_id: "t1", technician_name: "Luis", nps_score: 7 },
-      { technician_id: "t2", technician_name: "María", nps_score: 10 },
-      { technician_id: "t2", technician_name: "María", nps_score: null },
+    const result = computeAverageSatisfactionByTechnician([
+      { technician_id: "t1", technician_name: "Luis", satisfaction_score: 5 },
+      { technician_id: "t1", technician_name: "Luis", satisfaction_score: 4 },
+      { technician_id: "t2", technician_name: "María", satisfaction_score: 5 },
+      { technician_id: "t2", technician_name: "María", satisfaction_score: null },
     ]);
 
     expect(result).toEqual([
-      { technician_id: "t2", technician_name: "María", average: 10, responses: 1 },
-      { technician_id: "t1", technician_name: "Luis", average: 8, responses: 2 },
+      { technician_id: "t2", technician_name: "María", average: 5, responses: 1 },
+      { technician_id: "t1", technician_name: "Luis", average: 4.5, responses: 2 },
     ]);
   });
 
   it("returns an empty array when there are no answered surveys", () => {
-    expect(computeAverageNpsByTechnician([])).toEqual([]);
+    expect(computeAverageSatisfactionByTechnician([])).toEqual([]);
   });
 });

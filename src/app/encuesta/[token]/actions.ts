@@ -7,11 +7,10 @@ interface ActionResult {
 }
 
 export interface SurveyResponseInput {
-  nps_score: number;
   quality_score: number;
-  punctuality_score: number;
   professionalism_score: number;
   clarity_score: number;
+  satisfaction_score: number;
   comments: string;
 }
 
@@ -30,11 +29,10 @@ export async function submitSurveyResponse(token: string, input: SurveyResponseI
     .update({
       status: "respondida",
       responded_at: new Date().toISOString(),
-      nps_score: input.nps_score,
       quality_score: input.quality_score,
-      punctuality_score: input.punctuality_score,
       professionalism_score: input.professionalism_score,
       clarity_score: input.clarity_score,
+      satisfaction_score: input.satisfaction_score,
       comments: input.comments || null,
     })
     .eq("id", data.id);
