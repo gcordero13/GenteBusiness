@@ -9,12 +9,9 @@ interface PdfCursor {
 }
 
 const BRAND_COLOR = rgb(4 / 255, 177 / 255, 175 / 255);
-const PANEL_HEADER_COLOR = rgb(0.2, 0.29, 0.38);
 const TEXT_COLOR = rgb(0.15, 0.15, 0.15);
 const MUTED_COLOR = rgb(0.45, 0.45, 0.45);
 const LINE_COLOR = rgb(0.85, 0.85, 0.85);
-const ZEBRA_COLOR = rgb(0.96, 0.97, 0.97);
-const HEADER_HEIGHT = 72;
 const CONTINUATION_HEADER_HEIGHT = 26;
 const PAGE_WIDTH = 595.28; // A4 portrait, points
 const PAGE_HEIGHT = 841.89;
@@ -22,7 +19,6 @@ const MARGIN = 40;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const PANEL_GAP = 14;
 const PANEL_WIDTH = (CONTENT_WIDTH - PANEL_GAP) / 2;
-const FRESH_PAGE_USABLE_HEIGHT = PAGE_HEIGHT - CONTINUATION_HEADER_HEIGHT - 20 - MARGIN - 20;
 
 function ensureSpace(cursor: PdfCursor, neededHeight: number): void {
   if (cursor.y - neededHeight < MARGIN) {
@@ -33,19 +29,19 @@ function ensureSpace(cursor: PdfCursor, neededHeight: number): void {
 }
 
 function drawContinuationHeader(cursor: PdfCursor): void {
-  cursor.page.drawRectangle({
-    x: 0,
-    y: PAGE_HEIGHT - CONTINUATION_HEADER_HEIGHT,
-    width: PAGE_WIDTH,
-    height: 3,
-    color: BRAND_COLOR,
-  });
+  const y = PAGE_HEIGHT - CONTINUATION_HEADER_HEIGHT;
   cursor.page.drawText("Formulario de Mantenimiento Preventivo (continuación)", {
     x: MARGIN,
-    y: PAGE_HEIGHT - CONTINUATION_HEADER_HEIGHT + 6,
+    y: y + 8,
     size: 9,
     font: cursor.font,
     color: MUTED_COLOR,
+  });
+  cursor.page.drawLine({
+    start: { x: MARGIN, y },
+    end: { x: PAGE_WIDTH - MARGIN, y },
+    thickness: 0.75,
+    color: LINE_COLOR,
   });
 }
 
@@ -123,43 +119,53 @@ async function embedLogoImage(doc: PDFDocument, bytes: Uint8Array) {
   return null;
 }
 
-function drawHeader(cursor: PdfCursor, logo: Awaited<ReturnType<typeof embedLogoImage>>): void {
-  cursor.page.drawRectangle({
-    x: 0,
-    y: PAGE_HEIGHT - HEADER_HEIGHT,
-    width: PAGE_WIDTH,
-    height: HEADER_HEIGHT,
-    color: BRAND_COLOR,
-  });
+function drawHeader(cursor: PdfCursor, logo: Awaited<ReturnType<typeof embedLogoImage>>, completedAt: Date): void {
+  const topY = PAGE_HEIGHT - MARGIN;
+  let nameY = topY - 10;
 
-  let titleX = MARGIN;
   if (logo) {
-    const { width, height } = logo.scaleToFit(40, 40);
-    cursor.page.drawImage(logo, {
+    const { width, height } = logo.scaleToFit(44, 44);
+    cursor.page.drawImage(logo, { x: MARGIN, y: topY - height, width, height });
+    nameY = topY - height - 12;
+    cursor.page.drawText("Gente Sánchez Business", {
       x: MARGIN,
-      y: PAGE_HEIGHT - HEADER_HEIGHT / 2 - height / 2,
-      width,
-      height,
+      y: nameY,
+      size: 8,
+      font: cursor.font,
+      color: MUTED_COLOR,
     });
-    titleX = MARGIN + 40 + 14;
+  } else {
+    cursor.page.drawText("Gente Sánchez Business", {
+      x: MARGIN,
+      y: nameY,
+      size: 10,
+      font: cursor.bold,
+      color: TEXT_COLOR,
+    });
+    nameY -= 14;
   }
 
-  cursor.page.drawText("FORMULARIO DE MANTENIMIENTO PREVENTIVO", {
-    x: titleX,
-    y: PAGE_HEIGHT - HEADER_HEIGHT / 2 - 2,
-    size: 13,
+  const genLabel = "Generado el:";
+  const genValue = formatDisplayDate(completedAt);
+  const labelWidth = cursor.font.widthOfTextAtSize(genLabel, 9);
+  const valueWidth = cursor.font.widthOfTextAtSize(genValue, 9);
+  cursor.page.drawText(genLabel, { x: PAGE_WIDTH - MARGIN - labelWidth, y: topY - 2, size: 9, font: cursor.font, color: MUTED_COLOR });
+  cursor.page.drawText(genValue, { x: PAGE_WIDTH - MARGIN - valueWidth, y: topY - 14, size: 9, font: cursor.font, color: MUTED_COLOR });
+
+  const titleY = nameY - 24;
+  const title = "FORMULARIO DE MANTENIMIENTO PREVENTIVO";
+  const titleWidth = cursor.bold.widthOfTextAtSize(title, 14);
+  cursor.page.drawText(title, {
+    x: (PAGE_WIDTH - titleWidth) / 2,
+    y: titleY,
+    size: 14,
     font: cursor.bold,
-    color: rgb(1, 1, 1),
-  });
-  cursor.page.drawText("Gente Sánchez Business", {
-    x: titleX,
-    y: PAGE_HEIGHT - HEADER_HEIGHT / 2 - 16,
-    size: 10,
-    font: cursor.font,
-    color: rgb(1, 1, 1),
+    color: TEXT_COLOR,
   });
 
-  cursor.y = PAGE_HEIGHT - HEADER_HEIGHT - 22;
+  const ruleY = titleY - 16;
+  cursor.page.drawLine({ start: { x: MARGIN, y: ruleY }, end: { x: PAGE_WIDTH - MARGIN, y: ruleY }, thickness: 1, color: LINE_COLOR });
+  cursor.y = ruleY - 20;
 }
 
 function drawFooters(doc: PDFDocument, font: PDFFont): void {
@@ -195,7 +201,7 @@ export async function buildMaintenancePdfBytes(
   const logo = logoBytes ? await embedLogoImage(doc, logoBytes) : null;
 
   const cursor: PdfCursor = { doc, page, y: PAGE_HEIGHT - MARGIN, font, bold };
-  drawHeader(cursor, logo);
+  drawHeader(cursor, logo, record.completedAt);
 
   const userInfoRows: [string, string][] = [
     ["Nombre", `${record.firstName} ${record.lastName}`],
@@ -212,24 +218,19 @@ export async function buildMaintenancePdfBytes(
     ["Almacenamiento Utilizado", record.storageUsed ?? "-"],
     ["Almacenamiento Libre", record.storageFree ?? "-"],
   ];
-  const panelRowCount = Math.max(userInfoRows.length, equipmentRows.length);
-  const panelHeight = 22 + panelRowCount * 24 + 8;
-  ensureSpace(cursor, panelHeight + 16);
-  drawInfoPanels(cursor, "Información del Usuario", userInfoRows, "Información del Equipo", equipmentRows, panelHeight);
+  drawInfoTable(cursor, "Información del Usuario", userInfoRows);
+  drawInfoTable(cursor, "Información del Equipo", equipmentRows);
 
   const checklistCols = splitInHalf(record.checklist);
-  const checklistRows = Math.max(checklistCols[0].length, checklistCols[1].length);
-  ensureSpace(cursor, 22 + checklistRows * 18 + 14);
   drawChecklistTable(cursor, checklistCols);
 
-  drawFieldBox(cursor, "Hallazgos", record.findings || "Ninguno");
-  drawFieldBox(cursor, "Observaciones", record.observations || "Ninguna");
+  drawFlowingParagraph(cursor, "Hallazgos", record.findings || "Ninguno");
+  drawFlowingParagraph(cursor, "Observaciones", record.observations || "Ninguna");
 
-  // 80 (gap to image) + 60 (image height, drawn upward from the gap baseline
-  // overlaps within the gap) + 34 (label/date offset below the image
-  // baseline) plus a small buffer for descenders, so the whole block never
-  // splits across a page break.
-  ensureSpace(cursor, 130);
+  // Signature images (55) + gap to the rule (6) + role caption (14) + date
+  // line (16) plus a small buffer, so the whole block never splits across a
+  // page break.
+  ensureSpace(cursor, 110);
   await drawSignatures(cursor, signatures, record.completedAt);
 
   drawFooters(doc, font);
@@ -271,87 +272,79 @@ function sectionDivider(cursor: PdfCursor): void {
   cursor.y -= 14;
 }
 
-function drawPanel(cursor: PdfCursor, x: number, topY: number, title: string, rows: [string, string][], height: number): void {
-  const headerHeight = 22;
-  cursor.page.drawRectangle({ x, y: topY - headerHeight, width: PANEL_WIDTH, height: headerHeight, color: PANEL_HEADER_COLOR });
+function drawTableHeaderBar(cursor: PdfCursor, topY: number, title: string, width: number): void {
+  const barHeight = 22;
+  cursor.page.drawRectangle({ x: MARGIN, y: topY - barHeight, width, height: barHeight, color: BRAND_COLOR });
   cursor.page.drawText(title, {
-    x: x + 8,
-    y: topY - headerHeight / 2 - 3,
-    size: 9.5,
+    x: MARGIN + 8,
+    y: topY - barHeight / 2 - 3,
+    size: 10,
     font: cursor.bold,
     color: rgb(1, 1, 1),
   });
-  cursor.page.drawRectangle({
-    x,
-    y: topY - height,
-    width: PANEL_WIDTH,
-    height: height - headerHeight,
-    borderColor: LINE_COLOR,
-    borderWidth: 1,
-  });
+}
 
-  const rowHeight = 24;
-  const valueMaxWidth = PANEL_WIDTH - 16;
+function drawInfoTable(cursor: PdfCursor, title: string, rows: [string, string][]): void {
+  const barHeight = 22;
+  const rowHeight = 18;
+  const height = barHeight + rows.length * rowHeight;
+  ensureSpace(cursor, height + 14);
+
+  const topY = cursor.y;
+  drawTableHeaderBar(cursor, topY, title, CONTENT_WIDTH);
+
+  const labelX = MARGIN + 8;
+  const valueX = MARGIN + 150;
+  const valueMaxWidth = CONTENT_WIDTH - 150 - 8;
   rows.forEach(([label, value], index) => {
-    const rowTop = topY - headerHeight - index * rowHeight;
-    if (index % 2 === 1) {
-      cursor.page.drawRectangle({ x, y: rowTop - rowHeight, width: PANEL_WIDTH, height: rowHeight, color: ZEBRA_COLOR });
-    }
-    cursor.page.drawText(label.toUpperCase(), {
-      x: x + 8,
-      y: rowTop - 10,
-      size: 7,
-      font: cursor.bold,
-      color: MUTED_COLOR,
-    });
+    const rowTop = topY - barHeight - index * rowHeight;
+    cursor.page.drawText(label, { x: labelX, y: rowTop - 13, size: 9, font: cursor.bold, color: MUTED_COLOR });
     cursor.page.drawText(truncateToWidth(value, cursor.font, 9.5, valueMaxWidth), {
-      x: x + 8,
-      y: rowTop - 20,
+      x: valueX,
+      y: rowTop - 13,
       size: 9.5,
       font: cursor.font,
       color: TEXT_COLOR,
     });
+    if (index < rows.length - 1) {
+      cursor.page.drawLine({
+        start: { x: MARGIN, y: rowTop - rowHeight },
+        end: { x: PAGE_WIDTH - MARGIN, y: rowTop - rowHeight },
+        thickness: 0.5,
+        color: LINE_COLOR,
+      });
+    }
   });
-}
 
-function drawInfoPanels(
-  cursor: PdfCursor,
-  leftTitle: string,
-  leftRows: [string, string][],
-  rightTitle: string,
-  rightRows: [string, string][],
-  height: number,
-): void {
-  const topY = cursor.y;
-  drawPanel(cursor, MARGIN, topY, leftTitle, leftRows, height);
-  drawPanel(cursor, MARGIN + PANEL_WIDTH + PANEL_GAP, topY, rightTitle, rightRows, height);
+  cursor.page.drawRectangle({
+    x: MARGIN,
+    y: topY - height,
+    width: CONTENT_WIDTH,
+    height,
+    borderColor: LINE_COLOR,
+    borderWidth: 1,
+  });
+
   cursor.y = topY - height - 14;
 }
 
 function drawChecklistTable(cursor: PdfCursor, columns: [{ label: string; value: boolean | null }[], { label: string; value: boolean | null }[]]): void {
-  sectionTitle(cursor, "Checklist de Mantenimiento");
-  const topY = cursor.y + 6;
+  const barHeight = 22;
   const rows = Math.max(columns[0].length, columns[1].length);
-  const height = rows * 18 + 12;
+  const height = barHeight + rows * 18;
+  ensureSpace(cursor, height + 14);
 
-  // Zebra row fills are drawn first so the outer border and column divider
-  // (drawn last, below) paint on top of them instead of being covered by them.
-  columns.forEach((column, colIndex) => {
-    const colLeft = MARGIN + colIndex * (PANEL_WIDTH + PANEL_GAP);
-    column.forEach((_item, rowIndex) => {
-      if (rowIndex % 2 !== 1) return;
-      const rowY = topY - 14 - rowIndex * 18;
-      cursor.page.drawRectangle({ x: colLeft, y: rowY - 13, width: PANEL_WIDTH, height: 18, color: ZEBRA_COLOR });
-    });
-  });
+  const topY = cursor.y;
+  drawTableHeaderBar(cursor, topY, "Checklist de Mantenimiento", CONTENT_WIDTH);
 
   const boxSize = 10;
   columns.forEach((column, colIndex) => {
     const colLeft = MARGIN + colIndex * (PANEL_WIDTH + PANEL_GAP);
     const colX = colLeft + 10;
     column.forEach((item, rowIndex) => {
-      const rowY = topY - 14 - rowIndex * 18;
-      const boxY = rowY - boxSize + 2;
+      const rowTop = topY - barHeight - rowIndex * 18;
+      const baselineY = rowTop - 13;
+      const boxY = rowTop - 16;
       if (item.value) {
         cursor.page.drawRectangle({ x: colX, y: boxY, width: boxSize, height: boxSize, color: BRAND_COLOR });
         cursor.page.drawLine({
@@ -379,13 +372,18 @@ function drawChecklistTable(cursor: PdfCursor, columns: [{ label: string; value:
       const labelMaxWidth = PANEL_WIDTH - 20 - boxSize;
       cursor.page.drawText(truncateToWidth(item.label, cursor.font, 9, labelMaxWidth), {
         x: colX + 18,
-        y: rowY,
+        y: baselineY,
         size: 9,
         font: cursor.font,
         color: TEXT_COLOR,
       });
     });
   });
+
+  for (let i = 1; i < rows; i++) {
+    const lineY = topY - barHeight - i * 18;
+    cursor.page.drawLine({ start: { x: MARGIN, y: lineY }, end: { x: PAGE_WIDTH - MARGIN, y: lineY }, thickness: 0.5, color: LINE_COLOR });
+  }
 
   cursor.page.drawRectangle({
     x: MARGIN,
@@ -405,45 +403,10 @@ function drawChecklistTable(cursor: PdfCursor, columns: [{ label: string; value:
   cursor.y = topY - height - 14;
 }
 
-function drawFieldBox(cursor: PdfCursor, title: string, text: string): void {
-  const contentWidth = CONTENT_WIDTH - 16;
-  const lineHeight = 13;
-  const lines = wrapText(text, cursor.font, 9.5, contentWidth);
-  const boxHeight = lines.length * lineHeight + 16;
-
-  if (18 + boxHeight > FRESH_PAGE_USABLE_HEIGHT) {
-    // Pathologically long content that wouldn't fit in a single box even on
-    // a fresh page — fall back to plain flowing text so pagination can
-    // split it across pages instead of one unsplittable, overflowing box.
-    drawFlowingParagraph(cursor, title, text, lines);
-    return;
-  }
-
-  ensureSpace(cursor, 18 + boxHeight + 14);
-  sectionTitle(cursor, title);
-  const topY = cursor.y + 4;
-  cursor.page.drawRectangle({
-    x: MARGIN,
-    y: topY - boxHeight,
-    width: CONTENT_WIDTH,
-    height: boxHeight,
-    borderColor: LINE_COLOR,
-    borderWidth: 1,
-  });
-  let lineY = topY - 12;
-  for (const line of lines) {
-    cursor.page.drawText(line, { x: MARGIN + 8, y: lineY, size: 9.5, font: cursor.font, color: TEXT_COLOR });
-    lineY -= lineHeight;
-  }
-  cursor.y = topY - boxHeight - 14;
-  sectionDivider(cursor);
-}
-
-function drawFlowingParagraph(cursor: PdfCursor, title: string, text: string, precomputedLines?: string[]): void {
+function drawFlowingParagraph(cursor: PdfCursor, title: string, text: string): void {
   ensureSpace(cursor, 16 + 14);
   sectionTitle(cursor, title);
-  const lines = precomputedLines ?? wrapText(text, cursor.font, 10, PAGE_WIDTH - MARGIN * 2);
-  for (const line of lines) {
+  for (const line of wrapText(text, cursor.font, 10, PAGE_WIDTH - MARGIN * 2)) {
     ensureSpace(cursor, 14);
     cursor.page.drawText(line, { x: MARGIN, y: cursor.y, size: 10, font: cursor.font, color: TEXT_COLOR });
     cursor.y -= 14;
@@ -457,35 +420,32 @@ async function drawSignatures(
   completedAt: Date,
 ): Promise<void> {
   sectionTitle(cursor, "Firmas");
-  const y = cursor.y - 80;
+  const imgWidth = 160;
+  const imgHeight = 55;
+  const gap = 40;
+  const leftX = MARGIN;
+  const rightX = MARGIN + imgWidth + gap;
+  const imgTopY = cursor.y - 4;
+  const imgBottomY = imgTopY - imgHeight;
+
   const techImage = await cursor.doc.embedPng(signatures.technicianPng);
   const userImage = await cursor.doc.embedPng(signatures.userPng);
+  cursor.page.drawImage(techImage, { x: leftX, y: imgBottomY, width: imgWidth, height: imgHeight });
+  cursor.page.drawImage(userImage, { x: rightX, y: imgBottomY, width: imgWidth, height: imgHeight });
 
-  cursor.page.drawRectangle({
-    x: MARGIN,
-    y: y - 4,
-    width: 160,
-    height: 68,
-    borderColor: LINE_COLOR,
-    borderWidth: 1,
-  });
-  cursor.page.drawRectangle({
-    x: MARGIN + 260,
-    y: y - 4,
-    width: 160,
-    height: 68,
-    borderColor: LINE_COLOR,
-    borderWidth: 1,
-  });
-  cursor.page.drawImage(techImage, { x: MARGIN + 10, y, width: 140, height: 60 });
-  cursor.page.drawImage(userImage, { x: MARGIN + 270, y, width: 140, height: 60 });
-  cursor.page.drawText("Técnico", { x: MARGIN, y: y - 18, size: 10, font: cursor.bold, color: TEXT_COLOR });
-  cursor.page.drawText("Usuario", { x: MARGIN + 260, y: y - 18, size: 10, font: cursor.bold, color: TEXT_COLOR });
+  const lineY = imgBottomY - 6;
+  cursor.page.drawLine({ start: { x: leftX, y: lineY }, end: { x: leftX + imgWidth, y: lineY }, thickness: 0.75, color: TEXT_COLOR });
+  cursor.page.drawLine({ start: { x: rightX, y: lineY }, end: { x: rightX + imgWidth, y: lineY }, thickness: 0.75, color: TEXT_COLOR });
+
+  cursor.page.drawText("Técnico", { x: leftX, y: lineY - 14, size: 10, font: cursor.bold, color: TEXT_COLOR });
+  cursor.page.drawText("Usuario", { x: rightX, y: lineY - 14, size: 10, font: cursor.bold, color: TEXT_COLOR });
   cursor.page.drawText(`Fecha: ${formatDisplayDate(completedAt)}`, {
-    x: MARGIN,
-    y: y - 38,
-    size: 10,
+    x: leftX,
+    y: lineY - 30,
+    size: 9,
     font: cursor.font,
     color: MUTED_COLOR,
   });
+
+  cursor.y = lineY - 44;
 }
