@@ -2588,7 +2588,7 @@ git commit -m "feat: add public signature pad component"
 - Create: `src/app/mantenimiento/[token]/page.tsx`
 - Create: `src/app/mantenimiento/[token]/MaintenanceForm.tsx`
 
-- [ ] **Step 1: Write the client form (equipment info + checklist + findings/observations, with a "Guardar progreso" button)**
+- [x] **Step 1: Write the client form (equipment info + checklist + findings/observations, with a "Guardar progreso" button)**
 
 ```tsx
 "use client";
@@ -2726,7 +2726,7 @@ export function MaintenanceForm({ token, record }: { token: string; record: Main
 }
 ```
 
-- [ ] **Step 2: Write the page (status states + form + signature pads)**
+- [x] **Step 2: Write the page (status states + form + signature pads)**
 
 ```tsx
 import { notFound } from "next/navigation";
@@ -2806,7 +2806,7 @@ export default async function MaintenancePublicPage({ params }: { params: Promis
 
 Run `npm run dev`. From `/maintenance`, copy a pending record's link and open it in an incognito window. Fill in equipment info, check a few checklist items, click "Guardar progreso" and confirm "Progreso guardado" appears. Draw and save the technician signature, then the user signature, and confirm the page transitions to "Mantenimiento completado" after the second one (this will error at the PDF/email step until Tasks 14–16 are also in place — if running this task in isolation before those, expect an error toast/console error at that point, which is expected).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add "src/app/mantenimiento/[token]/page.tsx" "src/app/mantenimiento/[token]/MaintenanceForm.tsx"
@@ -2821,7 +2821,7 @@ git commit -m "feat: add public maintenance form and signature page"
 - Create: `src/app/(app)/(admin)/maintenance/[id]/pdf/route.ts`
 - Create: `src/app/(app)/(admin)/maintenance/[id]/resend-email/route.ts`
 
-- [ ] **Step 1: Write the PDF download route**
+- [x] **Step 1: Write the PDF download route**
 
 ```ts
 import { NextResponse } from "next/server";
@@ -2858,7 +2858,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 ```
 
-- [ ] **Step 2: Write the resend-email route**
+- [x] **Step 2: Write the resend-email route**
 
 ```ts
 import { NextResponse } from "next/server";
@@ -2913,7 +2913,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
 With a completed test record (from Task 20's end-to-end flow), visit `/maintenance/[id]`, click "Descargar PDF" and confirm the browser downloads a valid PDF; if `email_error` is set, click "Reenviar correo" and confirm the error clears after a successful resend.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/maintenance/[id]/pdf/route.ts" "src/app/(app)/(admin)/maintenance/[id]/resend-email/route.ts"
@@ -2928,7 +2928,7 @@ git commit -m "feat: add PDF download and resend-email routes"
 - Create: `src/lib/maintenanceSurveys.ts`
 - Test: `src/lib/maintenanceSurveys.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -2955,12 +2955,12 @@ describe("computeAverageNpsByTechnician", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/maintenanceSurveys.test.ts`
 Expected: FAIL — cannot find module `./maintenanceSurveys`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 export interface SurveyForAverage {
@@ -2996,12 +2996,12 @@ export function computeAverageNpsByTechnician(surveys: SurveyForAverage[]): Tech
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/maintenanceSurveys.test.ts`
 Expected: PASS (2 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/maintenanceSurveys.ts src/lib/maintenanceSurveys.test.ts
@@ -3015,7 +3015,7 @@ git commit -m "feat: add per-technician NPS average computation"
 **Files:**
 - Create: `src/app/(app)/(admin)/maintenance/surveys/page.tsx`
 
-- [ ] **Step 1: Write the page**
+- [x] **Step 1: Write the page**
 
 ```tsx
 import { redirect } from "next/navigation";
@@ -3138,7 +3138,7 @@ export default async function MaintenanceSurveysPage() {
 
 Visit `/maintenance/surveys` as a Super Admin. Before any survey response exists it should show the two "Todavía no hay respuestas" messages; after completing Task 24's public survey flow, confirm the row and average appear.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/maintenance/surveys/page.tsx"
@@ -3155,7 +3155,7 @@ git commit -m "feat: add Encuestas page with per-technician NPS averages"
 - Create: `src/app/encuesta/[token]/page.tsx`
 - Create: `src/app/encuesta/[token]/SurveyForm.tsx`
 
-- [ ] **Step 1: Write the failing test for the submit action**
+- [x] **Step 1: Write the failing test for the submit action**
 
 ```ts
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -3238,12 +3238,12 @@ describe("submitSurveyResponse", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run "src/app/encuesta/[token]/actions.test.ts"`
 Expected: FAIL — cannot find module `./actions`.
 
-- [ ] **Step 3: Write the action implementation**
+- [x] **Step 3: Write the action implementation**
 
 ```ts
 "use server";
@@ -3292,12 +3292,12 @@ export async function submitSurveyResponse(token: string, input: SurveyResponseI
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run "src/app/encuesta/[token]/actions.test.ts"`
 Expected: PASS (3 tests)
 
-- [ ] **Step 5: Write the survey form component**
+- [x] **Step 5: Write the survey form component**
 
 ```tsx
 "use client";
@@ -3406,7 +3406,7 @@ export function SurveyForm({ token }: { token: string }) {
 }
 ```
 
-- [ ] **Step 6: Write the page**
+- [x] **Step 6: Write the page**
 
 ```tsx
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -3453,7 +3453,7 @@ export default async function SurveyPublicPage({ params }: { params: Promise<{ t
 
 Complete a maintenance record end-to-end (Task 20's flow through both signatures), find the survey link emailed to the test user's mailbox (or read `surveyToken` off the `maintenance_surveys` row directly in the DB during dev), open `/encuesta/[token]`, answer all 5 questions, submit, and confirm the response appears on `/maintenance/surveys`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add "src/app/encuesta/[token]"
@@ -3467,7 +3467,7 @@ git commit -m "feat: add public NPS satisfaction survey page"
 **Files:**
 - Create: `src/test/integration/maintenanceRls.test.ts`
 
-- [ ] **Step 1: Write the tests**
+- [x] **Step 1: Write the tests**
 
 ```ts
 import { afterEach, describe, expect, it } from "vitest";
@@ -3640,12 +3640,12 @@ describe("maintenance_records RLS", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it passes against the real local Supabase instance**
+- [x] **Step 2: Run test to verify it passes against the real local Supabase instance**
 
 Run: `npm run test -- src/test/integration/maintenanceRls.test.ts`
 Expected: PASS (5 tests). Requires the local Supabase stack running (`supabase start`) with `.env.local` pointed at it, matching how the other `*Rls.test.ts` files in this repo are run.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/test/integration/maintenanceRls.test.ts
@@ -3658,10 +3658,12 @@ git commit -m "test: add maintenance_records RLS integration coverage"
 
 **Files:** none (manual QA pass — no code changes)
 
-- [ ] **Step 1: Run the full automated suite once**
+- [x] **Step 1: Run the full automated suite once**
 
 Run: `npm run test`
 Expected: all tests pass, including every test added in Tasks 6–8, 10, 14–19, 22, 24, 25.
+
+Verified 2026-07-31: 156/156 tests passed (32 test files) on `feature/preventive-maintenance`.
 
 - [ ] **Step 2: Manual walkthrough — in-person scenario**
 
