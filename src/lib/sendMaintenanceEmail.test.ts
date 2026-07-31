@@ -4,14 +4,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // plain `const` declarations), so any mock referenced inside one must be
 // created via vi.hoisted() to avoid a "Cannot access before initialization"
 // TDZ error. See https://vitest.dev/api/vi.html#vi-hoisted
-const { sendMailMock, createTransportMock } = vi.hoisted(() => {
+const { sendMailMock, createTransportMock, lookupMock } = vi.hoisted(() => {
   const sendMailMock = vi.fn().mockResolvedValue({});
   const createTransportMock = vi.fn().mockReturnValue({ sendMail: sendMailMock });
-  return { sendMailMock, createTransportMock };
+  const lookupMock = vi.fn().mockResolvedValue({ address: "40.100.1.1", family: 4 });
+  return { sendMailMock, createTransportMock, lookupMock };
 });
 
 vi.mock("nodemailer", () => ({
   default: { createTransport: createTransportMock },
+}));
+
+vi.mock("node:dns/promises", () => ({
+  lookup: lookupMock,
+  default: { lookup: lookupMock },
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -62,6 +68,29 @@ describe("sendMaintenanceReportEmail", () => {
         attachments: [expect.objectContaining({ filename: "Mantenimiento - Ana García - 28-07-2026.pdf" })],
       }),
     );
+  });
+
+  it("connects using the IPv4-resolved address while keeping TLS validation on the real hostname", async () => {
+    vi.mocked(createAdminClient).mockReturnValue(mockAdmin(VALID_SETTINGS) as never);
+
+    await sendMaintenanceReportEmail({ userName: "Ana García", completedDate: "28-07-2026", pdfBytes: new Uint8Array([1]) });
+
+    expect(lookupMock).toHaveBeenCalledWith("smtp.example.com", { family: 4 });
+    expect(createTransportMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "40.100.1.1",
+        tls: expect.objectContaining({ servername: "smtp.example.com" }),
+      }),
+    );
+  });
+
+  it("falls back to the configured hostname if IPv4 resolution fails", async () => {
+    vi.mocked(createAdminClient).mockReturnValue(mockAdmin(VALID_SETTINGS) as never);
+    lookupMock.mockRejectedValueOnce(new Error("ENOTFOUND"));
+
+    await sendMaintenanceReportEmail({ userName: "Ana García", completedDate: "28-07-2026", pdfBytes: new Uint8Array([1]) });
+
+    expect(createTransportMock).toHaveBeenCalledWith(expect.objectContaining({ host: "smtp.example.com" }));
   });
 });
 
