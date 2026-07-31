@@ -25,7 +25,13 @@ export function SignaturePad({
   function getPos(canvas: HTMLCanvasElement, e: React.MouseEvent | React.TouchEvent) {
     const rect = canvas.getBoundingClientRect();
     const point = "touches" in e ? e.touches[0] : e;
-    return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+    // The canvas is styled to stretch to its container's width (`w-full`)
+    // while its drawing surface stays a fixed 400x140 — without this scale
+    // correction, the stroke lags behind or drifts from the actual pointer
+    // position whenever the rendered size differs from that fixed resolution.
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (point.clientX - rect.left) * scaleX, y: (point.clientY - rect.top) * scaleY };
   }
 
   function onDown(e: React.MouseEvent | React.TouchEvent) {
@@ -35,7 +41,7 @@ export function SignaturePad({
     const p = getPos(canvas, e);
     drawingRef.current = true;
     pointCountRef.current = 1;
-    ctx.strokeStyle = "#000000";
+    ctx.strokeStyle = "#1a3fa8";
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
