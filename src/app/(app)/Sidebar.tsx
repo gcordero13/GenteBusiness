@@ -13,6 +13,7 @@ import {
   PartyPopper,
   Settings,
   ShieldCheck,
+  UserCircle,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ export function Sidebar({
   }
 
   const mainLinks: NavLink[] = [
+    { href: "/my-profile", label: "Mi perfil", icon: UserCircle },
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
     ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),
     ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
