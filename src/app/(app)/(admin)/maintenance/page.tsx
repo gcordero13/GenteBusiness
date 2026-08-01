@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Wrench } from "lucide-react";
+import { Download, Wrench } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -61,6 +61,20 @@ export default async function MaintenancePage() {
           <Link href="/maintenance/surveys" className="text-sm underline">
             Encuestas
           </Link>
+          <a
+            href="/maintenance/export/basic"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            <Download className="size-4" />
+            Reporte básico
+          </a>
+          <a
+            href="/maintenance/export/detailed"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            <Download className="size-4" />
+            Reporte detallado
+          </a>
           {flags.can_add && <NewMaintenanceDialog contacts={contactOptions} />}
         </div>
       </div>

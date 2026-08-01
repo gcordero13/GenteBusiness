@@ -38,10 +38,9 @@ export function buildBrandedEmailHtml(input: BrandedEmailInput): string {
               <td style="padding:32px 28px;color:#27272a;font-size:15px;line-height:1.6;">
                 <h1 style="font-size:19px;margin:0 0 16px;color:#18181b;">${escapeHtml(input.title)}</h1>
                 ${input.bodyHtml}
-                <div style="text-align:center;margin:30px 0 10px;">
+                <div style="text-align:center;margin:30px 0 6px;">
                   <a href="${escapeHtml(input.ctaUrl)}" style="background:#04B1AF;color:#ffffff;text-decoration:none;padding:14px 34px;border-radius:8px;font-weight:bold;font-size:15px;display:inline-block;">${escapeHtml(input.ctaText)}</a>
                 </div>
-                <p style="font-size:12px;color:#a1a1aa;text-align:center;word-break:break-all;">${escapeHtml(input.ctaUrl)}</p>
               </td>
             </tr>
             <tr>
