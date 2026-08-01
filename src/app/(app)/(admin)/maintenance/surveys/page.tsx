@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { computeAverageSatisfactionByTechnician } from "@/lib/maintenanceSurveys";
+import { computeAverageSatisfactionByTechnician, computeQuestionAverages } from "@/lib/maintenanceSurveys";
 
 export default async function MaintenanceSurveysPage() {
   const supabase = await createClient();
@@ -20,8 +21,19 @@ export default async function MaintenanceSurveysPage() {
     )
     .order("responded_at", { ascending: false, nullsFirst: false });
 
-  const answered = (surveys ?? []).filter((s) => s.status === "respondida");
-  const averages = computeAverageSatisfactionByTechnician(
+  const all = surveys ?? [];
+  const answered = all.filter((s) => s.status === "respondida");
+  const responseRate = all.length > 0 ? Math.round((answered.length / all.length) * 100) : 0;
+
+  const questionAverages = computeQuestionAverages(answered);
+  const overallAverage =
+    questionAverages.some((q) => q.responses > 0)
+      ? Math.round(
+          (questionAverages.reduce((sum, q) => sum + q.average, 0) / questionAverages.length) * 10,
+        ) / 10
+      : 0;
+
+  const technicianAverages = computeAverageSatisfactionByTechnician(
     answered.map((s) => {
       const tech = s.app_users as unknown as { id: string; full_name: string | null; email: string } | null;
       return {
@@ -34,16 +46,67 @@ export default async function MaintenanceSurveysPage() {
 
   return (
     <div className="space-y-8 p-6">
-      <div>
-        <h1 className="text-xl font-semibold">Encuestas de satisfacción</h1>
-        <Link href="/maintenance" className="text-sm underline">
-          Volver a Mantenimientos
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Encuestas de satisfacción</h1>
+          <Link href="/maintenance" className="text-sm underline">
+            Volver a Mantenimientos
+          </Link>
+        </div>
+        <a
+          href="/maintenance/surveys/export"
+          className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+        >
+          <Download className="size-4" />
+          Exportar CSV
+        </a>
       </div>
+
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border p-4">
+          <p className="text-sm text-muted-foreground">Respuestas</p>
+          <p className="text-2xl font-semibold">
+            {answered.length}
+            <span className="text-base font-normal text-muted-foreground"> / {all.length}</span>
+          </p>
+        </div>
+        <div className="rounded-xl border p-4">
+          <p className="text-sm text-muted-foreground">Tasa de respuesta</p>
+          <p className="text-2xl font-semibold">{responseRate}%</p>
+        </div>
+        <div className="rounded-xl border p-4">
+          <p className="text-sm text-muted-foreground">Promedio general</p>
+          <p className="text-2xl font-semibold">{answered.length > 0 ? overallAverage.toFixed(1) : "—"} / 5</p>
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="font-medium">Promedio por pregunta</h2>
+        {answered.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Todavía no hay respuestas.</p>
+        ) : (
+          <div className="space-y-4 rounded-xl border p-4">
+            {questionAverages.map((q) => (
+              <div key={q.key} className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{q.label}</span>
+                  <span className="font-medium text-foreground">{q.responses > 0 ? q.average.toFixed(1) : "—"}</span>
+                </div>
+                <div className="h-3 w-full rounded-full bg-muted">
+                  <div
+                    className="h-3 rounded-full bg-[#04B1AF]"
+                    style={{ width: `${Math.max((q.average / 5) * 100, q.responses > 0 ? 4 : 0)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="space-y-2">
         <h2 className="font-medium">Promedio de satisfacción por técnico</h2>
-        {averages.length === 0 ? (
+        {technicianAverages.length === 0 ? (
           <p className="text-sm text-muted-foreground">Todavía no hay respuestas.</p>
         ) : (
           <div className="overflow-hidden rounded-xl border">
@@ -56,7 +119,7 @@ export default async function MaintenanceSurveysPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {averages.map((a) => (
+                {technicianAverages.map((a) => (
                   <TableRow key={a.technician_id}>
                     <TableCell className="py-3">{a.technician_name}</TableCell>
                     <TableCell className="py-3">{a.average}</TableCell>
