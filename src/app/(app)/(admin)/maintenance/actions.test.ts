@@ -106,18 +106,17 @@ function mockSupabaseDelete({
 }: {
   deleteError?: { message: string } | null;
 } = {}) {
-  const secondEqMock = vi.fn().mockResolvedValue({ error: deleteError });
-  const firstEqMock = vi.fn().mockReturnValue({ eq: secondEqMock });
-  const deleteMock = vi.fn().mockReturnValue({ eq: firstEqMock });
+  const eqMock = vi.fn().mockResolvedValue({ error: deleteError });
+  const deleteMock = vi.fn().mockReturnValue({ eq: eqMock });
 
   return {
     from: vi.fn().mockReturnValue({ delete: deleteMock }),
-    _mocks: { deleteMock, firstEqMock, secondEqMock },
+    _mocks: { deleteMock, eqMock },
   };
 }
 
 describe("deleteMaintenanceRecord", () => {
-  it("scopes the delete query to the record id and pendiente status", async () => {
+  it("scopes the delete query to the record id, regardless of status (RLS enforces can_delete)", async () => {
     const supabase = mockSupabaseDelete();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
 
@@ -126,8 +125,7 @@ describe("deleteMaintenanceRecord", () => {
     expect(result.error).toBeUndefined();
     expect(supabase.from).toHaveBeenCalledWith("maintenance_records");
     expect(supabase._mocks.deleteMock).toHaveBeenCalled();
-    expect(supabase._mocks.firstEqMock).toHaveBeenCalledWith("id", "record-1");
-    expect(supabase._mocks.secondEqMock).toHaveBeenCalledWith("status", "pendiente");
+    expect(supabase._mocks.eqMock).toHaveBeenCalledWith("id", "record-1");
   });
 
   it("surfaces the delete error", async () => {

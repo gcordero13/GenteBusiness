@@ -44,11 +44,9 @@ export async function createMaintenanceRecord(contactId: string): Promise<Action
 
 export async function deleteMaintenanceRecord(recordId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("maintenance_records")
-    .delete()
-    .eq("id", recordId)
-    .eq("status", "pendiente");
+  // Any status is deletable here — RLS (can_delete on the maintenance module)
+  // is the actual gate, not the record's status.
+  const { error } = await supabase.from("maintenance_records").delete().eq("id", recordId);
   if (error) return { error: error.message };
 
   revalidatePath("/maintenance");

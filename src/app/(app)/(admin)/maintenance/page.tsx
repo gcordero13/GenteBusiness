@@ -105,8 +105,8 @@ export default async function MaintenancePage() {
                         <Link href={`/maintenance/${r.id}`} className="text-sm underline">
                           Ver
                         </Link>
-                        {flags.can_delete && r.status === "pendiente" && (
-                          <DeleteMaintenanceRecordButton recordId={r.id} />
+                        {flags.can_delete && (
+                          <DeleteMaintenanceRecordButton recordId={r.id} status={r.status} />
                         )}
                       </div>
                     </TableCell>
