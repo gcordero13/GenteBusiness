@@ -11,13 +11,16 @@ import {
 import { PartyPopper } from "lucide-react";
 import { formatMonthDay } from "@/lib/contacts";
 import { ActivityForm } from "./ActivityForm";
+import { DeleteIconButton } from "@/components/DeleteIconButton";
+import { deleteActivity } from "./actions";
 
 export default async function ActivitiesPage() {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
     p_module_key: "activities",
   });
-  if (!flagsRows?.[0]?.can_manage) {
+  const flags = flagsRows?.[0];
+  if (!flags?.can_manage) {
     redirect("/");
   }
 
@@ -53,7 +56,15 @@ export default async function ActivitiesPage() {
                 <TableCell className="font-medium">{e.name}</TableCell>
                 <TableCell>{formatMonthDay(e.event_date)}</TableCell>
                 <TableCell>
-                  <ActivityForm initial={{ id: e.id, name: e.name, eventDate: e.event_date }} />
+                  <div className="flex justify-end gap-2">
+                    <ActivityForm initial={{ id: e.id, name: e.name, eventDate: e.event_date }} />
+                    {flags.can_delete && (
+                      <DeleteIconButton
+                        confirmMessage={`¿Eliminar la actividad "${e.name}"? Esta acción no se puede deshacer.`}
+                        action={deleteActivity.bind(null, e.id)}
+                      />
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

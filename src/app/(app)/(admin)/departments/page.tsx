@@ -10,13 +10,16 @@ import {
 } from "@/components/ui/table";
 import { Network } from "lucide-react";
 import { DepartmentForm } from "./DepartmentForm";
+import { DeleteIconButton } from "@/components/DeleteIconButton";
+import { deleteDepartment } from "./actions";
 
 export default async function DepartmentsPage() {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
     p_module_key: "departments",
   });
-  if (!flagsRows?.[0]?.can_manage) {
+  const flags = flagsRows?.[0];
+  if (!flags?.can_manage) {
     redirect("/");
   }
 
@@ -53,10 +56,18 @@ export default async function DepartmentsPage() {
                 <TableCell className="font-medium">{d.name}</TableCell>
                 <TableCell>{(d.companies as unknown as { name: string })?.name}</TableCell>
                 <TableCell>
-                  <DepartmentForm
-                    companies={companies ?? []}
-                    initial={{ id: d.id, name: d.name, companyId: d.company_id }}
-                  />
+                  <div className="flex justify-end gap-2">
+                    <DepartmentForm
+                      companies={companies ?? []}
+                      initial={{ id: d.id, name: d.name, companyId: d.company_id }}
+                    />
+                    {flags.can_delete && (
+                      <DeleteIconButton
+                        confirmMessage={`¿Eliminar el departamento "${d.name}"? Esta acción no se puede deshacer.`}
+                        action={deleteDepartment.bind(null, d.id)}
+                      />
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

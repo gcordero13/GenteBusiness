@@ -1,0 +1,48 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+
+import { createClient } from "@/lib/supabase/server";
+import { deleteCompany } from "./actions";
+
+function mockSupabaseDelete({ deleteError = null }: { deleteError?: { code?: string; message: string } | null } = {}) {
+  const eqMock = vi.fn().mockResolvedValue({ error: deleteError });
+  const deleteMock = vi.fn().mockReturnValue({ eq: eqMock });
+  return { from: vi.fn().mockReturnValue({ delete: deleteMock }), _mocks: { deleteMock, eqMock } };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("deleteCompany", () => {
+  it("deletes the company", async () => {
+    const supabase = mockSupabaseDelete();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await deleteCompany("company-1");
+
+    expect(result.error).toBeUndefined();
+    expect(supabase.from).toHaveBeenCalledWith("companies");
+    expect(supabase._mocks.eqMock).toHaveBeenCalledWith("id", "company-1");
+  });
+
+  it("surfaces a friendly message when contacts still reference the company (FK violation)", async () => {
+    const supabase = mockSupabaseDelete({ deleteError: { code: "23503", message: "violates foreign key constraint" } });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await deleteCompany("company-1");
+
+    expect(result.error).toBe("No se puede eliminar: hay contactos asignados a esta empresa. Reasígnalos o elimínalos primero.");
+  });
+
+  it("surfaces other delete errors as-is", async () => {
+    const supabase = mockSupabaseDelete({ deleteError: { message: "delete failed" } });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await deleteCompany("company-1");
+
+    expect(result.error).toBe("delete failed");
+  });
+});

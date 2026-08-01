@@ -10,13 +10,16 @@ import {
 } from "@/components/ui/table";
 import { Building2 } from "lucide-react";
 import { CompanyForm } from "./CompanyForm";
+import { DeleteIconButton } from "@/components/DeleteIconButton";
+import { deleteCompany } from "./actions";
 
 export default async function CompaniesPage() {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
     p_module_key: "companies",
   });
-  if (!flagsRows?.[0]?.can_manage) {
+  const flags = flagsRows?.[0];
+  if (!flags?.can_manage) {
     redirect("/");
   }
 
@@ -47,7 +50,15 @@ export default async function CompaniesPage() {
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell>
-                  <CompanyForm initial={{ id: c.id, name: c.name }} />
+                  <div className="flex justify-end gap-2">
+                    <CompanyForm initial={{ id: c.id, name: c.name }} />
+                    {flags.can_delete && (
+                      <DeleteIconButton
+                        confirmMessage={`¿Eliminar la empresa "${c.name}"? Esto también eliminará sus departamentos. Esta acción no se puede deshacer.`}
+                        action={deleteCompany.bind(null, c.id)}
+                      />
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
