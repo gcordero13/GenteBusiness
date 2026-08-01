@@ -2,6 +2,7 @@ import "server-only";
 import nodemailer from "nodemailer";
 import { lookup } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildBrandedEmailHtml } from "@/lib/emailTemplates";
 
 interface EmailSettings {
   smtp_host: string;
@@ -53,6 +54,19 @@ function fromAddress(settings: EmailSettings): string {
   return `${name} <${address}>`;
 }
 
+// Fetched via the admin client (not the request-scoped cookie client) so this
+// works uniformly whether the caller is an authenticated technician action or
+// the public, session-less maintenance-completion flow.
+async function fetchPlatformLogoUrl(): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("platform_settings").select("logo_url").eq("id", true).maybeSingle();
+    return data?.logo_url ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function sendMaintenanceReportEmail(input: {
   userName: string;
   completedDate: string;
@@ -81,11 +95,48 @@ export async function sendSurveyEmail(input: {
   surveyUrl: string;
 }): Promise<void> {
   const settings = await getEmailSettings();
-  const transport = await buildTransport(settings);
+  const [transport, logoUrl] = await Promise.all([buildTransport(settings), fetchPlatformLogoUrl()]);
+  const html = buildBrandedEmailHtml({
+    title: `Hola, ${input.userName} 👋`,
+    bodyHtml: `
+      <p style="margin:0 0 14px;">Gracias por confiar en nosotros para el mantenimiento de tu equipo.</p>
+      <p style="margin:0;">Esta encuesta nos ayuda a mantener y mejorar la calidad de nuestro servicio — nos importas, y por eso queremos saber cómo fue tu experiencia. Solo te tomará un minuto.</p>
+    `,
+    ctaText: "Responder encuesta",
+    ctaUrl: input.surveyUrl,
+    logoUrl,
+  });
   await transport.sendMail({
     from: fromAddress(settings),
     to: input.userEmail,
-    subject: "Encuesta de satisfacción - Mantenimiento preventivo",
+    subject: "¿Cómo fue tu experiencia? Encuesta de satisfacción",
     text: `Hola ${input.userName}, nos gustaría conocer tu opinión sobre el servicio de mantenimiento recibido: ${input.surveyUrl}`,
+    html,
+  });
+}
+
+export async function sendMaintenanceLinkEmail(input: {
+  userEmail: string;
+  userName: string;
+  linkUrl: string;
+}): Promise<void> {
+  const settings = await getEmailSettings();
+  const [transport, logoUrl] = await Promise.all([buildTransport(settings), fetchPlatformLogoUrl()]);
+  const html = buildBrandedEmailHtml({
+    title: `Hola, ${input.userName}`,
+    bodyHtml: `
+      <p style="margin:0 0 14px;">Te compartimos el enlace para completar el formulario de mantenimiento preventivo de tu equipo.</p>
+      <p style="margin:0;">Solo toma unos minutos: revisa la información, completa el checklist y firma junto con el técnico.</p>
+    `,
+    ctaText: "Completar formulario",
+    ctaUrl: input.linkUrl,
+    logoUrl,
+  });
+  await transport.sendMail({
+    from: fromAddress(settings),
+    to: input.userEmail,
+    subject: "Formulario de Mantenimiento Preventivo",
+    text: `Completa tu formulario de mantenimiento preventivo aquí: ${input.linkUrl}`,
+    html,
   });
 }

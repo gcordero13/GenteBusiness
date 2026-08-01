@@ -4,6 +4,7 @@ import { getSiteUrl } from "@/lib/siteUrl";
 import { MAINTENANCE_CHECKLIST_ITEMS } from "@/lib/maintenanceChecklist";
 import { Badge } from "@/components/ui/badge";
 import { CopyLinkButton } from "./CopyLinkButton";
+import { SendLinkEmailButton } from "./SendLinkEmailButton";
 
 const STATUS_LABEL: Record<string, string> = {
   pendiente: "Pendiente",
@@ -56,6 +57,11 @@ export default async function MaintenanceRecordDetailPage({
             <code className="flex-1 truncate rounded bg-muted px-2 py-1 text-xs">{linkUrl}</code>
             <CopyLinkButton url={linkUrl} />
           </div>
+          {record.email && (
+            <div className="mt-2">
+              <SendLinkEmailButton recordId={record.id} />
+            </div>
+          )}
         </div>
       )}
 
