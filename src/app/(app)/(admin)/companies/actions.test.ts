@@ -8,7 +8,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { createClient } from "@/lib/supabase/server";
-import { saveCompany } from "./actions";
+import { deleteCompany, saveCompany } from "./actions";
 
 function mockSupabase(error: { message: string } | null = null) {
   const eq = vi.fn().mockResolvedValue({ error });
@@ -16,6 +16,12 @@ function mockSupabase(error: { message: string } | null = null) {
   const update = vi.fn().mockReturnValue({ eq });
   const from = vi.fn().mockReturnValue({ insert, update });
   return { from, insert, update, eq };
+}
+
+function mockSupabaseDelete({ deleteError = null }: { deleteError?: { code?: string; message: string } | null } = {}) {
+  const eqMock = vi.fn().mockResolvedValue({ error: deleteError });
+  const deleteMock = vi.fn().mockReturnValue({ eq: eqMock });
+  return { from: vi.fn().mockReturnValue({ delete: deleteMock }), _mocks: { deleteMock, eqMock } };
 }
 
 beforeEach(() => {
@@ -55,5 +61,36 @@ describe("saveCompany", () => {
     const result = await saveCompany(undefined, "Acme", null);
 
     expect(result.error).toBe("boom");
+  });
+});
+
+describe("deleteCompany", () => {
+  it("deletes the company", async () => {
+    const supabase = mockSupabaseDelete();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await deleteCompany("company-1");
+
+    expect(result.error).toBeUndefined();
+    expect(supabase.from).toHaveBeenCalledWith("companies");
+    expect(supabase._mocks.eqMock).toHaveBeenCalledWith("id", "company-1");
+  });
+
+  it("surfaces a friendly message when contacts still reference the company (FK violation)", async () => {
+    const supabase = mockSupabaseDelete({ deleteError: { code: "23503", message: "violates foreign key constraint" } });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await deleteCompany("company-1");
+
+    expect(result.error).toBe("No se puede eliminar: hay contactos asignados a esta empresa. Reasígnalos o elimínalos primero.");
+  });
+
+  it("surfaces other delete errors as-is", async () => {
+    const supabase = mockSupabaseDelete({ deleteError: { message: "delete failed" } });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await deleteCompany("company-1");
+
+    expect(result.error).toBe("delete failed");
   });
 });

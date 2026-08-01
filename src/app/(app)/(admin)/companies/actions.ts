@@ -13,3 +13,17 @@ export async function saveCompany(id: string | undefined, name: string, logoUrl:
   revalidatePath("/companies");
   return {};
 }
+
+export async function deleteCompany(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("companies").delete().eq("id", id);
+  if (error) {
+    if (error.code === "23503") {
+      return { error: "No se puede eliminar: hay contactos asignados a esta empresa. Reasígnalos o elimínalos primero." };
+    }
+    return { error: error.message };
+  }
+  revalidatePath("/companies");
+  revalidatePath("/departments");
+  return {};
+}
