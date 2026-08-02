@@ -6,6 +6,7 @@ interface PdfCursor {
   y: number;
   font: PDFFont;
   bold: PDFFont;
+  type: "preventivo" | "correctivo";
 }
 
 const BRAND_COLOR = rgb(4 / 255, 177 / 255, 175 / 255);
@@ -30,7 +31,11 @@ function ensureSpace(cursor: PdfCursor, neededHeight: number): void {
 
 function drawContinuationHeader(cursor: PdfCursor): void {
   const y = PAGE_HEIGHT - CONTINUATION_HEADER_HEIGHT;
-  cursor.page.drawText("Formulario de Mantenimiento Preventivo (continuación)", {
+  const label =
+    cursor.type === "correctivo"
+      ? "Formulario de Mantenimiento Correctivo (continuación)"
+      : "Formulario de Mantenimiento Preventivo (continuación)";
+  cursor.page.drawText(label, {
     x: MARGIN,
     y: y + 8,
     size: 9,
@@ -46,6 +51,7 @@ function drawContinuationHeader(cursor: PdfCursor): void {
 }
 
 export interface MaintenanceRecordForPdf {
+  type: "preventivo" | "correctivo";
   firstName: string;
   lastName: string;
   position: string | null;
@@ -59,6 +65,7 @@ export interface MaintenanceRecordForPdf {
   storageUsed: string | null;
   storageFree: string | null;
   checklist: { label: string; value: boolean | null }[];
+  correctivo: { label: string; value: string | null }[];
   findings: string | null;
   observations: string | null;
   completedAt: Date;
@@ -153,7 +160,10 @@ function drawHeader(cursor: PdfCursor, logo: Awaited<ReturnType<typeof embedLogo
   cursor.page.drawText(genValue, { x: PAGE_WIDTH - MARGIN - valueWidth, y: topY - 14, size: 9, font: cursor.font, color: MUTED_COLOR });
 
   const titleY = nameY - 24;
-  const title = "FORMULARIO DE MANTENIMIENTO PREVENTIVO";
+  const title =
+    cursor.type === "correctivo"
+      ? "FORMULARIO DE MANTENIMIENTO CORRECTIVO"
+      : "FORMULARIO DE MANTENIMIENTO PREVENTIVO";
   const titleWidth = cursor.bold.widthOfTextAtSize(title, 14);
   cursor.page.drawText(title, {
     x: (PAGE_WIDTH - titleWidth) / 2,
@@ -200,7 +210,7 @@ export async function buildMaintenancePdfBytes(
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const logo = logoBytes ? await embedLogoImage(doc, logoBytes) : null;
 
-  const cursor: PdfCursor = { doc, page, y: PAGE_HEIGHT - MARGIN, font, bold };
+  const cursor: PdfCursor = { doc, page, y: PAGE_HEIGHT - MARGIN, font, bold, type: record.type };
   drawHeader(cursor, logo, record.completedAt);
 
   const userInfoRows: [string, string][] = [
@@ -221,8 +231,13 @@ export async function buildMaintenancePdfBytes(
   drawInfoTable(cursor, "Información del Usuario", userInfoRows);
   drawInfoTable(cursor, "Información del Equipo", equipmentRows);
 
-  const checklistCols = splitInHalf(record.checklist);
-  drawChecklistTable(cursor, checklistCols);
+  if (record.type === "correctivo") {
+    const correctivoRows: [string, string][] = record.correctivo.map((f) => [f.label, f.value || "-"]);
+    drawInfoTable(cursor, "Diagnóstico y Solución", correctivoRows);
+  } else {
+    const checklistCols = splitInHalf(record.checklist);
+    drawChecklistTable(cursor, checklistCols);
+  }
 
   drawFlowingParagraph(cursor, "Hallazgos", record.findings || "Ninguno");
   drawFlowingParagraph(cursor, "Observaciones", record.observations || "Ninguna");

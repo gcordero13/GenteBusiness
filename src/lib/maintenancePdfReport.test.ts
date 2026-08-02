@@ -45,6 +45,7 @@ describe("buildMaintenancePdfBytes", () => {
 
     const bytes = await buildMaintenancePdfBytes(
       {
+        type: "preventivo",
         firstName: "Ana",
         lastName: "García",
         position: "Analista",
@@ -61,6 +62,7 @@ describe("buildMaintenancePdfBytes", () => {
           { label: "Punto de restauración creado", value: true },
           { label: "Limpieza de archivos temporales", value: false },
         ],
+        correctivo: [],
         findings: "Ninguno",
         observations: "Ninguna",
         completedAt: new Date("2026-07-28T15:00:00Z"),
@@ -89,6 +91,7 @@ describe("buildMaintenancePdfBytes", () => {
 
     const bytes = await buildMaintenancePdfBytes(
       {
+        type: "preventivo",
         firstName: "Ana",
         lastName: "García",
         position: "Analista",
@@ -105,6 +108,7 @@ describe("buildMaintenancePdfBytes", () => {
           { label: "Punto de restauración creado", value: true },
           { label: "Limpieza de archivos temporales", value: false },
         ],
+        correctivo: [],
         findings: longText,
         observations: longText,
         completedAt: new Date("2026-07-28T15:00:00Z"),
@@ -126,6 +130,7 @@ describe("buildMaintenancePdfBytes", () => {
 
     const bytes = await buildMaintenancePdfBytes(
       {
+        type: "preventivo",
         firstName: "Ana",
         lastName: "García",
         position: null,
@@ -139,6 +144,7 @@ describe("buildMaintenancePdfBytes", () => {
         storageUsed: null,
         storageFree: null,
         checklist: [{ label: "Punto de restauración creado", value: true }],
+        correctivo: [],
         findings: null,
         observations: null,
         completedAt: new Date("2026-07-28T15:00:00Z"),
@@ -162,6 +168,7 @@ describe("buildMaintenancePdfBytes", () => {
 
     const bytes = await buildMaintenancePdfBytes(
       {
+        type: "preventivo",
         firstName: "Ana",
         lastName: "García",
         position: null,
@@ -175,12 +182,54 @@ describe("buildMaintenancePdfBytes", () => {
         storageUsed: null,
         storageFree: null,
         checklist: [{ label: "Punto de restauración creado", value: true }],
+        correctivo: [],
         findings: null,
         observations: null,
         completedAt: new Date("2026-07-28T15:00:00Z"),
       },
       { technicianPng: pngBytes, userPng: pngBytes },
       notAnImage,
+    );
+
+    const reloaded = await PDFDocument.load(bytes);
+    expect(reloaded.getPageCount()).toBe(1);
+  });
+
+  it("renders the Correctivo fields instead of a checklist when type is correctivo", async () => {
+    const pngBytes = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      ),
+      (c) => c.charCodeAt(0),
+    );
+
+    const bytes = await buildMaintenancePdfBytes(
+      {
+        type: "correctivo",
+        firstName: "Ana",
+        lastName: "García",
+        position: "Analista",
+        companyName: "Sanchez Business Corp",
+        departmentName: "TI",
+        email: "ana@example.com",
+        hostName: "DESKTOP-ANA",
+        ram: "16 GB",
+        os: "Windows 11",
+        storageTotal: "512 GB",
+        storageUsed: "200 GB",
+        storageFree: "312 GB",
+        checklist: [],
+        correctivo: [
+          { label: "Problema reportado", value: "No enciende" },
+          { label: "Diagnóstico", value: "Fuente de poder dañada" },
+          { label: "Solución aplicada", value: "Se reemplazó la fuente" },
+          { label: "Repuestos/piezas usadas", value: "Fuente 500W" },
+        ],
+        findings: "Ninguno",
+        observations: "Ninguna",
+        completedAt: new Date("2026-07-28T15:00:00Z"),
+      },
+      { technicianPng: pngBytes, userPng: pngBytes },
     );
 
     const reloaded = await PDFDocument.load(bytes);
