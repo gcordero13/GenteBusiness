@@ -53,7 +53,7 @@ describe("createMaintenanceRecord", () => {
   it("rejects when there is no authenticated user", async () => {
     vi.mocked(createClient).mockResolvedValue(mockSupabase({ userId: null }) as never);
 
-    const result = await createMaintenanceRecord("contact-1");
+    const result = await createMaintenanceRecord("contact-1", "preventivo");
 
     expect(result.error).toBe("No autorizado");
   });
@@ -62,7 +62,7 @@ describe("createMaintenanceRecord", () => {
     const supabase = mockSupabase({ contact: null, contactError: { message: "not found" } });
     vi.mocked(createClient).mockResolvedValue(supabase as never);
 
-    const result = await createMaintenanceRecord("contact-1");
+    const result = await createMaintenanceRecord("contact-1", "preventivo");
 
     expect(result.error).toBe("Contacto no encontrado");
   });
@@ -71,7 +71,7 @@ describe("createMaintenanceRecord", () => {
     const supabase = mockSupabase();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
 
-    const result = await createMaintenanceRecord("contact-1");
+    const result = await createMaintenanceRecord("contact-1", "preventivo");
 
     expect(result.error).toBeUndefined();
     expect(result.token).toBe("fixed-test-token");
@@ -81,6 +81,7 @@ describe("createMaintenanceRecord", () => {
         token: "fixed-test-token",
         contact_id: "contact-1",
         created_by: "tech-1",
+        type: "preventivo",
         first_name: "Ana",
         last_name: "García",
         position: "Analista",
@@ -91,11 +92,23 @@ describe("createMaintenanceRecord", () => {
     );
   });
 
+  it("creates a correctivo record when type is correctivo", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await createMaintenanceRecord("contact-1", "correctivo");
+
+    expect(result.error).toBeUndefined();
+    expect(supabase._mocks.insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "correctivo" }),
+    );
+  });
+
   it("surfaces the insert error", async () => {
     const supabase = mockSupabase({ insertError: { message: "insert failed" } });
     vi.mocked(createClient).mockResolvedValue(supabase as never);
 
-    const result = await createMaintenanceRecord("contact-1");
+    const result = await createMaintenanceRecord("contact-1", "preventivo");
 
     expect(result.error).toBe("insert failed");
   });

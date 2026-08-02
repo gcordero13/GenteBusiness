@@ -9,7 +9,10 @@ interface ActionResult {
   token?: string;
 }
 
-export async function createMaintenanceRecord(contactId: string): Promise<ActionResult> {
+export async function createMaintenanceRecord(
+  contactId: string,
+  type: "preventivo" | "correctivo",
+): Promise<ActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,6 +32,7 @@ export async function createMaintenanceRecord(contactId: string): Promise<Action
     token,
     contact_id: contactId,
     created_by: user.id,
+    type,
     first_name: contact.first_name,
     last_name: contact.last_name,
     position: contact.position,
