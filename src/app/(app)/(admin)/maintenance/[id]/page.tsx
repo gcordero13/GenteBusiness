@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { MAINTENANCE_CHECKLIST_ITEMS } from "@/lib/maintenanceChecklist";
+import { MAINTENANCE_CORRECTIVO_FIELDS } from "@/lib/maintenanceCorrectivoFields";
 import { Badge } from "@/components/ui/badge";
 import { CopyLinkButton } from "./CopyLinkButton";
 import { SendLinkEmailButton } from "./SendLinkEmailButton";
@@ -83,20 +84,34 @@ export default async function MaintenanceRecordDetailPage({
         </dl>
       </section>
 
-      <section className="space-y-2">
-        <h2 className="font-medium">Checklist</h2>
-        <ul className="space-y-1 text-sm">
-          {MAINTENANCE_CHECKLIST_ITEMS.map((item) => {
-            const value = record[item.key as keyof typeof record] as boolean | null;
-            return (
-              <li key={item.key} className="flex items-center gap-2">
-                <span>{value === null ? "◻" : value ? "☑" : "☐"}</span>
-                <span>{item.label}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      {record.type === "correctivo" ? (
+        <section className="space-y-4">
+          <h2 className="font-medium">Diagnóstico y Solución</h2>
+          {MAINTENANCE_CORRECTIVO_FIELDS.map((field) => (
+            <div key={field.key} className="space-y-1">
+              <h3 className="text-sm font-medium text-muted-foreground">{field.label}</h3>
+              <p className="whitespace-pre-wrap text-sm">
+                {(record[field.key as keyof typeof record] as string | null) ?? "-"}
+              </p>
+            </div>
+          ))}
+        </section>
+      ) : (
+        <section className="space-y-2">
+          <h2 className="font-medium">Checklist</h2>
+          <ul className="space-y-1 text-sm">
+            {MAINTENANCE_CHECKLIST_ITEMS.map((item) => {
+              const value = record[item.key as keyof typeof record] as boolean | null;
+              return (
+                <li key={item.key} className="flex items-center gap-2">
+                  <span>{value === null ? "◻" : value ? "☑" : "☐"}</span>
+                  <span>{item.label}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="space-y-1">
         <h2 className="font-medium">Hallazgos</h2>
