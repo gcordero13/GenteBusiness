@@ -20,7 +20,13 @@ interface ContactOption {
   company: string;
 }
 
-export function NewMaintenanceDialog({ contacts }: { contacts: ContactOption[] }) {
+export function NewMaintenanceDialog({
+  contacts,
+  type,
+}: {
+  contacts: ContactOption[];
+  type: "preventivo" | "correctivo";
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -42,7 +48,7 @@ export function NewMaintenanceDialog({ contacts }: { contacts: ContactOption[] }
     setPendingId(contactId);
     setError(null);
     startTransition(async () => {
-      const result = await createMaintenanceRecord(contactId);
+      const result = await createMaintenanceRecord(contactId, type);
       setPendingId(null);
       if (result.error) {
         setError(result.error);
