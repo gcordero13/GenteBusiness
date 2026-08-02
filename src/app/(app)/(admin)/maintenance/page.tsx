@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { NewMaintenanceDialog } from "./NewMaintenanceDialog";
 import { DeleteMaintenanceRecordButton } from "./DeleteMaintenanceRecordButton";
+import { MaintenanceFilters } from "./MaintenanceFilters";
 
 const STATUS_LABEL: Record<string, string> = {
   pendiente: "Pendiente",
@@ -20,7 +21,25 @@ const STATUS_LABEL: Record<string, string> = {
   expirado: "Expirado",
 };
 
-export default async function MaintenancePage() {
+const TYPE_LABEL: Record<string, string> = {
+  preventivo: "Preventivo",
+  correctivo: "Correctivo",
+};
+
+function parseType(value: string | undefined): "preventivo" | "correctivo" {
+  return value === "correctivo" ? "correctivo" : "preventivo";
+}
+
+export default async function MaintenancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string; year?: string }>;
+}) {
+  const { type: typeParam, year: yearParam } = await searchParams;
+  const type = parseType(typeParam);
+  const currentYear = new Date().getFullYear();
+  const year = yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : currentYear;
+
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
     p_module_key: "maintenance",
@@ -30,9 +49,20 @@ export default async function MaintenancePage() {
     redirect("/");
   }
 
+  const { data: yearRows } = await supabase.from("maintenance_records").select("created_at");
+  const years = Array.from(
+    new Set([currentYear, ...(yearRows ?? []).map((r) => new Date(r.created_at).getFullYear())]),
+  ).sort((a, b) => b - a);
+
+  const yearStart = `${year}-01-01T00:00:00.000Z`;
+  const yearEnd = `${year + 1}-01-01T00:00:00.000Z`;
+
   const { data: records } = await supabase
     .from("maintenance_records")
     .select("id, first_name, last_name, company_name, status, created_at, app_users(full_name, email)")
+    .eq("type", type)
+    .gte("created_at", yearStart)
+    .lt("created_at", yearEnd)
     .order("created_at", { ascending: false });
 
   const { data: contacts } = await supabase
@@ -48,13 +78,15 @@ export default async function MaintenancePage() {
     company: (c.companies as unknown as { name: string } | null)?.name ?? "",
   }));
 
+  const reportQuery = `?type=${type}&year=${year}`;
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">Mantenimientos</h1>
           <p className="text-sm text-muted-foreground">
-            Registros de mantenimiento preventivo por contacto.
+            Registros de mantenimiento {TYPE_LABEL[type].toLowerCase()} por contacto.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -62,26 +94,31 @@ export default async function MaintenancePage() {
             Encuestas
           </Link>
           <a
-            href="/maintenance/export/basic"
+            href={`/maintenance/export/basic${reportQuery}`}
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
           >
             <Download className="size-4" />
             Reporte básico
           </a>
           <a
-            href="/maintenance/export/detailed"
+            href={`/maintenance/export/detailed${reportQuery}`}
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
           >
             <Download className="size-4" />
             Reporte detallado
           </a>
-          {flags.can_add && <NewMaintenanceDialog contacts={contactOptions} />}
+          {flags.can_add && <NewMaintenanceDialog contacts={contactOptions} type={type} />}
         </div>
       </div>
+
+      <MaintenanceFilters years={years} />
+
       {(records ?? []).length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-16 text-center text-muted-foreground">
           <Wrench className="size-8" />
-          <p className="text-sm">No hay registros de mantenimiento todavía.</p>
+          <p className="text-sm">
+            No hay registros de mantenimiento {TYPE_LABEL[type].toLowerCase()} en {year}.
+          </p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border">
