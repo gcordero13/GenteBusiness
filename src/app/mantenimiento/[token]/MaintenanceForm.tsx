@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MAINTENANCE_CHECKLIST_ITEMS } from "@/lib/maintenanceChecklist";
+import { MAINTENANCE_CORRECTIVO_FIELDS } from "@/lib/maintenanceCorrectivoFields";
 import { saveMaintenanceProgress, type MaintenanceProgressInput } from "./actions";
 
 export interface MaintenanceFormRecord extends MaintenanceProgressInput {
+  type: string;
   first_name: string;
   last_name: string;
   position: string | null;
@@ -28,6 +30,9 @@ export function MaintenanceForm({ token, record }: { token: string; record: Main
     findings: record.findings ?? "",
     observations: record.observations ?? "",
     ...Object.fromEntries(MAINTENANCE_CHECKLIST_ITEMS.map((item) => [item.key, record[item.key]])),
+    ...Object.fromEntries(
+      MAINTENANCE_CORRECTIVO_FIELDS.map((field) => [field.key, record[field.key] ?? ""]),
+    ),
   });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -87,21 +92,38 @@ export function MaintenanceForm({ token, record }: { token: string; record: Main
         </div>
       </section>
 
-      <section className="space-y-2">
-        <h2 className="font-medium">Checklist de Mantenimiento</h2>
-        <div className="space-y-1">
-          {MAINTENANCE_CHECKLIST_ITEMS.map((item) => (
-            <label key={item.key} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(fields[item.key as keyof MaintenanceProgressInput])}
-                onChange={(e) => setChecklist(item.key, e.target.checked)}
+      {record.type === "correctivo" ? (
+        <section className="space-y-2">
+          <h2 className="font-medium">Diagnóstico y Solución</h2>
+          {MAINTENANCE_CORRECTIVO_FIELDS.map((field) => (
+            <div key={field.key} className="space-y-1">
+              <label className="text-sm text-muted-foreground">{field.label}</label>
+              <textarea
+                className="w-full rounded-md border p-2 text-sm"
+                rows={2}
+                value={(fields[field.key as keyof MaintenanceProgressInput] as string) ?? ""}
+                onChange={(e) => setText(field.key as keyof MaintenanceProgressInput, e.target.value)}
               />
-              {item.label}
-            </label>
+            </div>
           ))}
-        </div>
-      </section>
+        </section>
+      ) : (
+        <section className="space-y-2">
+          <h2 className="font-medium">Checklist de Mantenimiento</h2>
+          <div className="space-y-1">
+            {MAINTENANCE_CHECKLIST_ITEMS.map((item) => (
+              <label key={item.key} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(fields[item.key as keyof MaintenanceProgressInput])}
+                  onChange={(e) => setChecklist(item.key, e.target.checked)}
+                />
+                {item.label}
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-2">
         <h2 className="font-medium">Hallazgos</h2>

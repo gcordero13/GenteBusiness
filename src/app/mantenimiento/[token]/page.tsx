@@ -43,7 +43,9 @@ export default async function MaintenancePublicPage({ params }: { params: Promis
   return (
     <div className="mx-auto max-w-2xl space-y-8 p-6">
       <div>
-        <h1 className="text-xl font-semibold">Formulario de Mantenimiento Preventivo</h1>
+        <h1 className="text-xl font-semibold">
+          Formulario de Mantenimiento {record.type === "correctivo" ? "Correctivo" : "Preventivo"}
+        </h1>
         <p className="text-sm text-muted-foreground">
           Completa la información y firma para finalizar.
         </p>
