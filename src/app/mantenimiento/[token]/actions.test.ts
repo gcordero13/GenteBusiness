@@ -61,6 +61,26 @@ describe("saveMaintenanceProgress", () => {
     expect(admin._mocks.updateMock).toHaveBeenCalledWith({ host_name: "PC-1", ram: "16 GB" });
     expect(admin._mocks.eqMock).toHaveBeenCalledWith("id", "record-1");
   });
+
+  it("updates correctivo fields for a pendiente record", async () => {
+    vi.mocked(loadMaintenanceRecordByToken).mockResolvedValue({
+      ok: true,
+      record: { id: "record-1", status: "pendiente" } as never,
+    });
+    const admin = mockAdmin();
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await saveMaintenanceProgress("token-1", {
+      problema_reportado: "No enciende",
+      diagnostico: "Fuente de poder dañada",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(admin._mocks.updateMock).toHaveBeenCalledWith({
+      problema_reportado: "No enciende",
+      diagnostico: "Fuente de poder dañada",
+    });
+  });
 });
 
 describe("saveMaintenanceSignature", () => {

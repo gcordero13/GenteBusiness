@@ -5,6 +5,7 @@ import { loadMaintenanceRecordByToken } from "@/lib/maintenanceAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { completeMaintenanceRecord, type MaintenanceRecordForCompletion } from "@/lib/completeMaintenanceRecord";
 import { MAINTENANCE_CHECKLIST_ITEMS } from "@/lib/maintenanceChecklist";
+import { MAINTENANCE_CORRECTIVO_FIELDS } from "@/lib/maintenanceCorrectivoFields";
 
 interface ActionResult {
   error?: string;
@@ -29,6 +30,10 @@ export interface MaintenanceProgressInput {
   wallpaper_installed?: boolean;
   keyboard_cleaned?: boolean;
   screen_cleaned?: boolean;
+  problema_reportado?: string;
+  diagnostico?: string;
+  solucion_aplicada?: string;
+  repuestos_piezas?: string;
 }
 
 interface PendingRecordLookup {
@@ -53,6 +58,7 @@ const ALLOWED_PROGRESS_FIELDS = [
   "findings",
   "observations",
   ...MAINTENANCE_CHECKLIST_ITEMS.map((item) => item.key),
+  ...MAINTENANCE_CORRECTIVO_FIELDS.map((field) => field.key),
 ] as const satisfies readonly (keyof MaintenanceProgressInput)[];
 
 function pickAllowedProgressFields(input: MaintenanceProgressInput): MaintenanceProgressInput {
