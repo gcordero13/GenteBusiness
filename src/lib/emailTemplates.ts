@@ -14,9 +14,13 @@ export interface BrandedEmailInput {
   ctaText: string;
   ctaUrl: string;
   logoUrl?: string | null;
+  footerText?: string;
 }
 
 export function buildBrandedEmailHtml(input: BrandedEmailInput): string {
+  const footerText =
+    input.footerText ??
+    "Correo generado automáticamente por el sistema de mantenimiento de Gente Sánchez Business.";
   const logoBlock = input.logoUrl
     ? `<img src="${escapeHtml(input.logoUrl)}" alt="Gente Sánchez Business" width="44" height="44" style="border-radius:10px;display:block;margin:0 auto 10px;" />`
     : "";
@@ -45,7 +49,7 @@ export function buildBrandedEmailHtml(input: BrandedEmailInput): string {
             </tr>
             <tr>
               <td style="padding:16px 28px;border-top:1px solid #e4e4e7;color:#a1a1aa;font-size:12px;text-align:center;">
-                Correo generado automáticamente por el sistema de mantenimiento de Gente Sánchez Business.
+                ${escapeHtml(footerText)}
               </td>
             </tr>
           </table>
