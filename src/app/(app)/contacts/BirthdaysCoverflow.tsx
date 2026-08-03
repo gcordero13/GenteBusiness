@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { BirthdayContactModal } from "./BirthdayContactModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatMonthDay, getInitials, isTodayBirthday, type BirthdayContact } from "@/lib/contacts";
 
@@ -56,44 +56,49 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
             const aboutToWrap = rel === -MAX_VISIBLE;
 
             return (
-              <Link
+              <BirthdayContactModal
                 key={c.id}
-                href={`/contacts/${c.id}`}
-                aria-label={c.name}
-                aria-hidden={!visible}
-                tabIndex={visible ? 0 : -1}
-                style={{
-                  position: "absolute",
-                  left: "50%",
-                  top: "50%",
-                  transform: `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${scale})`,
-                  filter: aboutToWrap ? "blur(6px)" : "blur(0px)",
-                  transition: TRANSITION,
-                  opacity: visible ? 1 : 0,
-                  pointerEvents: visible ? "auto" : "none",
-                }}
-                className="flex flex-col items-center gap-1"
-              >
-                <Avatar
-                  className={`size-36 shadow-md ${isActive ? "border-2 border-[#04B1AF]" : ""}`}
-                >
-                  <AvatarImage src={c.photo_url ?? undefined} alt="" />
-                  <AvatarFallback className="text-3xl">{getInitials(c.name)}</AvatarFallback>
-                </Avatar>
-                {isActive && (
-                  <div className="mt-4 flex flex-col items-center gap-1">
-                    <span className="max-w-[220px] text-center text-lg font-semibold">{c.name}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {c.birth_date ? formatMonthDay(c.birth_date) : ""}
-                    </span>
-                    {today && (
-                      <span className="animate-pulse rounded-full bg-[#04B1AF] px-2 py-0.5 text-xs font-medium text-white">
-                        ¡Hoy!
-                      </span>
+                contact={c}
+                trigger={
+                  <button
+                    type="button"
+                    aria-label={c.name}
+                    aria-hidden={!visible}
+                    tabIndex={visible ? 0 : -1}
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      top: "50%",
+                      transform: `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${scale})`,
+                      filter: aboutToWrap ? "blur(6px)" : "blur(0px)",
+                      transition: TRANSITION,
+                      opacity: visible ? 1 : 0,
+                      pointerEvents: visible ? "auto" : "none",
+                    }}
+                    className="flex flex-col items-center gap-1 text-left"
+                  >
+                    <Avatar
+                      className={`size-36 shadow-md ${isActive ? "border-2 border-[#04B1AF]" : ""}`}
+                    >
+                      <AvatarImage src={c.photo_url ?? undefined} alt="" />
+                      <AvatarFallback className="text-3xl">{getInitials(c.name)}</AvatarFallback>
+                    </Avatar>
+                    {isActive && (
+                      <div className="mt-4 flex flex-col items-center gap-1">
+                        <span className="max-w-[220px] text-center text-lg font-semibold">{c.name}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {c.birth_date ? formatMonthDay(c.birth_date) : ""}
+                        </span>
+                        {today && (
+                          <span className="animate-pulse rounded-full bg-[#04B1AF] px-2 py-0.5 text-xs font-medium text-white">
+                            ¡Hoy!
+                          </span>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
-              </Link>
+                  </button>
+                }
+              />
             );
           })}
         </div>
