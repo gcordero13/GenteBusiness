@@ -65,9 +65,10 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
         employeeName: `${resolved.data.firstName} ${resolved.data.lastName}`,
         requestUrl: `${siteUrl}/solicitudes/vacaciones`,
       });
-    } catch {
+    } catch (err) {
       // The request row is already committed — a mail outage must not
       // block submission. The supervisor can still be notified manually.
+      console.error("Failed to send vacation request submitted email:", err);
     }
   }
 
