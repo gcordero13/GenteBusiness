@@ -88,11 +88,26 @@ async function uploadDecisionSignature(
   admin: ReturnType<typeof createAdminClient>,
   requestId: string,
   role: "supervisor" | "rrhh",
-  dataUrl: string,
+  dataUrlOrSignedUrl: string,
 ): Promise<{ path?: string; error?: string }> {
-  const base64 = dataUrl.split(",")[1] ?? "";
-  const bytes = Buffer.from(base64, "base64");
-  if (bytes.length === 0) return { error: "Firma inválida" };
+  let bytes: Buffer;
+
+  if (dataUrlOrSignedUrl.startsWith("data:")) {
+    const base64 = dataUrlOrSignedUrl.split(",")[1] ?? "";
+    bytes = Buffer.from(base64, "base64");
+    if (bytes.length === 0) return { error: "Firma inválida" };
+  } else {
+    // A picked, previously-saved signature arrives as a signed Storage URL
+    // (SignatureDialog's "pick saved" path), not a data URI — fetch the
+    // actual bytes server-side rather than assuming base64 input.
+    try {
+      const response = await fetch(dataUrlOrSignedUrl);
+      if (!response.ok) return { error: "Firma inválida" };
+      bytes = Buffer.from(await response.arrayBuffer());
+    } catch {
+      return { error: "Firma inválida" };
+    }
+  }
 
   const path = `${requestId}/${role}.png`;
   const { error } = await admin.storage.from("vacation-request-signatures").upload(path, bytes, {

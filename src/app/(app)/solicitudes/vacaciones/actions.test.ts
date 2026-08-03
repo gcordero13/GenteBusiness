@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
@@ -54,6 +54,10 @@ function mockAdmin() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(createAdminClient).mockReturnValue(mockAdmin() as never);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("createVacationRequest", () => {
@@ -295,6 +299,44 @@ describe("respondAsSupervisor", () => {
       expect.objectContaining({ status: "pendiente_rrhh", supervisor_decision: "aprobado", supervisor_comments: "Todo en orden" }),
     );
     expect(sendVacationRequestSupervisorDecisionEmail).toHaveBeenCalledWith(expect.objectContaining({ approved: true }));
+  });
+
+  it("approves using a picked, previously-saved signature (a signed HTTPS URL, not a data URI)", async () => {
+    const supabase = mockSupabaseForRespond({ request: BASE_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    const admin = mockAdminForRespond({ rrhhEmails: ["rrhh@example.com"] });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const signedUrl = "https://example.supabase.co/storage/v1/object/sign/user-signatures/foo.png?token=abc";
+    const result = await respondAsSupervisor("req-1", "aprobado", signedUrl, "Todo en orden");
+
+    expect(fetchMock).toHaveBeenCalledWith(signedUrl);
+    expect(result.error).toBeUndefined();
+    expect(admin._mocks.uploadMock).toHaveBeenCalledWith(
+      "req-1/supervisor.png",
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "image/png", upsert: true }),
+    );
+    expect(supabase._mocks.updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "pendiente_rrhh", supervisor_decision: "aprobado" }),
+    );
+  });
+
+  it("treats a picked signature as invalid when the signed-URL fetch fails", async () => {
+    const supabase = mockSupabaseForRespond({ request: BASE_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(mockAdminForRespond() as never);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+
+    const result = await respondAsSupervisor("req-1", "aprobado", "https://example.com/signature.png", "");
+
+    expect(result.error).toBe("Firma inválida");
   });
 
   it("rejects without requiring a signature", async () => {

@@ -43,7 +43,8 @@ export default async function VacationRequestsPage() {
 
   const signatures: SignatureWithUrl[] = await Promise.all(
     (signatureRows ?? []).map(async (s) => {
-      const { data } = await supabase.storage.from("user-signatures").createSignedUrl(s.storage_path, 3600);
+      const { data, error } = await supabase.storage.from("user-signatures").createSignedUrl(s.storage_path, 14400);
+      if (error) console.error(`Failed to sign URL for signature ${s.id} (${s.storage_path}):`, error.message);
       return { id: s.id, storagePath: s.storage_path, url: data?.signedUrl ?? "" };
     }),
   );
