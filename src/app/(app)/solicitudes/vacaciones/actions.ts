@@ -137,8 +137,9 @@ export async function respondAsSupervisor(
     update.status = "rechazado";
   }
 
-  const { error: updateError } = await supabase.from("vacation_requests").update(update).eq("id", requestId);
+  const { data: updated, error: updateError } = await supabase.from("vacation_requests").update(update).eq("id", requestId).select();
   if (updateError) return { error: updateError.message };
+  if (!updated || updated.length === 0) return { error: "No autorizado" };
 
   const { data: employee } = await admin.from("app_users").select("email").eq("id", request.requester_app_user_id).maybeSingle();
 
@@ -149,19 +150,21 @@ export async function respondAsSupervisor(
   let rrhhEmails: string[] = [];
   if (decision === "aprobado") {
     const { data: module } = await admin.from("modules").select("id").eq("key", "solicitudes_vacaciones").single();
-    const { data: rrhhProfiles } = await admin
-      .from("role_profile_permissions")
-      .select("role_profile_id")
-      .eq("module_id", module!.id)
-      .eq("can_authorize", true);
-    const profileIds = (rrhhProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
-    if (profileIds.length > 0) {
-      const { data: rrhhUsers } = await admin
-        .from("app_users")
-        .select("email")
-        .in("role_profile_id", profileIds)
-        .eq("status", "active");
-      rrhhEmails = (rrhhUsers ?? []).map((u: { email: string }) => u.email);
+    if (module?.id) {
+      const { data: rrhhProfiles } = await admin
+        .from("role_profile_permissions")
+        .select("role_profile_id")
+        .eq("module_id", module.id)
+        .eq("can_authorize", true);
+      const profileIds = (rrhhProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
+      if (profileIds.length > 0) {
+        const { data: rrhhUsers } = await admin
+          .from("app_users")
+          .select("email")
+          .in("role_profile_id", profileIds)
+          .eq("status", "active");
+        rrhhEmails = (rrhhUsers ?? []).map((u: { email: string }) => u.email);
+      }
     }
   }
 
@@ -197,6 +200,11 @@ export async function respondAsRrhh(
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autorizado" };
 
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
+    p_module_key: "solicitudes_vacaciones",
+  });
+  if (!flagsRows?.[0]?.can_authorize) return { error: "No autorizado" };
+
   const { data: request, error: fetchError } = await supabase
     .from("vacation_requests")
     .select("id, status, requester_app_user_id, first_name, last_name")
@@ -224,8 +232,9 @@ export async function respondAsRrhh(
     update.rrhh_signature_path = signature.path;
   }
 
-  const { error: updateError } = await supabase.from("vacation_requests").update(update).eq("id", requestId);
+  const { data: updated, error: updateError } = await supabase.from("vacation_requests").update(update).eq("id", requestId).select();
   if (updateError) return { error: updateError.message };
+  if (!updated || updated.length === 0) return { error: "No autorizado" };
 
   const { data: employee } = await admin.from("app_users").select("email").eq("id", request.requester_app_user_id).maybeSingle();
   if (employee?.email) {

@@ -141,22 +141,28 @@ function mockSupabaseForRespond({
   userId = "sup-1",
   request,
   updateError = null,
+  updatedRows = [{ id: "req-1" }],
+  canAuthorize = true,
 }: {
   userId?: string;
   request: Record<string, unknown> | null;
   updateError?: { message: string } | null;
+  updatedRows?: Record<string, unknown>[] | null;
+  canAuthorize?: boolean;
 }) {
   const requestSingleMock = vi.fn().mockResolvedValue({ data: request, error: request ? null : { message: "not found" } });
   const requestEqMock = vi.fn().mockReturnValue({ single: requestSingleMock });
   const requestSelectMock = vi.fn().mockReturnValue({ eq: requestEqMock });
 
-  const updateEqMock = vi.fn().mockResolvedValue({ error: updateError });
+  const updateSelectMock = vi.fn().mockResolvedValue({ data: updateError ? null : updatedRows, error: updateError });
+  const updateEqMock = vi.fn().mockReturnValue({ select: updateSelectMock });
   const updateMock = vi.fn().mockReturnValue({ eq: updateEqMock });
 
   return {
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId } } }) },
+    rpc: vi.fn().mockResolvedValue({ data: [{ can_authorize: canAuthorize }], error: null }),
     from: vi.fn().mockReturnValue({ select: requestSelectMock, update: updateMock }),
-    _mocks: { requestSelectMock, requestEqMock, requestSingleMock, updateMock, updateEqMock },
+    _mocks: { requestSelectMock, requestEqMock, requestSingleMock, updateMock, updateEqMock, updateSelectMock },
   };
 }
 
@@ -282,10 +288,37 @@ describe("respondAsSupervisor", () => {
     expect(result.error).toBeUndefined();
     expect(supabase._mocks.updateMock).toHaveBeenCalled();
   });
+
+  it("rejects when the update is silently blocked by RLS (zero rows affected)", async () => {
+    const supabase = mockSupabaseForRespond({ request: BASE_REQUEST, updatedRows: [] });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(mockAdminForRespond() as never);
+
+    const result = await respondAsSupervisor("req-1", "aprobado", "data:image/png;base64,AAAA", "Todo en orden");
+
+    expect(result.error).toBe("No autorizado");
+    expect(sendVacationRequestSupervisorDecisionEmail).not.toHaveBeenCalled();
+  });
 });
 
 describe("respondAsRrhh", () => {
   const RRHH_REQUEST = { ...BASE_REQUEST, status: "pendiente_rrhh" };
+
+  it("rejects a caller who lacks can_authorize before even looking up the request", async () => {
+    const supabase = mockSupabaseForRespond({ request: RRHH_REQUEST, canAuthorize: false });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(mockAdminForRespond() as never);
+
+    const result = await respondAsRrhh("req-1", "aprobado", "data:image/png;base64,AAAA", "", {
+      periodConfirmed: "2026",
+      hasCurrentVacation: true,
+      isAdvance: false,
+    });
+
+    expect(result.error).toBe("No autorizado");
+    expect(supabase._mocks.updateMock).not.toHaveBeenCalled();
+    expect(sendVacationRequestRrhhDecisionEmail).not.toHaveBeenCalled();
+  });
 
   it("rejects when the request is not pending RRHH", async () => {
     vi.mocked(createClient).mockResolvedValue(mockSupabaseForRespond({ request: BASE_REQUEST }) as never);
