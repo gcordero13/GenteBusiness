@@ -233,6 +233,55 @@ describe("buildMaintenancePdfBytes", () => {
     );
 
     const reloaded = await PDFDocument.load(bytes);
-    expect(reloaded.getPageCount()).toBe(1);
+    // Each Correctivo field now renders as its own titled section (via
+    // drawFlowingParagraph) with a section header and divider, rather than
+    // as a compact row in a single shared table (drawInfoTable). That extra
+    // per-field chrome — not the field values themselves — is what pushes
+    // even these short answers past the first page onto a second one.
+    expect(reloaded.getPageCount()).toBe(2);
+  });
+
+  it("wraps long Correctivo field text across multiple lines instead of truncating it", async () => {
+    const pngBytes = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      ),
+      (c) => c.charCodeAt(0),
+    );
+    const longSentence =
+      "Se diagnosticó que la fuente de poder presentaba un cortocircuito interno tras varias pruebas de continuidad y voltaje realizadas en sitio. ";
+    const longText = longSentence.repeat(10);
+
+    const bytes = await buildMaintenancePdfBytes(
+      {
+        type: "correctivo",
+        firstName: "Ana",
+        lastName: "García",
+        position: "Analista",
+        companyName: "Sanchez Business Corp",
+        departmentName: "TI",
+        email: "ana@example.com",
+        hostName: "DESKTOP-ANA",
+        ram: "16 GB",
+        os: "Windows 11",
+        storageTotal: "512 GB",
+        storageUsed: "200 GB",
+        storageFree: "312 GB",
+        checklist: [],
+        correctivo: [
+          { label: "Problema reportado", value: "No enciende" },
+          { label: "Diagnóstico", value: longText },
+          { label: "Solución aplicada", value: "Se reemplazó la fuente" },
+          { label: "Repuestos/piezas usadas", value: "Fuente 500W" },
+        ],
+        findings: "Ninguno",
+        observations: "Ninguna",
+        completedAt: new Date("2026-07-28T15:00:00Z"),
+      },
+      { technicianPng: pngBytes, userPng: pngBytes },
+    );
+
+    const reloaded = await PDFDocument.load(bytes);
+    expect(reloaded.getPageCount()).toBeGreaterThanOrEqual(2);
   });
 });

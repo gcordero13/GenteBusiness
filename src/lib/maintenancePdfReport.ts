@@ -232,8 +232,9 @@ export async function buildMaintenancePdfBytes(
   drawInfoTable(cursor, "Información del Equipo", equipmentRows);
 
   if (record.type === "correctivo") {
-    const correctivoRows: [string, string][] = record.correctivo.map((f) => [f.label, f.value || "-"]);
-    drawInfoTable(cursor, "Diagnóstico y Solución", correctivoRows);
+    for (const field of record.correctivo) {
+      drawFlowingParagraph(cursor, field.label, field.value || "-");
+    }
   } else {
     const checklistCols = splitInHalf(record.checklist);
     drawChecklistTable(cursor, checklistCols);
