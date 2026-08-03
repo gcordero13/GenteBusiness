@@ -1,4 +1,5 @@
 export interface MaintenanceReportRow {
+  type: string;
   first_name: string;
   last_name: string;
   company_name: string | null;
@@ -16,6 +17,7 @@ export interface MaintenanceReportRow {
   storage_used: string | null;
   storage_free: string | null;
   checklist: Record<string, boolean | null>;
+  correctivo: Record<string, string | null>;
   findings: string | null;
   observations: string | null;
   technician_signed_at: string | null;
@@ -34,6 +36,11 @@ const STATUS_LABEL: Record<string, string> = {
   expirado: "Expirado",
 };
 
+const TYPE_LABEL: Record<string, string> = {
+  preventivo: "Preventivo",
+  correctivo: "Correctivo",
+};
+
 function csvField(value: string | number | boolean | null | undefined): string {
   const str = value === null || value === undefined ? "" : String(value);
   if (/[",\r\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
@@ -50,11 +57,14 @@ function boolLabel(value: boolean | null): string {
 }
 
 export function buildMaintenanceBasicCsv(rows: MaintenanceReportRow[]): string {
-  const lines = [joinRow(["Usuario", "Empresa", "Técnico", "Estado", "Fecha de creación", "Departamento", "Encuesta completada"])];
+  const lines = [
+    joinRow(["Usuario", "Tipo", "Empresa", "Técnico", "Estado", "Fecha de creación", "Departamento", "Encuesta completada"]),
+  ];
   for (const r of rows) {
     lines.push(
       joinRow([
         `${r.first_name} ${r.last_name}`,
+        TYPE_LABEL[r.type] ?? r.type,
         r.company_name,
         r.technician_name,
         STATUS_LABEL[r.status] ?? r.status,
@@ -70,9 +80,11 @@ export function buildMaintenanceBasicCsv(rows: MaintenanceReportRow[]): string {
 export function buildMaintenanceDetailedCsv(
   rows: MaintenanceReportRow[],
   checklistItems: readonly { key: string; label: string }[],
+  correctivoFields: readonly { key: string; label: string }[],
 ): string {
   const header = [
     "Usuario",
+    "Tipo",
     "Correo",
     "Posición",
     "Empresa",
@@ -88,6 +100,7 @@ export function buildMaintenanceDetailedCsv(
     "Almacenamiento Utilizado",
     "Almacenamiento Libre",
     ...checklistItems.map((i) => i.label),
+    ...correctivoFields.map((f) => f.label),
     "Hallazgos",
     "Observaciones",
     "Firma Técnico",
@@ -104,6 +117,7 @@ export function buildMaintenanceDetailedCsv(
     lines.push(
       joinRow([
         `${r.first_name} ${r.last_name}`,
+        TYPE_LABEL[r.type] ?? r.type,
         r.email,
         r.position,
         r.company_name,
@@ -119,6 +133,7 @@ export function buildMaintenanceDetailedCsv(
         r.storage_used,
         r.storage_free,
         ...checklistItems.map((i) => boolLabel(r.checklist[i.key] ?? null)),
+        ...correctivoFields.map((f) => r.correctivo[f.key] ?? ""),
         r.findings,
         r.observations,
         r.technician_signed_at,

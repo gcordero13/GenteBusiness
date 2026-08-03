@@ -6,8 +6,14 @@ const CHECKLIST_ITEMS = [
   { key: "temp_files_cleaned", label: "Limpieza de archivos temporales" },
 ];
 
+const CORRECTIVO_FIELDS = [
+  { key: "problema_reportado", label: "Problema reportado" },
+  { key: "diagnostico", label: "Diagnóstico" },
+];
+
 function baseRow(overrides: Partial<MaintenanceReportRow> = {}): MaintenanceReportRow {
   return {
+    type: "preventivo",
     first_name: "Ana",
     last_name: "García",
     company_name: "Sanchez Business Corp",
@@ -25,6 +31,7 @@ function baseRow(overrides: Partial<MaintenanceReportRow> = {}): MaintenanceRepo
     storage_used: "200 GB",
     storage_free: "312 GB",
     checklist: { restore_point_created: true, temp_files_cleaned: false },
+    correctivo: { problema_reportado: null, diagnostico: null },
     findings: "Ninguno",
     observations: "Ninguna",
     technician_signed_at: "2026-07-28T10:50:00+00:00",
@@ -40,14 +47,19 @@ function baseRow(overrides: Partial<MaintenanceReportRow> = {}): MaintenanceRepo
 }
 
 describe("buildMaintenanceBasicCsv", () => {
-  it("includes exactly the requested columns in order", () => {
+  it("includes exactly the requested columns in order, with type", () => {
     const csv = buildMaintenanceBasicCsv([baseRow()]);
     const lines = csv.split("\r\n");
 
-    expect(lines[0]).toBe("Usuario,Empresa,Técnico,Estado,Fecha de creación,Departamento,Encuesta completada");
+    expect(lines[0]).toBe("Usuario,Tipo,Empresa,Técnico,Estado,Fecha de creación,Departamento,Encuesta completada");
     expect(lines[1]).toBe(
-      "Ana García,Sanchez Business Corp,Luis Pérez,Completado,2026-07-28T10:00:00+00:00,TI,Sí",
+      "Ana García,Preventivo,Sanchez Business Corp,Luis Pérez,Completado,2026-07-28T10:00:00+00:00,TI,Sí",
     );
+  });
+
+  it("shows the Correctivo label for a correctivo row", () => {
+    const csv = buildMaintenanceBasicCsv([baseRow({ type: "correctivo" })]);
+    expect(csv.split("\r\n")[1]).toContain("Correctivo");
   });
 
   it("shows 'No' when the survey has not been completed", () => {
@@ -61,13 +73,14 @@ describe("buildMaintenanceBasicCsv", () => {
 });
 
 describe("buildMaintenanceDetailedCsv", () => {
-  it("includes equipment, checklist, findings, signatures, and survey columns", () => {
-    const csv = buildMaintenanceDetailedCsv([baseRow()], CHECKLIST_ITEMS);
+  it("includes equipment, checklist, correctivo, findings, signatures, and survey columns", () => {
+    const csv = buildMaintenanceDetailedCsv([baseRow()], CHECKLIST_ITEMS, CORRECTIVO_FIELDS);
     const lines = csv.split("\r\n");
 
     expect(lines[0]).toBe(
       [
         "Usuario",
+        "Tipo",
         "Correo",
         "Posición",
         "Empresa",
@@ -84,6 +97,8 @@ describe("buildMaintenanceDetailedCsv", () => {
         "Almacenamiento Libre",
         "Punto de restauración creado",
         "Limpieza de archivos temporales",
+        "Problema reportado",
+        "Diagnóstico",
         "Hallazgos",
         "Observaciones",
         "Firma Técnico",
@@ -97,14 +112,33 @@ describe("buildMaintenanceDetailedCsv", () => {
       ].join(","),
     );
     expect(lines[1]).toBe(
-      "Ana García,ana@example.com,Analista,Sanchez Business Corp,TI,Luis Pérez,Completado,2026-07-28T10:00:00+00:00,2026-07-28T11:00:00+00:00,DESKTOP-ANA,16 GB,Windows 11,512 GB,200 GB,312 GB,Sí,No,Ninguno,Ninguna,2026-07-28T10:50:00+00:00,2026-07-28T11:00:00+00:00,Sí,5,4,5,5,Muy bien",
+      "Ana García,Preventivo,ana@example.com,Analista,Sanchez Business Corp,TI,Luis Pérez,Completado,2026-07-28T10:00:00+00:00,2026-07-28T11:00:00+00:00,DESKTOP-ANA,16 GB,Windows 11,512 GB,200 GB,312 GB,Sí,No,,,Ninguno,Ninguna,2026-07-28T10:50:00+00:00,2026-07-28T11:00:00+00:00,Sí,5,4,5,5,Muy bien",
     );
+  });
+
+  it("fills the correctivo columns and leaves checklist columns as N/A for a correctivo row", () => {
+    const csv = buildMaintenanceDetailedCsv(
+      [
+        baseRow({
+          type: "correctivo",
+          checklist: { restore_point_created: null, temp_files_cleaned: null },
+          correctivo: { problema_reportado: "No enciende", diagnostico: "Fuente dañada" },
+        }),
+      ],
+      CHECKLIST_ITEMS,
+      CORRECTIVO_FIELDS,
+    );
+    const cells = csv.split("\r\n")[1]!.split(",");
+
+    expect(cells).toContain("No enciende");
+    expect(cells).toContain("Fuente dañada");
   });
 
   it("renders N/A for a null checklist value and empty fields for nulls", () => {
     const csv = buildMaintenanceDetailedCsv(
       [baseRow({ checklist: { restore_point_created: null, temp_files_cleaned: false }, findings: null, quality_score: null })],
       CHECKLIST_ITEMS,
+      CORRECTIVO_FIELDS,
     );
     const cells = csv.split("\r\n")[1]!.split(",");
     expect(cells).toContain("N/A");
