@@ -31,10 +31,12 @@ export function BirthdayContactModal({
             <AvatarImage src={contact.photo_url ?? undefined} alt="" />
             <AvatarFallback className="text-2xl">{getInitials(contact.name)}</AvatarFallback>
           </Avatar>
-          <div className="space-y-1">
-            <p className="text-2xl font-semibold text-foreground">{contact.name}</p>
-            {contact.position && <p className="text-muted-foreground">{contact.position}</p>}
-            <p className="text-muted-foreground">
+          <div className="min-w-0 space-y-1">
+            <p className="text-2xl font-semibold text-foreground break-words">{contact.name}</p>
+            {contact.position && (
+              <p className="text-muted-foreground break-words">{contact.position}</p>
+            )}
+            <p className="text-muted-foreground break-words">
               {contact.company_name}
               {contact.company_name && contact.department_name ? " · " : ""}
               {contact.department_name}
@@ -44,7 +46,7 @@ export function BirthdayContactModal({
         <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
           <div className="flex items-center gap-3 rounded-lg border p-3">
             <Cake className="size-5 shrink-0 text-muted-foreground" />
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Cumpleaños</p>
               <p className="font-medium">
                 {contact.birth_date ? formatMonthDay(contact.birth_date) : "-"}
@@ -54,9 +56,12 @@ export function BirthdayContactModal({
           {contact.email && (
             <div className="flex items-center gap-3 rounded-lg border p-3">
               <Mail className="size-5 shrink-0 text-muted-foreground" />
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Correo</p>
-                <a href={`mailto:${contact.email}`} className="font-medium underline underline-offset-2">
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="font-medium underline underline-offset-2 break-all"
+                >
                   {contact.email}
                 </a>
               </div>
@@ -65,18 +70,18 @@ export function BirthdayContactModal({
           {contact.extension && (
             <div className="flex items-center gap-3 rounded-lg border p-3">
               <Phone className="size-5 shrink-0 text-muted-foreground" />
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Extensión</p>
-                <p className="font-medium">{contact.extension}</p>
+                <p className="font-medium break-words">{contact.extension}</p>
               </div>
             </div>
           )}
           {contact.fleet_phone && (
             <div className="flex items-center gap-3 rounded-lg border p-3">
               <Phone className="size-5 shrink-0 text-muted-foreground" />
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Teléfono / Flota</p>
-                <p className="font-medium">
+                <p className="font-medium break-words">
                   {contact.fleet_phone}
                   {contact.has_whatsapp && (
                     <a
