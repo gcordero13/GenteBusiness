@@ -143,9 +143,23 @@
   animation: blob-float 22s ease-in-out infinite reverse;
 }
 
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-10%) rotate(0deg);
+  }
+  100% {
+    transform: translateY(340px) rotate(360deg);
+  }
+}
+
+.animate-confetti-fall {
+  animation: confetti-fall linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-blob,
-  .animate-blob-delayed {
+  .animate-blob-delayed,
+  .animate-confetti-fall {
     animation: none;
   }
 }
