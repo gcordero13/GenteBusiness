@@ -4,11 +4,13 @@ import { buildMaintenancePdfBytes, formatDateForFilename } from "@/lib/maintenan
 import { sendMaintenanceReportEmail, sendSurveyEmail } from "@/lib/sendMaintenanceEmail";
 import { generateMaintenanceToken } from "@/lib/maintenanceToken";
 import { MAINTENANCE_CHECKLIST_ITEMS } from "@/lib/maintenanceChecklist";
+import { MAINTENANCE_CORRECTIVO_FIELDS } from "@/lib/maintenanceCorrectivoFields";
 import { getSiteUrl } from "@/lib/siteUrl";
 
 export interface MaintenanceRecordForCompletion {
   id: string;
   created_by: string;
+  type: string;
   first_name: string;
   last_name: string;
   position: string | null;
@@ -21,6 +23,10 @@ export interface MaintenanceRecordForCompletion {
   storage_total: string | null;
   storage_used: string | null;
   storage_free: string | null;
+  problema_reportado: string | null;
+  diagnostico: string | null;
+  solucion_aplicada: string | null;
+  repuestos_piezas: string | null;
   findings: string | null;
   observations: string | null;
   technician_signature_path: string;
@@ -67,6 +73,7 @@ export async function completeMaintenanceRecord(record: MaintenanceRecordForComp
   // losing already-saved signatures/data.
   const pdfBytes = await buildMaintenancePdfBytes(
     {
+      type: record.type === "correctivo" ? "correctivo" : "preventivo",
       firstName: record.first_name,
       lastName: record.last_name,
       position: record.position,
@@ -79,10 +86,20 @@ export async function completeMaintenanceRecord(record: MaintenanceRecordForComp
       storageTotal: record.storage_total,
       storageUsed: record.storage_used,
       storageFree: record.storage_free,
-      checklist: MAINTENANCE_CHECKLIST_ITEMS.map((item) => ({
-        label: item.label,
-        value: (record[item.key] as boolean | null) ?? null,
-      })),
+      checklist:
+        record.type === "correctivo"
+          ? []
+          : MAINTENANCE_CHECKLIST_ITEMS.map((item) => ({
+              label: item.label,
+              value: (record[item.key] as boolean | null) ?? null,
+            })),
+      correctivo:
+        record.type === "correctivo"
+          ? MAINTENANCE_CORRECTIVO_FIELDS.map((field) => ({
+              label: field.label,
+              value: (record[field.key] as string | null) ?? null,
+            }))
+          : [],
       findings: record.findings,
       observations: record.observations,
       completedAt,

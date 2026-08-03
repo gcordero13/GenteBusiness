@@ -22,6 +22,7 @@ import { completeMaintenanceRecord } from "./completeMaintenanceRecord";
 const BASE_RECORD = {
   id: "record-1",
   created_by: "tech-1",
+  type: "preventivo",
   first_name: "Ana",
   last_name: "García",
   position: "Analista",
@@ -34,6 +35,10 @@ const BASE_RECORD = {
   storage_total: "512 GB",
   storage_used: "200 GB",
   storage_free: "312 GB",
+  problema_reportado: null,
+  diagnostico: null,
+  solucion_aplicada: null,
+  repuestos_piezas: null,
   findings: null,
   observations: null,
   technician_signature_path: "record-1/tecnico.png",
@@ -237,5 +242,34 @@ describe("completeMaintenanceRecord", () => {
     expect(fetch).not.toHaveBeenCalled();
     expect(buildMaintenancePdfBytes).toHaveBeenCalledWith(expect.anything(), expect.anything(), null);
     vi.unstubAllGlobals();
+  });
+
+  it("builds the PDF with the Correctivo fields and an empty checklist when type is correctivo", async () => {
+    const admin = mockAdmin();
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    await completeMaintenanceRecord({
+      ...BASE_RECORD,
+      type: "correctivo",
+      problema_reportado: "No enciende",
+      diagnostico: "Fuente de poder dañada",
+      solucion_aplicada: "Se reemplazó la fuente",
+      repuestos_piezas: "Fuente 500W",
+    } as never);
+
+    expect(buildMaintenancePdfBytes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "correctivo",
+        checklist: [],
+        correctivo: [
+          { label: "Problema reportado", value: "No enciende" },
+          { label: "Diagnóstico", value: "Fuente de poder dañada" },
+          { label: "Solución aplicada", value: "Se reemplazó la fuente" },
+          { label: "Repuestos/piezas usadas", value: "Fuente 500W" },
+        ],
+      }),
+      expect.anything(),
+      null,
+    );
   });
 });
