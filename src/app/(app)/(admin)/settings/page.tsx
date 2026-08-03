@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthConfig } from "@/lib/supabase/managementApi";
+import { getPlatformLogoUrl } from "@/lib/platformSettings";
+import { PlatformLogoForm } from "./PlatformLogoForm";
 import { SmtpSettingsForm } from "./SmtpSettingsForm";
 
 export default async function SettingsPage() {
@@ -12,12 +14,14 @@ export default async function SettingsPage() {
     redirect("/");
   }
 
-  const config = await getAuthConfig();
+  const [config, logoUrl] = await Promise.all([getAuthConfig(), getPlatformLogoUrl()]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
+      <h1 className="text-xl font-semibold">Configuración</h1>
+      <PlatformLogoForm initialLogoUrl={logoUrl} />
       <div>
-        <h1 className="text-xl font-semibold">Configuración de correo</h1>
+        <h2 className="text-lg font-semibold">Configuración de correo</h2>
         <p className="text-sm text-muted-foreground">
           Define el servidor de correo (SMTP) que se usa para enviar invitaciones y
           recuperación de clave a los usuarios.

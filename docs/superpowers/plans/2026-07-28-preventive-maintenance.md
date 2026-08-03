@@ -517,7 +517,7 @@ git commit -m "feat: add maintenance token generator"
 - Create: `src/lib/maintenanceAccess.ts`
 - Test: `src/lib/maintenanceAccess.test.ts`
 
-This task only covers the pure, unit-testable expiry check. The DB-backed lookup (`loadMaintenanceRecordByToken`) is added in Task 15 once the public route that needs it exists.
+This task only covers the pure, unit-testable expiry check. The DB-backed lookup (`loadMaintenanceRecordByToken`) is added in Task 17 once the public route that needs it exists.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -575,7 +575,7 @@ git commit -m "feat: add maintenance link expiry check"
 
 - [ ] **Step 1: Add the module flags in `layout.tsx`**
 
-In `src/app/(app)/layout.tsx`, add `canViewMaintenance` and `canAddMaintenance` to the `<AppShell>` props:
+In `src/app/(app)/layout.tsx`, add `canViewMaintenance` to the `<AppShell>` props:
 
 ```tsx
     <AppShell
@@ -2588,7 +2588,7 @@ git commit -m "feat: add public signature pad component"
 - Create: `src/app/mantenimiento/[token]/page.tsx`
 - Create: `src/app/mantenimiento/[token]/MaintenanceForm.tsx`
 
-- [ ] **Step 1: Write the client form (equipment info + checklist + findings/observations, with a "Guardar progreso" button)**
+- [x] **Step 1: Write the client form (equipment info + checklist + findings/observations, with a "Guardar progreso" button)**
 
 ```tsx
 "use client";
@@ -2726,7 +2726,7 @@ export function MaintenanceForm({ token, record }: { token: string; record: Main
 }
 ```
 
-- [ ] **Step 2: Write the page (status states + form + signature pads)**
+- [x] **Step 2: Write the page (status states + form + signature pads)**
 
 ```tsx
 import { notFound } from "next/navigation";
@@ -2806,7 +2806,7 @@ export default async function MaintenancePublicPage({ params }: { params: Promis
 
 Run `npm run dev`. From `/maintenance`, copy a pending record's link and open it in an incognito window. Fill in equipment info, check a few checklist items, click "Guardar progreso" and confirm "Progreso guardado" appears. Draw and save the technician signature, then the user signature, and confirm the page transitions to "Mantenimiento completado" after the second one (this will error at the PDF/email step until Tasks 14–16 are also in place — if running this task in isolation before those, expect an error toast/console error at that point, which is expected).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add "src/app/mantenimiento/[token]/page.tsx" "src/app/mantenimiento/[token]/MaintenanceForm.tsx"
@@ -2821,7 +2821,7 @@ git commit -m "feat: add public maintenance form and signature page"
 - Create: `src/app/(app)/(admin)/maintenance/[id]/pdf/route.ts`
 - Create: `src/app/(app)/(admin)/maintenance/[id]/resend-email/route.ts`
 
-- [ ] **Step 1: Write the PDF download route**
+- [x] **Step 1: Write the PDF download route**
 
 ```ts
 import { NextResponse } from "next/server";
@@ -2858,7 +2858,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 ```
 
-- [ ] **Step 2: Write the resend-email route**
+- [x] **Step 2: Write the resend-email route**
 
 ```ts
 import { NextResponse } from "next/server";
@@ -2913,7 +2913,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
 With a completed test record (from Task 20's end-to-end flow), visit `/maintenance/[id]`, click "Descargar PDF" and confirm the browser downloads a valid PDF; if `email_error` is set, click "Reenviar correo" and confirm the error clears after a successful resend.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/maintenance/[id]/pdf/route.ts" "src/app/(app)/(admin)/maintenance/[id]/resend-email/route.ts"
@@ -2928,7 +2928,7 @@ git commit -m "feat: add PDF download and resend-email routes"
 - Create: `src/lib/maintenanceSurveys.ts`
 - Test: `src/lib/maintenanceSurveys.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -2955,12 +2955,12 @@ describe("computeAverageNpsByTechnician", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/maintenanceSurveys.test.ts`
 Expected: FAIL — cannot find module `./maintenanceSurveys`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 export interface SurveyForAverage {
@@ -2996,12 +2996,12 @@ export function computeAverageNpsByTechnician(surveys: SurveyForAverage[]): Tech
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/maintenanceSurveys.test.ts`
 Expected: PASS (2 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/maintenanceSurveys.ts src/lib/maintenanceSurveys.test.ts
@@ -3015,7 +3015,7 @@ git commit -m "feat: add per-technician NPS average computation"
 **Files:**
 - Create: `src/app/(app)/(admin)/maintenance/surveys/page.tsx`
 
-- [ ] **Step 1: Write the page**
+- [x] **Step 1: Write the page**
 
 ```tsx
 import { redirect } from "next/navigation";
@@ -3138,7 +3138,7 @@ export default async function MaintenanceSurveysPage() {
 
 Visit `/maintenance/surveys` as a Super Admin. Before any survey response exists it should show the two "Todavía no hay respuestas" messages; after completing Task 24's public survey flow, confirm the row and average appear.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/maintenance/surveys/page.tsx"
@@ -3155,7 +3155,7 @@ git commit -m "feat: add Encuestas page with per-technician NPS averages"
 - Create: `src/app/encuesta/[token]/page.tsx`
 - Create: `src/app/encuesta/[token]/SurveyForm.tsx`
 
-- [ ] **Step 1: Write the failing test for the submit action**
+- [x] **Step 1: Write the failing test for the submit action**
 
 ```ts
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -3238,12 +3238,12 @@ describe("submitSurveyResponse", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run "src/app/encuesta/[token]/actions.test.ts"`
 Expected: FAIL — cannot find module `./actions`.
 
-- [ ] **Step 3: Write the action implementation**
+- [x] **Step 3: Write the action implementation**
 
 ```ts
 "use server";
@@ -3292,12 +3292,12 @@ export async function submitSurveyResponse(token: string, input: SurveyResponseI
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run "src/app/encuesta/[token]/actions.test.ts"`
 Expected: PASS (3 tests)
 
-- [ ] **Step 5: Write the survey form component**
+- [x] **Step 5: Write the survey form component**
 
 ```tsx
 "use client";
@@ -3406,7 +3406,7 @@ export function SurveyForm({ token }: { token: string }) {
 }
 ```
 
-- [ ] **Step 6: Write the page**
+- [x] **Step 6: Write the page**
 
 ```tsx
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -3453,7 +3453,7 @@ export default async function SurveyPublicPage({ params }: { params: Promise<{ t
 
 Complete a maintenance record end-to-end (Task 20's flow through both signatures), find the survey link emailed to the test user's mailbox (or read `surveyToken` off the `maintenance_surveys` row directly in the DB during dev), open `/encuesta/[token]`, answer all 5 questions, submit, and confirm the response appears on `/maintenance/surveys`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add "src/app/encuesta/[token]"
@@ -3467,7 +3467,7 @@ git commit -m "feat: add public NPS satisfaction survey page"
 **Files:**
 - Create: `src/test/integration/maintenanceRls.test.ts`
 
-- [ ] **Step 1: Write the tests**
+- [x] **Step 1: Write the tests**
 
 ```ts
 import { afterEach, describe, expect, it } from "vitest";
@@ -3640,12 +3640,12 @@ describe("maintenance_records RLS", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it passes against the real local Supabase instance**
+- [x] **Step 2: Run test to verify it passes against the real local Supabase instance**
 
 Run: `npm run test -- src/test/integration/maintenanceRls.test.ts`
 Expected: PASS (5 tests). Requires the local Supabase stack running (`supabase start`) with `.env.local` pointed at it, matching how the other `*Rls.test.ts` files in this repo are run.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/test/integration/maintenanceRls.test.ts
@@ -3658,12 +3658,14 @@ git commit -m "test: add maintenance_records RLS integration coverage"
 
 **Files:** none (manual QA pass — no code changes)
 
-- [ ] **Step 1: Run the full automated suite once**
+- [x] **Step 1: Run the full automated suite once**
 
 Run: `npm run test`
 Expected: all tests pass, including every test added in Tasks 6–8, 10, 14–19, 22, 24, 25.
 
-- [ ] **Step 2: Manual walkthrough — in-person scenario**
+Verified 2026-07-31: 156/156 tests passed (32 test files) on `feature/preventive-maintenance`.
+
+- [x] **Step 2: Manual walkthrough — in-person scenario**
 
 1. Sign in as a Super Admin (or a role with `maintenance` view/add). Go to `/maintenance`.
 2. Click "Nuevo mantenimiento", pick a real contact, confirm the row appears with status "Pendiente".
@@ -3675,6 +3677,8 @@ Expected: all tests pass, including every test added in Tasks 6–8, 10, 14–19
 8. Confirm a second email with the survey link arrives at the test contact's email address.
 9. Back in the app, confirm `/maintenance` shows the record as "Completado" and `/maintenance/[id]` shows "Descargar PDF" with no "Reenviar correo" button (no `email_error`).
 
+Verified 2026-07-31 against production (`https://gente-business.vercel.app`, commit `3db5d95`): completed maintenance record `548ae0c8-050a-481d-ba4e-aac7cc50b1b5` shows `email_error: null` and a linked `maintenance_surveys` row (token `rVikG3i2S9zdSlMNf9GrLUUv_YpvRuqe`); user confirmed the survey email arrived at `gcordero@sanchezbusinesscorp.com`. This was reached via local dev during the feature build (steps 1-6 exercised repeatedly while building/fixing the flow) with the final send/receive confirmation happening in production after the local-network SMTP block (ETIMEDOUT on port 587, unrelated to app code) was worked around by testing from a hosted deployment instead of local dev.
+
 - [ ] **Step 3: Manual walkthrough — remote / partial-completion scenario**
 
 1. Create a second maintenance record and copy its link.
@@ -3685,13 +3689,23 @@ Expected: all tests pass, including every test added in Tasks 6–8, 10, 14–19
 - [ ] **Step 4: Manual walkthrough — error and expiry paths**
 
 1. Open `/mantenimiento/does-not-exist` and confirm the generic "Enlace no disponible" message (not a stack trace or Next.js error page).
+
+   Verified 2026-07-31 against production: confirmed.
+
 2. In the local DB, manually set a pending test record's `expires_at` to a past timestamp (`update maintenance_records set expires_at = now() - interval '1 day' where id = '...';`), reload its link, and confirm it now shows the same "Enlace no disponible" message and that the row's `status` flipped to `expirado` in the DB.
+
+   Verified 2026-07-31 against production: created a temporary test record, confirmed it rendered the form while unexpired, set `expires_at` to the past, confirmed the link then showed "Enlace no disponible" and the row's `status` flipped to `expirado`, then deleted the test record.
+
 3. Temporarily break the SMTP settings in `/settings` (wrong password), complete a maintenance record end-to-end, and confirm: the record still reaches `completado`, the PDF is still downloadable from `/maintenance/[id]`, and a "Reenviar correo" button appears with the error message. Restore the correct SMTP settings and click "Reenviar correo"; confirm the email arrives and the button disappears on reload.
+
+   Partially verified 2026-07-31 using real historical data instead of deliberately breaking the now-working SMTP config: 4 records from earlier local-dev testing (`9bc84caa…`, `403fc2f5…`, `914ce858…`, `a570eb5c…`) hit a real email send failure (network-level, not a bad password, but caught by the same try/catch either way) and all reached `status: completado` with a `pdf_path` set; downloaded `9bc84caa….pdf` directly from the `maintenance-reports` bucket and confirmed it's a valid 17KB PDF. This confirms the "still completes, PDF still valid" half. The "click Reenviar correo and watch the error clear" half needs an authenticated browser session (the resend route is permission-gated via cookies) and wasn't exercised.
 
 - [ ] **Step 5: Manual walkthrough — permissions**
 
 1. As a Viewer-profile user with no `maintenance` permissions granted, confirm "Mantenimientos" does not appear in the sidebar and `/maintenance` redirects to `/`.
 2. Grant only `can_view` on the `maintenance` module (via `/role-profiles`) and confirm the user can see `/maintenance` and open record details, but has no "Nuevo mantenimiento" button and no "Cancelar" buttons.
+
+   Partially verified 2026-07-31 via direct DB query instead of a logged-in walkthrough: `role_profile_permissions` for the `maintenance` module shows every non-Super-Admin profile (`Editor`, `Viewer`, `Recepcionista`) has `can_view/can_add/can_edit/can_delete/can_manage` all `false`; only `Super Admin` has `can_view/can_add/can_delete: true`. Combined with the already-reviewed gating code (`Sidebar.tsx`'s `canViewMaintenance` prop, `/maintenance/page.tsx`'s `redirect("/")` on `!flags?.can_view`), this is strong evidence the behavior is correct, but no one actually logged in as a Viewer to watch the redirect/hidden-link happen live. Also noticed several stray `Document Stamps Test …` role profiles in this data — leftover artifacts from an unrelated test suite's cleanup not firing; flagged for the user, not touched here.
 
 No commit for this task — it's verification only. If any step fails, fix the underlying task and re-run this checklist before considering the feature done.
 

@@ -1,0 +1,170 @@
+import "server-only";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { buildMaintenancePdfBytes, formatDateForFilename } from "@/lib/maintenancePdfReport";
+import { sendMaintenanceReportEmail, sendSurveyEmail } from "@/lib/sendMaintenanceEmail";
+import { generateMaintenanceToken } from "@/lib/maintenanceToken";
+import { MAINTENANCE_CHECKLIST_ITEMS } from "@/lib/maintenanceChecklist";
+import { MAINTENANCE_CORRECTIVO_FIELDS } from "@/lib/maintenanceCorrectivoFields";
+import { getSiteUrl } from "@/lib/siteUrl";
+
+export interface MaintenanceRecordForCompletion {
+  id: string;
+  created_by: string;
+  type: string;
+  first_name: string;
+  last_name: string;
+  position: string | null;
+  company_name: string | null;
+  department_name: string | null;
+  email: string | null;
+  host_name: string | null;
+  ram: string | null;
+  os: string | null;
+  storage_total: string | null;
+  storage_used: string | null;
+  storage_free: string | null;
+  problema_reportado: string | null;
+  diagnostico: string | null;
+  solucion_aplicada: string | null;
+  repuestos_piezas: string | null;
+  findings: string | null;
+  observations: string | null;
+  technician_signature_path: string;
+  user_signature_path: string;
+  [checklistKey: string]: unknown;
+}
+
+async function downloadSignature(admin: ReturnType<typeof createAdminClient>, path: string): Promise<Uint8Array> {
+  const { data, error } = await admin.storage.from("maintenance-signatures").download(path);
+  if (error || !data) throw new Error(`No se pudo leer la firma en ${path}`);
+  return new Uint8Array(await data.arrayBuffer());
+}
+
+// The platform logo is a nice-to-have on the report, not a requirement —
+// a missing table row, a bad URL, or a network hiccup must never block
+// maintenance completion, so every failure here resolves to null instead
+// of throwing.
+async function fetchPlatformLogoBytes(admin: ReturnType<typeof createAdminClient>): Promise<Uint8Array | null> {
+  try {
+    const { data } = await admin.from("platform_settings").select("logo_url").eq("id", true).maybeSingle();
+    const logoUrl = data?.logo_url;
+    if (!logoUrl) return null;
+
+    const response = await fetch(logoUrl);
+    if (!response.ok) return null;
+    return new Uint8Array(await response.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+export async function completeMaintenanceRecord(record: MaintenanceRecordForCompletion): Promise<void> {
+  const admin = createAdminClient();
+  const completedAt = new Date();
+
+  const [technicianPng, userPng, logoBytes] = await Promise.all([
+    downloadSignature(admin, record.technician_signature_path),
+    downloadSignature(admin, record.user_signature_path),
+    fetchPlatformLogoBytes(admin),
+  ]);
+
+  // Generation failures throw here and intentionally leave the record
+  // untouched — status stays "pendiente" so the caller can retry without
+  // losing already-saved signatures/data.
+  const pdfBytes = await buildMaintenancePdfBytes(
+    {
+      type: record.type === "correctivo" ? "correctivo" : "preventivo",
+      firstName: record.first_name,
+      lastName: record.last_name,
+      position: record.position,
+      companyName: record.company_name,
+      departmentName: record.department_name,
+      email: record.email,
+      hostName: record.host_name,
+      ram: record.ram,
+      os: record.os,
+      storageTotal: record.storage_total,
+      storageUsed: record.storage_used,
+      storageFree: record.storage_free,
+      checklist:
+        record.type === "correctivo"
+          ? []
+          : MAINTENANCE_CHECKLIST_ITEMS.map((item) => ({
+              label: item.label,
+              value: (record[item.key] as boolean | null) ?? null,
+            })),
+      correctivo:
+        record.type === "correctivo"
+          ? MAINTENANCE_CORRECTIVO_FIELDS.map((field) => ({
+              label: field.label,
+              value: (record[field.key] as string | null) ?? null,
+            }))
+          : [],
+      findings: record.findings,
+      observations: record.observations,
+      completedAt,
+    },
+    { technicianPng, userPng },
+    logoBytes,
+  );
+
+  // upsert: true keeps this step retry-safe — a retry after a partial
+  // failure later in this function must be able to re-upload the same PDF
+  // without hitting a 409 "resource already exists" error.
+  const pdfPath = `${record.id}.pdf`;
+  const { error: uploadError } = await admin.storage
+    .from("maintenance-reports")
+    .upload(pdfPath, pdfBytes, { contentType: "application/pdf", upsert: true });
+  if (uploadError) throw new Error(uploadError.message);
+
+  // maintenance_record_id is unique on maintenance_surveys, so a naive
+  // insert would throw on retry once the survey row already exists. Reuse
+  // the existing token instead so an already-sent survey link stays valid.
+  const { data: existingSurvey } = await admin
+    .from("maintenance_surveys")
+    .select("token")
+    .eq("maintenance_record_id", record.id)
+    .maybeSingle();
+
+  const surveyToken = existingSurvey?.token ?? generateMaintenanceToken();
+
+  if (!existingSurvey) {
+    const { error: surveyError } = await admin.from("maintenance_surveys").insert({
+      maintenance_record_id: record.id,
+      technician_id: record.created_by,
+      token: surveyToken,
+    });
+    if (surveyError) throw new Error(surveyError.message);
+  }
+
+  const userName = `${record.first_name} ${record.last_name}`;
+  const completedDate = formatDateForFilename(completedAt);
+  const siteUrl = await getSiteUrl();
+
+  let emailError: string | null = null;
+  try {
+    await sendMaintenanceReportEmail({ userName, completedDate, pdfBytes });
+    if (record.email) {
+      await sendSurveyEmail({
+        userEmail: record.email,
+        userName: record.first_name,
+        surveyUrl: `${siteUrl}/encuesta/${surveyToken}`,
+      });
+    }
+  } catch (err) {
+    // Signatures and the PDF are already valid and saved — a mail outage
+    // must not block completion. Surface the error for a manual resend.
+    emailError = err instanceof Error ? err.message : "Error al enviar el correo";
+  }
+
+  const { error: updateError } = await admin
+    .from("maintenance_records")
+    .update({
+      status: "completado",
+      pdf_path: pdfPath,
+      completed_at: completedAt.toISOString(),
+      email_error: emailError,
+    })
+    .eq("id", record.id);
+  if (updateError) throw new Error(updateError.message);
+}

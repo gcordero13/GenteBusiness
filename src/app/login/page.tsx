@@ -1,6 +1,7 @@
 import { Building2, Mail, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getPlatformLogoUrl } from "@/lib/platformSettings";
 import { login } from "./actions";
 import { SubmitButton } from "./SubmitButton";
 import { PasswordField } from "./PasswordField";
@@ -11,6 +12,7 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+  const logoUrl = await getPlatformLogoUrl();
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-zinc-50 to-zinc-100 px-4">
@@ -25,9 +27,18 @@ export default async function LoginPage({
 
       <div className="animate-in fade-in-0 slide-in-from-bottom-4 relative w-full max-w-sm space-y-6 duration-500">
         <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#04B1AF] to-emerald-500 shadow-lg shadow-[#04B1AF]/30">
-            <Building2 className="size-7 text-white" />
-          </div>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL
+            <img
+              src={logoUrl}
+              alt=""
+              className="size-14 rounded-2xl object-contain shadow-lg shadow-[#04B1AF]/30"
+            />
+          ) : (
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#04B1AF] to-emerald-500 shadow-lg shadow-[#04B1AF]/30">
+              <Building2 className="size-7 text-white" />
+            </div>
+          )}
           <div>
             <p className="text-2xl font-semibold text-zinc-900">Gente Sánchez Business</p>
             <p className="text-sm text-zinc-500">Portal interno de empleados</p>

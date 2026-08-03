@@ -14,3 +14,12 @@ export async function saveActivity(id: string | undefined, name: string, eventDa
   revalidatePath("/contacts");
   return {};
 }
+
+export async function deleteActivity(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("company_events").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/activities");
+  revalidatePath("/contacts");
+  return {};
+}
