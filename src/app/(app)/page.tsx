@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUpcomingBirthdays, type BirthdayContact } from "@/lib/contacts";
+import { getUpcomingBirthdays, splitTodayBirthdays, type BirthdayContact } from "@/lib/contacts";
 import { BirthdaysWidget } from "./contacts/BirthdaysWidget";
 
 export default async function Home() {
@@ -12,23 +12,34 @@ export default async function Home() {
     p_module_key: "contacts",
   });
 
-  let birthdayContacts: BirthdayContact[] = [];
+  let todayBirthdays: BirthdayContact[] = [];
+  let upcomingBirthdays: BirthdayContact[] = [];
   if (flagsRows?.[0]?.can_view) {
     const { data: contacts } = await supabase
       .from("contacts")
-      .select("id, first_name, last_name, birth_date, photo_url")
+      .select(
+        "id, first_name, last_name, birth_date, photo_url, position, email, extension, fleet_phone, has_whatsapp, companies(name), departments(name)",
+      )
       .eq("status", "active");
 
-    birthdayContacts = getUpcomingBirthdays(
-      (contacts ?? []).map((c) => ({
-        id: c.id,
-        name: `${c.first_name} ${c.last_name}`,
-        birth_date: c.birth_date,
-        photo_url: c.photo_url,
-      })),
-      new Date(),
-      5,
-    );
+    const allBirthdayContacts: BirthdayContact[] = (contacts ?? []).map((c) => ({
+      id: c.id,
+      name: `${c.first_name} ${c.last_name}`,
+      birth_date: c.birth_date,
+      photo_url: c.photo_url,
+      position: c.position,
+      email: c.email,
+      extension: c.extension,
+      fleet_phone: c.fleet_phone,
+      has_whatsapp: c.has_whatsapp,
+      company_name: (c.companies as unknown as { name: string } | null)?.name ?? null,
+      department_name: (c.departments as unknown as { name: string } | null)?.name ?? null,
+    }));
+
+    const today = new Date();
+    const split = splitTodayBirthdays(allBirthdayContacts, today);
+    todayBirthdays = split.todayBirthdays;
+    upcomingBirthdays = getUpcomingBirthdays(split.rest, today, 5);
   }
 
   return (
@@ -37,7 +48,7 @@ export default async function Home() {
         <h1 className="text-xl font-semibold">Bienvenido</h1>
         <p className="text-sm text-muted-foreground">{user?.email}</p>
       </div>
-      <BirthdaysWidget contacts={birthdayContacts} />
+      <BirthdaysWidget todayContacts={todayBirthdays} upcomingContacts={upcomingBirthdays} />
     </div>
   );
 }
