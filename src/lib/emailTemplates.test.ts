@@ -43,4 +43,18 @@ describe("buildBrandedEmailHtml", () => {
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("Click &amp; &lt;win&gt;");
   });
+
+  it("uses a custom footerText when provided, instead of the maintenance-system default", () => {
+    const html = buildBrandedEmailHtml({
+      title: "Hola",
+      bodyHtml: "<p>x</p>",
+      ctaText: "Ir",
+      ctaUrl: "https://example.com",
+      logoUrl: null,
+      footerText: "Correo generado automáticamente por Gente Sánchez Business.",
+    });
+
+    expect(html).toContain("Correo generado automáticamente por Gente Sánchez Business.");
+    expect(html).not.toContain("sistema de mantenimiento");
+  });
 });
