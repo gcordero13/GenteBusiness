@@ -260,6 +260,26 @@ const BASE_REQUEST = {
   last_name: "García",
 };
 
+// uploadDecisionSignature validates a picked signature's URL against this
+// project's own Supabase Storage origin before ever fetching it, so tests
+// that exercise the "picked saved signature" path need a real-shaped signed
+// URL under this exact origin (following siteUrl.test.ts's save/restore
+// convention for stubbing process.env, since setup.ts already loads a real
+// .env.local value that a test shouldn't depend on).
+const TEST_SUPABASE_URL = "https://test-project.supabase.co";
+let originalSupabaseUrl: string | undefined;
+
+beforeEach(() => {
+  originalSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = TEST_SUPABASE_URL;
+});
+
+afterEach(() => {
+  process.env.NEXT_PUBLIC_SUPABASE_URL = originalSupabaseUrl;
+});
+
+const SIGNED_SIGNATURE_URL = `${TEST_SUPABASE_URL}/storage/v1/object/sign/user-signatures/user-1/firma.png?token=abc`;
+
 describe("respondAsSupervisor", () => {
   it("rejects when the caller is not the request's resolved supervisor", async () => {
     vi.mocked(createClient).mockResolvedValue(mockSupabaseForRespond({ userId: "someone-else", request: BASE_REQUEST }) as never);
@@ -313,14 +333,13 @@ describe("respondAsSupervisor", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const signedUrl = "https://example.supabase.co/storage/v1/object/sign/user-signatures/foo.png?token=abc";
-    const result = await respondAsSupervisor("req-1", "aprobado", signedUrl, "Todo en orden");
+    const result = await respondAsSupervisor("req-1", "aprobado", SIGNED_SIGNATURE_URL, "Todo en orden");
 
-    expect(fetchMock).toHaveBeenCalledWith(signedUrl);
+    expect(fetchMock).toHaveBeenCalledWith(SIGNED_SIGNATURE_URL);
     expect(result.error).toBeUndefined();
     expect(admin._mocks.uploadMock).toHaveBeenCalledWith(
       "req-1/supervisor.png",
-      expect.any(Buffer),
+      Buffer.from([1, 2, 3]),
       expect.objectContaining({ contentType: "image/png", upsert: true }),
     );
     expect(supabase._mocks.updateMock).toHaveBeenCalledWith(
@@ -334,9 +353,22 @@ describe("respondAsSupervisor", () => {
     vi.mocked(createAdminClient).mockReturnValue(mockAdminForRespond() as never);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
 
-    const result = await respondAsSupervisor("req-1", "aprobado", "https://example.com/signature.png", "");
+    const result = await respondAsSupervisor("req-1", "aprobado", SIGNED_SIGNATURE_URL, "");
 
     expect(result.error).toBe("Firma inválida");
+  });
+
+  it("rejects a picked signature URL that doesn't match this project's own Supabase Storage origin/path, without ever calling fetch", async () => {
+    const supabase = mockSupabaseForRespond({ request: BASE_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(mockAdminForRespond() as never);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await respondAsSupervisor("req-1", "aprobado", "http://169.254.169.254/latest/meta-data/", "");
+
+    expect(result.error).toBe("Firma inválida");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects without requiring a signature", async () => {
@@ -425,6 +457,36 @@ describe("respondAsRrhh", () => {
       }),
     );
     expect(sendVacationRequestRrhhDecisionEmail).toHaveBeenCalledWith(expect.objectContaining({ approved: true }));
+  });
+
+  it("approves using a picked, previously-saved signature (a signed HTTPS URL, not a data URI)", async () => {
+    const supabase = mockSupabaseForRespond({ request: RRHH_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    const admin = mockAdminForRespond();
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await respondAsRrhh("req-1", "aprobado", SIGNED_SIGNATURE_URL, "", {
+      periodConfirmed: "2026",
+      hasCurrentVacation: true,
+      isAdvance: false,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(SIGNED_SIGNATURE_URL);
+    expect(result.error).toBeUndefined();
+    expect(admin._mocks.uploadMock).toHaveBeenCalledWith(
+      "req-1/rrhh.png",
+      Buffer.from([1, 2, 3]),
+      expect.objectContaining({ contentType: "image/png", upsert: true }),
+    );
+    expect(supabase._mocks.updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "aprobado", rrhh_decision: "aprobado" }),
+    );
   });
 
   it("still succeeds when the decision notification email fails to send", async () => {

@@ -100,6 +100,22 @@ async function uploadDecisionSignature(
     // A picked, previously-saved signature arrives as a signed Storage URL
     // (SignatureDialog's "pick saved" path), not a data URI — fetch the
     // actual bytes server-side rather than assuming base64 input.
+    //
+    // respondAsSupervisor/respondAsRrhh are Server Actions any authenticated
+    // client with the right role can invoke directly, so this string is
+    // untrusted input — nothing in the UI stops a malicious caller from
+    // passing an arbitrary URL (e.g. an internal/cloud-metadata host) here.
+    // Validate that it's actually a signed URL from this project's own
+    // `user-signatures` bucket BEFORE fetching anything.
+    let parsed: URL;
+    try {
+      parsed = new URL(dataUrlOrSignedUrl);
+    } catch {
+      return { error: "Firma inválida" };
+    }
+    if (parsed.origin !== process.env.NEXT_PUBLIC_SUPABASE_URL) return { error: "Firma inválida" };
+    if (!parsed.pathname.startsWith("/storage/v1/object/sign/user-signatures/")) return { error: "Firma inválida" };
+
     try {
       const response = await fetch(dataUrlOrSignedUrl);
       if (!response.ok) return { error: "Firma inválida" };
@@ -107,6 +123,11 @@ async function uploadDecisionSignature(
     } catch {
       return { error: "Firma inválida" };
     }
+    if (bytes.length === 0) return { error: "Firma inválida" };
+    // Signatures are small PNGs; this generous 2MB cap just prevents
+    // unbounded memory use from a malicious huge response, even from an
+    // allowlisted host.
+    if (bytes.length > 2_000_000) return { error: "Firma inválida" };
   }
 
   const path = `${requestId}/${role}.png`;
