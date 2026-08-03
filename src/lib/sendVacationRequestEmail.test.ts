@@ -50,6 +50,10 @@ describe("sendVacationRequestSubmittedEmail", () => {
     expect(sendMailMock).toHaveBeenCalledWith(
       expect.objectContaining({ to: "jefe@example.com", html: expect.stringContaining("Revisar solicitud") }),
     );
+
+    const { text, html } = sendMailMock.mock.calls[0][0];
+    expect(text).not.toBe(html);
+    expect(html).not.toContain("sistema de mantenimiento");
   });
 });
 
@@ -63,6 +67,10 @@ describe("sendVacationRequestSupervisorDecisionEmail", () => {
     });
 
     expect(sendMailMock).toHaveBeenCalledWith(expect.objectContaining({ to: "ana@example.com" }));
+
+    const { text, html } = sendMailMock.mock.calls[0][0];
+    expect(text).not.toBe(html);
+    expect(html).not.toContain("sistema de mantenimiento");
   });
 
   it("also notifies every RRHH authorizer when the supervisor approves", async () => {
@@ -75,6 +83,10 @@ describe("sendVacationRequestSupervisorDecisionEmail", () => {
     });
 
     expect(sendMailMock).toHaveBeenCalledTimes(3);
+    for (const [call] of sendMailMock.mock.calls) {
+      expect(call.text).not.toBe(call.html);
+      expect(call.html).not.toContain("sistema de mantenimiento");
+    }
   });
 
   it("does not email RRHH when the supervisor rejects", async () => {
@@ -87,6 +99,10 @@ describe("sendVacationRequestSupervisorDecisionEmail", () => {
     });
 
     expect(sendMailMock).toHaveBeenCalledTimes(1);
+
+    const { text, html } = sendMailMock.mock.calls[0][0];
+    expect(text).not.toBe(html);
+    expect(html).not.toContain("sistema de mantenimiento");
   });
 });
 
@@ -99,5 +115,9 @@ describe("sendVacationRequestRrhhDecisionEmail", () => {
     });
 
     expect(sendMailMock).toHaveBeenCalledWith(expect.objectContaining({ to: "ana@example.com" }));
+
+    const { text, html } = sendMailMock.mock.calls[0][0];
+    expect(text).not.toBe(html);
+    expect(html).not.toContain("sistema de mantenimiento");
   });
 });
