@@ -59,11 +59,16 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
   const { data: supervisor } = await admin.from("app_users").select("email").eq("id", resolved.data.supervisorAppUserId).maybeSingle();
   if (supervisor?.email) {
     const siteUrl = await getSiteUrl();
-    await sendVacationRequestSubmittedEmail({
-      supervisorEmail: supervisor.email,
-      employeeName: `${resolved.data.firstName} ${resolved.data.lastName}`,
-      requestUrl: `${siteUrl}/solicitudes/vacaciones`,
-    });
+    try {
+      await sendVacationRequestSubmittedEmail({
+        supervisorEmail: supervisor.email,
+        employeeName: `${resolved.data.firstName} ${resolved.data.lastName}`,
+        requestUrl: `${siteUrl}/solicitudes/vacaciones`,
+      });
+    } catch {
+      // The request row is already committed — a mail outage must not
+      // block submission. The supervisor can still be notified manually.
+    }
   }
 
   revalidatePath("/solicitudes/vacaciones");

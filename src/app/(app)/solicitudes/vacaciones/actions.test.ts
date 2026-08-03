@@ -107,4 +107,28 @@ describe("createVacationRequest", () => {
     );
     expect(sendVacationRequestSubmittedEmail).toHaveBeenCalled();
   });
+
+  it("still succeeds when the notification email fails to send", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(resolveVacationSupervisor).mockResolvedValue({
+      ok: true,
+      data: {
+        contactId: "contact-1",
+        firstName: "Ana",
+        lastName: "García",
+        position: "Analista",
+        companyName: "Sanchez Business Corp",
+        departmentName: "TI",
+        supervisorAppUserId: "sup-1",
+      },
+    });
+    vi.mocked(sendVacationRequestSubmittedEmail).mockRejectedValue(new Error("Configuración SMTP incompleta"));
+
+    const result = await createVacationRequest(VALID_INPUT);
+
+    expect(result.error).toBeUndefined();
+    expect(result).toEqual({});
+    expect(supabase._mocks.insertMock).toHaveBeenCalled();
+  });
 });
