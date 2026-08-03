@@ -36,19 +36,19 @@ export function ContactViewDialog({
             {contact.first_name} {contact.last_name}
           </DialogTitle>
         </DialogHeader>
-        <div className="flex items-center gap-5 p-2">
-          <Avatar className="size-24">
+        <div className="flex flex-col items-center gap-3 p-2 text-center">
+          <Avatar className="size-40">
             <AvatarImage src={contact.photo_url ?? undefined} alt="" />
-            <AvatarFallback className="text-2xl">
+            <AvatarFallback className="text-5xl">
               {`${contact.first_name[0] ?? ""}${contact.last_name[0] ?? ""}`.toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="space-y-1.5">
-            <p className="text-2xl font-semibold">
+            <p className="text-3xl font-semibold">
               {contact.first_name} {contact.last_name}
             </p>
-            {contact.position && <p className="text-muted-foreground">{contact.position}</p>}
-            <p className="text-muted-foreground">
+            {contact.position && <p className="text-lg text-muted-foreground">{contact.position}</p>}
+            <p className="text-lg text-muted-foreground">
               {contact.companies?.name}
               {contact.companies?.name && contact.departments?.name ? " · " : ""}
               {contact.departments?.name}
@@ -62,26 +62,26 @@ export function ContactViewDialog({
           <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
             {contact.extension && (
               <div className="flex items-center gap-3 rounded-lg border p-3">
-                <Phone className="size-5 shrink-0 text-muted-foreground" />
+                <Phone className="size-6 shrink-0 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Extensión</p>
-                  <p className="font-medium">{contact.extension}</p>
+                  <p className="text-sm text-muted-foreground">Extensión</p>
+                  <p className="text-lg font-semibold">{contact.extension}</p>
                 </div>
               </div>
             )}
             {contact.fleet_phone && (
               <div className="flex items-center gap-3 rounded-lg border p-3">
-                <MessageCircle className="size-5 shrink-0 text-muted-foreground" />
+                <MessageCircle className="size-6 shrink-0 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Teléfono</p>
-                  <p className="font-medium">
+                  <p className="text-sm text-muted-foreground">Teléfono</p>
+                  <p className="text-lg font-semibold">
                     {contact.fleet_phone}
                     {contact.has_whatsapp && (
                       <a
                         href={whatsappUrl(contact.fleet_phone)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="ml-2 text-sm underline underline-offset-2"
+                        className="ml-2 text-base font-normal underline underline-offset-2"
                       >
                         WhatsApp
                       </a>
@@ -92,10 +92,10 @@ export function ContactViewDialog({
             )}
             {contact.email && (
               <div className="flex items-center gap-3 rounded-lg border p-3 sm:col-span-2">
-                <Mail className="size-5 shrink-0 text-muted-foreground" />
+                <Mail className="size-6 shrink-0 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Correo</p>
-                  <a href={`mailto:${contact.email}`} className="font-medium underline underline-offset-2">
+                  <p className="text-sm text-muted-foreground">Correo</p>
+                  <a href={`mailto:${contact.email}`} className="text-lg font-semibold underline underline-offset-2">
                     {contact.email}
                   </a>
                 </div>
