@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials, type BirthdayContact } from "@/lib/contacts";
 import { BirthdayContactModal } from "./BirthdayContactModal";
@@ -32,15 +32,13 @@ export function TodayBirthdayCard({ contacts }: { contacts: BirthdayContact[] })
     return () => window.clearInterval(id);
   }, [n]);
 
-  const confettiPieces = useMemo<ConfettiPiece[]>(
-    () =>
-      Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
-        left: Math.random() * 100,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-        delay: Math.random() * 2,
-        duration: 1.8 + Math.random() * 1.4,
-      })),
-    [],
+  const [confettiPieces] = useState<ConfettiPiece[]>(() =>
+    Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
+      left: Math.random() * 100,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      delay: Math.random() * 2,
+      duration: 1.8 + Math.random() * 1.4,
+    })),
   );
 
   if (n === 0) return null;
