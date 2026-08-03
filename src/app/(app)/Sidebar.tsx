@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   UserCircle,
   Users,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -34,6 +35,7 @@ export function Sidebar({
   canManageActivities,
   canManageSettings,
   canUseDocumentStamps,
+  canViewMaintenance,
   onLogout,
   onNavigate,
 }: {
@@ -46,6 +48,7 @@ export function Sidebar({
   canManageActivities: boolean;
   canManageSettings: boolean;
   canUseDocumentStamps: boolean;
+  canViewMaintenance: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -73,6 +76,7 @@ export function Sidebar({
     { href: "/my-profile", label: "Mi perfil", icon: UserCircle },
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
     ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),
+    ...(canViewMaintenance ? [{ href: "/maintenance", label: "Mantenimientos", icon: Wrench }] : []),
     ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
   ];
 
@@ -92,7 +96,11 @@ export function Sidebar({
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          {!collapsed && <span className="text-lg font-semibold">Gente Sánchez Business</span>}
+          {!collapsed && (
+            <a href="/" className="text-lg font-semibold">
+              Gente Sánchez Business
+            </a>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"

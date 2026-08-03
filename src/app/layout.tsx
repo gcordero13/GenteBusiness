@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { RegisterServiceWorker } from "./RegisterServiceWorker";
+import { getPlatformLogoUrl } from "@/lib/platformSettings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,14 +14,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Gente Sánchez Business",
-  description: "Plataforma interna de Gente Sánchez Business",
-  icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const logoUrl = await getPlatformLogoUrl();
+  const icon = logoUrl ?? "/icon.svg";
+
+  return {
+    title: "Gente Sánchez Business",
+    description: "Plataforma interna de Gente Sánchez Business",
+    icons: {
+      icon,
+      apple: icon,
+    },
+  };
+}
 
 export const viewport = {
   themeColor: "#04b1af",

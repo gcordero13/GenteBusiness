@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getPlatformLogoUrl } from "@/lib/platformSettings";
 import { requestPasswordReset } from "./actions";
 
 export default async function ForgotPasswordPage({
@@ -9,11 +10,16 @@ export default async function ForgotPasswordPage({
   searchParams: Promise<{ sent?: string; error?: string }>;
 }) {
   const { sent, error } = await searchParams;
+  const logoUrl = await getPlatformLogoUrl();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center text-2xl font-semibold text-zinc-900">
+        <div className="flex flex-col items-center gap-2 text-center text-2xl font-semibold text-zinc-900">
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL
+            <img src={logoUrl} alt="" className="size-12 rounded-xl object-contain" />
+          )}
           Gente Sánchez Business
         </div>
         <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-8 shadow-lg">

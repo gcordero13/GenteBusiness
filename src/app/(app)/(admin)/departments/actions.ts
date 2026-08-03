@@ -13,3 +13,18 @@ export async function saveDepartment(id: string | undefined, name: string, compa
   revalidatePath("/departments");
   return {};
 }
+
+export async function deleteDepartment(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("departments").delete().eq("id", id);
+  if (error) {
+    if (error.code === "23503") {
+      return {
+        error: "No se puede eliminar: hay contactos asignados a este departamento. Reasígnalos o elimínalos primero.",
+      };
+    }
+    return { error: error.message };
+  }
+  revalidatePath("/departments");
+  return {};
+}

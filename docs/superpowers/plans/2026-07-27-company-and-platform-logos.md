@@ -19,7 +19,7 @@
 - Test: `src/test/integration/logosRls.test.ts`
 - Test: `src/test/integration/companyLogosStorage.test.ts`
 
-- [ ] **Step 1: Write the failing RLS tests first**
+- [x] **Step 1: Write the failing RLS tests first**
 
 `src/test/integration/logosRls.test.ts`:
 ```typescript
@@ -157,12 +157,12 @@ describe("company-logos storage bucket", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/test/integration/logosRls.test.ts src/test/integration/companyLogosStorage.test.ts`
 Expected: FAIL — `relation "public.platform_settings" does not exist` (and the bucket test fails with a null bucket / not-found error).
 
-- [ ] **Step 3: Generate and write the migration**
+- [x] **Step 3: Generate and write the migration**
 
 Run: `npx supabase migration new company_and_platform_logos`
 
@@ -234,16 +234,16 @@ using (
 
 `companies.logo_url` needs no new RLS policy of its own — the table's existing `companies_write_platform_managers` / `companies_update_platform_managers` policies (from `20260714130015_companies_and_departments.sql`, re-pointed at `get_my_module_permissions('companies')` by `20260715120543_per_module_permissions.sql`) already gate every column on every row, including this new one.
 
-- [ ] **Step 4: Apply the migration**
+- [x] **Step 4: Apply the migration**
 
 Apply this SQL to the live Supabase project (via the SQL Editor in the Supabase dashboard, or the Management API, same method used for every earlier migration in this repo).
 
-- [ ] **Step 5: Run the tests again to verify they pass**
+- [x] **Step 5: Run the tests again to verify they pass**
 
 Run: `npx vitest run src/test/integration/logosRls.test.ts src/test/integration/companyLogosStorage.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add supabase/migrations src/test/integration/logosRls.test.ts src/test/integration/companyLogosStorage.test.ts
@@ -258,7 +258,7 @@ git commit -m "feat: add platform_settings table, companies.logo_url, and compan
 - Create: `src/lib/platformSettings.ts`
 - Test: `src/lib/platformSettings.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -309,12 +309,12 @@ describe("getPlatformLogoUrl", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/platformSettings.test.ts`
 Expected: FAIL — `Cannot find module './platformSettings'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```typescript
 import "server-only";
@@ -331,12 +331,12 @@ export async function getPlatformLogoUrl(): Promise<string | null> {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/platformSettings.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/platformSettings.ts src/lib/platformSettings.test.ts
@@ -351,7 +351,7 @@ git commit -m "feat: add getPlatformLogoUrl helper"
 - Modify: `src/app/(app)/(admin)/companies/actions.ts`
 - Test: `src/app/(app)/(admin)/companies/actions.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -415,12 +415,12 @@ describe("saveCompany", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run "src/app/(app)/(admin)/companies/actions.test.ts"`
 Expected: FAIL — `saveCompany` called with 2 args in current implementation, `logo_url` never passed to `insert`/`update`, so the `toHaveBeenCalledWith` assertions fail.
 
-- [ ] **Step 3: Update the implementation**
+- [x] **Step 3: Update the implementation**
 
 ```typescript
 "use server";
@@ -440,12 +440,12 @@ export async function saveCompany(id: string | undefined, name: string, logoUrl:
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run "src/app/(app)/(admin)/companies/actions.test.ts"`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/companies/actions.ts" "src/app/(app)/(admin)/companies/actions.test.ts"
@@ -459,7 +459,7 @@ git commit -m "feat: let saveCompany store a logo_url"
 **Files:**
 - Modify: `src/app/(app)/(admin)/companies/CompanyForm.tsx`
 
-- [ ] **Step 1: Add the upload field and wire it into submit**
+- [x] **Step 1: Add the upload field and wire it into submit**
 
 ```tsx
 "use client";
@@ -571,11 +571,11 @@ export function CompanyForm({ initial }: { initial?: CompanyInput }) {
 }
 ```
 
-- [ ] **Step 2: Manual verification**
+- [x] **Step 2: Manual verification**
 
 Run `npm run dev`, log in as a user with `can_manage` on `companies`, open "Nueva empresa", pick a PNG, save, confirm no error. Edit that same company again and confirm the logo preview shows.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/companies/CompanyForm.tsx"
@@ -589,7 +589,7 @@ git commit -m "feat: add logo upload field to CompanyForm"
 **Files:**
 - Modify: `src/app/(app)/(admin)/companies/page.tsx`
 
-- [ ] **Step 1: Add a thumbnail column and pass `logo_url` into `CompanyForm`**
+- [x] **Step 1: Add a thumbnail column and pass `logo_url` into `CompanyForm`**
 
 ```tsx
 import { redirect } from "next/navigation";
@@ -662,11 +662,11 @@ export default async function CompaniesPage() {
 }
 ```
 
-- [ ] **Step 2: Manual verification**
+- [x] **Step 2: Manual verification**
 
 Run `npm run dev`, visit `/companies`. Confirm companies with a logo show it in the first column, and companies without one show the default building icon.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/companies/page.tsx"
@@ -681,7 +681,7 @@ git commit -m "feat: show company logo thumbnail in the Empresas table"
 - Modify: `src/app/(app)/(admin)/settings/actions.ts`
 - Modify: `src/app/(app)/(admin)/settings/actions.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/app/(app)/(admin)/settings/actions.test.ts`, change the existing import line:
 
@@ -731,12 +731,12 @@ describe("savePlatformLogo", () => {
 
 (The existing `mockServerClient` helper only defines `auth` and `rpc` — the second test above layers a `from` mock on top of it since `savePlatformLogo` is the first action in this file to touch the database directly rather than going through the Management API.)
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run "src/app/(app)/(admin)/settings/actions.test.ts"`
 Expected: FAIL — `savePlatformLogo` is not exported by `./actions`.
 
-- [ ] **Step 3: Add the action**
+- [x] **Step 3: Add the action**
 
 In `src/app/(app)/(admin)/settings/actions.ts`, add below `saveSmtpSettings`:
 
@@ -761,12 +761,12 @@ export async function savePlatformLogo(logoUrl: string): Promise<ActionResult> {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run "src/app/(app)/(admin)/settings/actions.test.ts"`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/settings/actions.ts" "src/app/(app)/(admin)/settings/actions.test.ts"
@@ -781,7 +781,7 @@ git commit -m "feat: add savePlatformLogo server action"
 - Create: `src/app/(app)/(admin)/settings/PlatformLogoForm.tsx`
 - Modify: `src/app/(app)/(admin)/settings/page.tsx`
 
-- [ ] **Step 1: Write the form component**
+- [x] **Step 1: Write the form component**
 
 ```tsx
 "use client";
@@ -854,7 +854,7 @@ export function PlatformLogoForm({ initialLogoUrl }: { initialLogoUrl: string | 
 }
 ```
 
-- [ ] **Step 2: Wire it into the Settings page**
+- [x] **Step 2: Wire it into the Settings page**
 
 ```tsx
 import { redirect } from "next/navigation";
@@ -904,7 +904,7 @@ export default async function SettingsPage() {
 
 Run `npm run dev`, visit `/settings` as a user with `can_manage` on `settings` (Super Admin), upload a logo under "Marca", confirm the success message and preview. Reload the page and confirm the preview persists.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add "src/app/(app)/(admin)/settings/PlatformLogoForm.tsx" "src/app/(app)/(admin)/settings/page.tsx"
@@ -918,7 +918,7 @@ git commit -m "feat: add platform logo upload UI to Settings"
 **Files:**
 - Modify: `src/app/login/page.tsx`
 
-- [ ] **Step 1: Fetch and render the logo, falling back to the current icon**
+- [x] **Step 1: Fetch and render the logo, falling back to the current icon**
 
 ```tsx
 import { Building2, Mail, TriangleAlert } from "lucide-react";
@@ -1012,7 +1012,7 @@ export default async function LoginPage({
 
 Run `npm run dev`, with no platform logo set visit `/login` and confirm the gradient building icon still shows. Upload a logo from `/settings`, revisit `/login`, and confirm the uploaded image now shows in its place.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/app/login/page.tsx
@@ -1027,7 +1027,7 @@ git commit -m "feat: show the platform logo on the login page"
 - Modify: `src/app/forgot-password/page.tsx`
 - Modify: `src/app/reset-password/page.tsx`
 
-- [ ] **Step 1: Update `forgot-password/page.tsx`**
+- [x] **Step 1: Update `forgot-password/page.tsx`**
 
 ```tsx
 import { Button } from "@/components/ui/button";
@@ -1098,7 +1098,7 @@ export default async function ForgotPasswordPage({
 }
 ```
 
-- [ ] **Step 2: Update `reset-password/page.tsx`**
+- [x] **Step 2: Update `reset-password/page.tsx`**
 
 ```tsx
 import { Button } from "@/components/ui/button";
@@ -1158,7 +1158,7 @@ export default async function ResetPasswordPage({
 
 Run `npm run dev`, with a platform logo already set (from Task 7/8), visit `/forgot-password` and `/reset-password` and confirm the logo shows above the "Gente Sánchez Business" text on both.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/app/forgot-password/page.tsx src/app/reset-password/page.tsx
@@ -1173,7 +1173,7 @@ git commit -m "feat: show the platform logo on forgot/reset password pages"
 - Modify: `src/app/layout.tsx`
 - Modify: `src/app/manifest.ts`
 
-- [ ] **Step 1: Convert `layout.tsx`'s static metadata into `generateMetadata`**
+- [x] **Step 1: Convert `layout.tsx`'s static metadata into `generateMetadata`**
 
 ```tsx
 import type { Metadata } from "next";
@@ -1229,7 +1229,7 @@ export default function RootLayout({
 }
 ```
 
-- [ ] **Step 2: Make `manifest.ts` async and logo-aware**
+- [x] **Step 2: Make `manifest.ts` async and logo-aware**
 
 ```tsx
 import type { MetadataRoute } from "next";
@@ -1261,7 +1261,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
 }
 ```
 
-- [ ] **Step 3: Run the full test suite and the build**
+- [x] **Step 3: Run the full test suite and the build**
 
 Run: `npm run test`
 Expected: PASS (no existing test touches `layout.tsx` or `manifest.ts` directly, so this just guards against a typo breaking something else).
@@ -1269,11 +1269,13 @@ Expected: PASS (no existing test touches `layout.tsx` or `manifest.ts` directly,
 Run: `npm run build`
 Expected: builds successfully.
 
+Verified 2026-07-31: 128/130 tests passed (same 2 pre-existing unrelated `roleProfiles.test.ts` failures as elsewhere); `npm run build` compiled successfully.
+
 - [ ] **Step 4: Manual verification**
 
 Run `npm run dev`. With no platform logo set, confirm the browser tab still shows the default icon. Upload a platform logo from `/settings`, hard-refresh any page, and confirm the browser tab icon updates to the uploaded logo.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/layout.tsx src/app/manifest.ts
@@ -1296,10 +1298,12 @@ Run `npm run dev` and, logged in as a Super Admin:
 5. Confirm the browser tab icon (favicon) matches the uploaded platform logo.
 6. Log back in as a user without `can_manage` on `companies` or `settings` (e.g. a "Viewer") and confirm they cannot reach the upload controls in a way that bypasses the RLS policies from Task 1 (the UI itself already redirects them away from `/companies` and `/settings` via the existing permission gates — this just confirms nothing regressed).
 
-- [ ] **Step 2: Run the full test suite one more time**
+- [x] **Step 2: Run the full test suite one more time**
 
 Run: `npm run test`
 Expected: PASS
+
+Verified 2026-07-31: 128/130 passed (2 pre-existing, unrelated `roleProfiles.test.ts` failures from the in-progress `maintenance` module work on another branch).
 
 - [ ] **Step 3: Report completion**
 
