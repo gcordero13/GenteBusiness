@@ -3,6 +3,13 @@ export interface BirthdayContact {
   name: string;
   birth_date: string | null;
   photo_url: string | null;
+  position: string | null;
+  email: string | null;
+  extension: string | null;
+  fleet_phone: string | null;
+  has_whatsapp: boolean;
+  company_name: string | null;
+  department_name: string | null;
 }
 
 function nextOccurrence(birthDate: string, today: Date): number {
@@ -91,6 +98,22 @@ export function isTodayBirthday(birthDate: string | null, today: Date = new Date
   if (!birthDate) return false;
   const [, month, day] = birthDate.split("-").map(Number);
   return month === today.getUTCMonth() + 1 && day === today.getUTCDate();
+}
+
+export function splitTodayBirthdays<T extends BirthdayContact>(
+  contacts: T[],
+  today: Date,
+): { todayBirthdays: T[]; rest: T[] } {
+  const todayBirthdays: T[] = [];
+  const rest: T[] = [];
+  for (const contact of contacts) {
+    if (isTodayBirthday(contact.birth_date, today)) {
+      todayBirthdays.push(contact);
+    } else {
+      rest.push(contact);
+    }
+  }
+  return { todayBirthdays, rest };
 }
 
 export function getInitials(name: string): string {

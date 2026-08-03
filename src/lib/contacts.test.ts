@@ -6,19 +6,38 @@ import {
   getInitials,
   getUpcomingBirthdays,
   isTodayBirthday,
+  splitTodayBirthdays,
   whatsappUrl,
+  type BirthdayContact,
 } from "./contacts";
+
+function contact(overrides: Partial<BirthdayContact> = {}): BirthdayContact {
+  return {
+    id: "1",
+    name: "Ana García",
+    birth_date: "2000-01-01",
+    photo_url: null,
+    position: null,
+    email: null,
+    extension: null,
+    fleet_phone: null,
+    has_whatsapp: false,
+    company_name: null,
+    department_name: null,
+    ...overrides,
+  };
+}
 
 describe("getUpcomingBirthdays", () => {
   it("returns up to 5 contacts sorted by the nearest upcoming month/day", () => {
     const today = new Date("2026-07-14T00:00:00Z");
     const contacts = [
-      { id: "1", name: "A", birth_date: "1990-07-20", photo_url: null },
-      { id: "2", name: "B", birth_date: "1985-07-15", photo_url: null },
-      { id: "3", name: "C", birth_date: "1992-08-01", photo_url: null },
-      { id: "4", name: "D", birth_date: "1980-12-25", photo_url: null },
-      { id: "5", name: "E", birth_date: "1975-01-05", photo_url: null },
-      { id: "6", name: "F", birth_date: "1999-07-14", photo_url: null },
+      contact({ id: "1", name: "A", birth_date: "1990-07-20" }),
+      contact({ id: "2", name: "B", birth_date: "1985-07-15" }),
+      contact({ id: "3", name: "C", birth_date: "1992-08-01" }),
+      contact({ id: "4", name: "D", birth_date: "1980-12-25" }),
+      contact({ id: "5", name: "E", birth_date: "1975-01-05" }),
+      contact({ id: "6", name: "F", birth_date: "1999-07-14" }),
     ];
 
     const result = getUpcomingBirthdays(contacts, today, 5);
@@ -29,9 +48,9 @@ describe("getUpcomingBirthdays", () => {
   it("wraps around the end of the year correctly", () => {
     const today = new Date("2026-12-20T00:00:00Z");
     const contacts = [
-      { id: "1", name: "A", birth_date: "1990-01-05", photo_url: null },
-      { id: "2", name: "B", birth_date: "1990-12-31", photo_url: null },
-      { id: "3", name: "C", birth_date: "1990-06-01", photo_url: null },
+      contact({ id: "1", name: "A", birth_date: "1990-01-05" }),
+      contact({ id: "2", name: "B", birth_date: "1990-12-31" }),
+      contact({ id: "3", name: "C", birth_date: "1990-06-01" }),
     ];
 
     const result = getUpcomingBirthdays(contacts, today, 5);
@@ -42,8 +61,8 @@ describe("getUpcomingBirthdays", () => {
   it("ignores contacts with no birth_date", () => {
     const today = new Date("2026-07-14T00:00:00Z");
     const contacts = [
-      { id: "1", name: "A", birth_date: null, photo_url: null },
-      { id: "2", name: "B", birth_date: "1990-07-20", photo_url: null },
+      contact({ id: "1", name: "A", birth_date: null }),
+      contact({ id: "2", name: "B", birth_date: "1990-07-20" }),
     ];
 
     const result = getUpcomingBirthdays(contacts, today, 5);
@@ -53,7 +72,7 @@ describe("getUpcomingBirthdays", () => {
 
   it("returns an empty array when no contact has a birth_date", () => {
     const today = new Date("2026-07-14T00:00:00Z");
-    const contacts = [{ id: "1", name: "A", birth_date: null, photo_url: null }];
+    const contacts = [contact({ id: "1", name: "A", birth_date: null })];
 
     expect(getUpcomingBirthdays(contacts, today, 5)).toEqual([]);
   });
@@ -179,5 +198,48 @@ describe("getInitials", () => {
 
   it("returns an empty string for an empty name", () => {
     expect(getInitials("")).toBe("");
+  });
+});
+
+describe("splitTodayBirthdays", () => {
+  it("puts a contact whose birthday is today into todayBirthdays", () => {
+    const today = new Date("2026-08-03T12:00:00Z");
+    const c = contact({ id: "1", birth_date: "1990-08-03" });
+
+    const { todayBirthdays, rest } = splitTodayBirthdays([c], today);
+
+    expect(todayBirthdays).toEqual([c]);
+    expect(rest).toEqual([]);
+  });
+
+  it("puts a contact whose birthday isn't today into rest", () => {
+    const today = new Date("2026-08-03T12:00:00Z");
+    const c = contact({ id: "2", birth_date: "1990-12-25" });
+
+    const { todayBirthdays, rest } = splitTodayBirthdays([c], today);
+
+    expect(todayBirthdays).toEqual([]);
+    expect(rest).toEqual([c]);
+  });
+
+  it("puts a contact with no birth_date into rest", () => {
+    const today = new Date("2026-08-03T12:00:00Z");
+    const c = contact({ id: "3", birth_date: null });
+
+    const { todayBirthdays, rest } = splitTodayBirthdays([c], today);
+
+    expect(todayBirthdays).toEqual([]);
+    expect(rest).toEqual([c]);
+  });
+
+  it("never puts the same contact in both groups, across a mixed list", () => {
+    const today = new Date("2026-08-03T12:00:00Z");
+    const a = contact({ id: "1", birth_date: "1990-08-03" });
+    const b = contact({ id: "2", birth_date: "1990-12-25" });
+
+    const { todayBirthdays, rest } = splitTodayBirthdays([a, b], today);
+
+    expect(todayBirthdays.map((c) => c.id)).toEqual(["1"]);
+    expect(rest.map((c) => c.id)).toEqual(["2"]);
   });
 });
