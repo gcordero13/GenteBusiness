@@ -65,6 +65,39 @@ describe("createVacationRequest", () => {
     expect(result.error).toBe("No autorizado");
   });
 
+  it("rejects a non-positive daysRequested before touching the resolver or the insert", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await createVacationRequest({ ...VALID_INPUT, daysRequested: 0 });
+
+    expect(result.error).toBe("La cantidad de días debe ser mayor a cero");
+    expect(resolveVacationSupervisor).not.toHaveBeenCalled();
+    expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when dateTo is before dateFrom", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await createVacationRequest({ ...VALID_INPUT, dateFrom: "2026-11-14", dateTo: "2026-11-13" });
+
+    expect(result.error).toBe("La fecha de fin debe ser posterior o igual a la fecha de inicio");
+    expect(resolveVacationSupervisor).not.toHaveBeenCalled();
+    expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when returnDate is before dateTo", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await createVacationRequest({ ...VALID_INPUT, dateTo: "2026-11-14", returnDate: "2026-11-13" });
+
+    expect(result.error).toBe("La fecha de regreso debe ser posterior o igual a la fecha de fin");
+    expect(resolveVacationSupervisor).not.toHaveBeenCalled();
+    expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
+  });
+
   it("surfaces the resolver's error when the supervisor chain is broken", async () => {
     vi.mocked(createClient).mockResolvedValue(mockSupabase() as never);
     vi.mocked(resolveVacationSupervisor).mockResolvedValue({ ok: false, error: "No tienes un jefe directo asignado en tu ficha de contacto. Pide a un administrador que lo asigne antes de enviar una solicitud." });

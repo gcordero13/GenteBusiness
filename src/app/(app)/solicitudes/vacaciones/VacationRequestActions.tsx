@@ -79,7 +79,12 @@ export function VacationRequestActions({ requestId, role, signatures }: Props) {
         onChange={(e) => setComment(e.target.value)}
       />
       <div className="flex gap-2">
-        <SignatureDialog signatures={signatures} onPick={approve} />
+        {/* SignatureDialog (shared with Sellos y Firmas) has no `disabled` prop on its
+            trigger. Rather than modify that shared component, disable clicks on its
+            trigger from the outside while a submission is in flight. */}
+        <div style={isPending ? { pointerEvents: "none", opacity: 0.5 } : undefined}>
+          <SignatureDialog signatures={signatures} onPick={approve} />
+        </div>
         <Button type="button" variant="outline" onClick={reject} disabled={isPending}>
           Rechazar
         </Button>

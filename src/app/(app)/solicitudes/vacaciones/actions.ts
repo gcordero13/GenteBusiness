@@ -32,6 +32,10 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
   } = await supabase.auth.getUser();
   if (!user?.email) return { error: "No autorizado" };
 
+  if (input.daysRequested <= 0) return { error: "La cantidad de días debe ser mayor a cero" };
+  if (input.dateTo < input.dateFrom) return { error: "La fecha de fin debe ser posterior o igual a la fecha de inicio" };
+  if (input.returnDate < input.dateTo) return { error: "La fecha de regreso debe ser posterior o igual a la fecha de fin" };
+
   const admin = createAdminClient();
   const resolved = await resolveVacationSupervisor(admin, user.email);
   if (!resolved.ok) return { error: resolved.error };
