@@ -16,6 +16,21 @@ interface ConfettiPiece {
   duration: number;
 }
 
+// A tiny deterministic hash instead of Math.random(): same input always
+// produces the same output, so the server-rendered HTML and the client's
+// first render agree exactly and React never reports a hydration mismatch.
+function pseudoRandom(seed: number): number {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+const CONFETTI_PIECES: ConfettiPiece[] = Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
+  left: pseudoRandom(i) * 100,
+  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  delay: pseudoRandom(i + 100) * 2,
+  duration: 1.8 + pseudoRandom(i + 200) * 1.4,
+}));
+
 export function TodayBirthdayCard({ contacts }: { contacts: BirthdayContact[] }) {
   const n = contacts.length;
   const [active, setActive] = useState(0);
@@ -32,22 +47,13 @@ export function TodayBirthdayCard({ contacts }: { contacts: BirthdayContact[] })
     return () => window.clearInterval(id);
   }, [n]);
 
-  const [confettiPieces] = useState<ConfettiPiece[]>(() =>
-    Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
-      left: Math.random() * 100,
-      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      delay: Math.random() * 2,
-      duration: 1.8 + Math.random() * 1.4,
-    })),
-  );
-
   if (n === 0) return null;
 
   const contact = contacts[active];
 
   return (
     <div className="relative mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-[#04B1AF] to-emerald-500 p-8 text-center shadow-md">
-      {confettiPieces.map((piece, i) => (
+      {CONFETTI_PIECES.map((piece, i) => (
         <span
           key={i}
           aria-hidden
