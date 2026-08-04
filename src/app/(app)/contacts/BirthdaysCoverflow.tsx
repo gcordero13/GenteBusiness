@@ -5,19 +5,24 @@ import { BirthdayContactModal } from "./BirthdayContactModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatMonthDay, getInitials, isTodayBirthday, type BirthdayContact } from "@/lib/contacts";
 
-const PERSPECTIVE = 1000;
-const SCALE_STEP = 0.22;
-const MAX_VISIBLE = 2;
-const DEPTH = 90;
-const STEP_X = 82;
-const TILT = 10;
+const GEOMETRY = {
+  full: { perspective: 1000, scaleStep: 0.22, maxVisible: 2, depth: 90, stepX: 82, tilt: 10, height: "h-64", avatar: "size-36", avatarText: "text-3xl", nameGap: "mt-4" },
+  compact: { perspective: 800, scaleStep: 0.22, maxVisible: 1, depth: 70, stepX: 80, tilt: 10, height: "h-56", avatar: "size-32", avatarText: "text-3xl", nameGap: "mt-3" },
+};
 const AUTOPLAY_MS = 3 * 1000;
 const TRANSITION =
   "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), filter 0.6s ease";
 
-export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }) {
+export function BirthdaysCoverflow({
+  contacts,
+  compact = false,
+}: {
+  contacts: BirthdayContact[];
+  compact?: boolean;
+}) {
   const n = contacts.length;
   const [active, setActive] = useState(0);
+  const g = compact ? GEOMETRY.compact : GEOMETRY.full;
 
   useEffect(() => {
     setActive((a) => Math.max(0, Math.min(n - 1, a)));
@@ -36,8 +41,8 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
   return (
     <div className="flex flex-col items-center gap-2">
       <div
-        className="relative flex h-64 w-full items-center justify-center"
-        style={{ perspective: `${PERSPECTIVE}px` }}
+        className={`relative flex ${g.height} w-full items-center justify-center`}
+        style={{ perspective: `${g.perspective}px` }}
       >
         <div className="relative size-full" style={{ transformStyle: "preserve-3d" }}>
           {contacts.map((c, i) => {
@@ -45,15 +50,15 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
             if (rel > n / 2) rel -= n;
             if (rel < -n / 2) rel += n;
             const ax = Math.abs(rel);
-            const visible = ax <= MAX_VISIBLE;
+            const visible = ax <= g.maxVisible;
             const isActive = rel === 0;
-            const scale = Math.max(0.5, 1 - ax * SCALE_STEP);
-            const tx = rel * STEP_X;
-            const ty = ax === 1 ? -24 : 0;
-            const tz = -ax * DEPTH;
-            const ry = -rel * TILT;
+            const scale = Math.max(0.5, 1 - ax * g.scaleStep);
+            const tx = rel * g.stepX;
+            const ty = ax === 1 ? (compact ? -22 : -24) : 0;
+            const tz = -ax * g.depth;
+            const ry = -rel * g.tilt;
             const today = isTodayBirthday(c.birth_date);
-            const aboutToWrap = rel === -MAX_VISIBLE;
+            const aboutToWrap = rel === -g.maxVisible;
 
             return (
               <BirthdayContactModal
@@ -78,14 +83,16 @@ export function BirthdaysCoverflow({ contacts }: { contacts: BirthdayContact[] }
                     className="flex flex-col items-center gap-1 text-left"
                   >
                     <Avatar
-                      className={`size-36 shadow-md ${isActive ? "border-2 border-[#04B1AF]" : ""}`}
+                      className={`${g.avatar} shadow-md ${isActive ? "border-2 border-[#04B1AF]" : ""}`}
                     >
                       <AvatarImage src={c.photo_url ?? undefined} alt="" />
-                      <AvatarFallback className="text-3xl">{getInitials(c.name)}</AvatarFallback>
+                      <AvatarFallback className={g.avatarText}>{getInitials(c.name)}</AvatarFallback>
                     </Avatar>
                     {isActive && (
-                      <div className="mt-4 flex flex-col items-center gap-1">
-                        <span className="max-w-[220px] text-center text-lg font-semibold">{c.name}</span>
+                      <div className={`${g.nameGap} flex flex-col items-center gap-1`}>
+                        <span className={compact ? "max-w-[200px] text-center text-base font-semibold" : "max-w-[220px] text-center text-lg font-semibold"}>
+                          {c.name}
+                        </span>
                         <span className="text-sm text-muted-foreground">
                           {c.birth_date ? formatMonthDay(c.birth_date) : ""}
                         </span>

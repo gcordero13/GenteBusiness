@@ -94,7 +94,25 @@ export function formatMonthDay(dateString: string): string {
   return `${day} de ${MONTH_NAMES_ES[month - 1]}`;
 }
 
-export function isTodayBirthday(birthDate: string | null, today: Date = new Date()): boolean {
+const APP_TIMEZONE = "America/Santo_Domingo";
+
+// Vercel runs servers in UTC. Reading new Date()'s UTC calendar fields directly
+// would shift "today" by a day for several hours each evening in Santo Domingo
+// (UTC-4) - a real birthday could be missed for anyone checking after ~8pm local.
+// This snaps to the business timezone's calendar day, encoded as that day's UTC
+// midnight, so existing getUTCMonth()/getUTCDate() reads elsewhere stay correct.
+export function getBusinessToday(referenceDate: Date = new Date()): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(referenceDate);
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return new Date(Date.UTC(Number(map.year), Number(map.month) - 1, Number(map.day)));
+}
+
+export function isTodayBirthday(birthDate: string | null, today: Date = getBusinessToday()): boolean {
   if (!birthDate) return false;
   const [, month, day] = birthDate.split("-").map(Number);
   return month === today.getUTCMonth() + 1 && day === today.getUTCDate();

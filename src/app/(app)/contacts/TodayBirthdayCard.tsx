@@ -52,7 +52,7 @@ export function TodayBirthdayCard({ contacts }: { contacts: BirthdayContact[] })
   const contact = contacts[active];
 
   return (
-    <div className="relative mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-[#04B1AF] to-emerald-500 p-8 text-center shadow-md">
+    <div className="relative flex aspect-square w-full flex-col items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#04B1AF] to-emerald-500 p-8 text-center shadow-md md:aspect-auto md:h-full">
       {CONFETTI_PIECES.map((piece, i) => (
         <span
           key={i}
@@ -70,15 +70,15 @@ export function TodayBirthdayCard({ contacts }: { contacts: BirthdayContact[] })
         contact={contact}
         trigger={
           <button type="button" className="relative z-10 flex w-full flex-col items-center gap-1 text-left">
-            <Avatar className="size-40 border-4 border-white shadow-lg">
+            <Avatar className="size-44 border-4 border-white shadow-lg">
               <AvatarImage src={contact.photo_url ?? undefined} alt="" />
-              <AvatarFallback className="bg-white text-4xl text-black">
+              <AvatarFallback className="bg-white text-5xl text-black">
                 {getInitials(contact.name)}
               </AvatarFallback>
             </Avatar>
-            <span className="mt-2 max-w-[260px] text-lg font-bold text-black">{contact.name}</span>
-            {contact.position && <span className="text-sm text-gray-800">{contact.position}</span>}
-            <span className="mt-1 rounded-full border border-white/50 bg-white/20 px-3 py-1 text-xs font-bold text-white">
+            <span className="mt-3 max-w-[280px] text-xl font-bold text-black">{contact.name}</span>
+            {contact.position && <span className="text-base text-gray-800">{contact.position}</span>}
+            <span className="mt-2 animate-bounce rounded-full border border-white/50 bg-white/20 px-4 py-1.5 text-sm font-bold text-white">
               🎉 ¡Hoy cumple años!
             </span>
           </button>

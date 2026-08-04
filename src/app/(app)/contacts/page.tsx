@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { BookUser } from "lucide-react";
 import { escapeIlikePattern } from "@/lib/contacts";
 import { SearchFilters } from "./SearchFilters";
-import { EventsWidget } from "./EventsWidget";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 import { ContactsCards } from "./ContactsCards";
 import { ContactsGrouped } from "./ContactsGrouped";
@@ -70,14 +69,6 @@ export default async function ContactsPage({
   const { data: contacts } = await query;
   const { data: companies } = await supabase.from("companies").select("id, name").order("name");
   const { data: departments } = await supabase.from("departments").select("id, name").order("name");
-
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: upcomingEvents } = await supabase
-    .from("company_events")
-    .select("id, name, event_date")
-    .gte("event_date", today)
-    .order("event_date")
-    .limit(5);
 
   const contactRows: ContactRow[] = (contacts ?? []).map((c) => ({
     id: c.id,
@@ -157,7 +148,6 @@ export default async function ContactsPage({
       ) : (
         <ContactsTable contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       )}
-      {(upcomingEvents ?? []).length > 0 && <EventsWidget events={upcomingEvents ?? []} />}
     </div>
   );
 }

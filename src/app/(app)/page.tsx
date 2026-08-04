@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUpcomingBirthdays, splitTodayBirthdays, type BirthdayContact } from "@/lib/contacts";
+import { getBusinessToday, getUpcomingBirthdays, splitTodayBirthdays, type BirthdayContact } from "@/lib/contacts";
 import { BirthdaysWidget } from "./contacts/BirthdaysWidget";
 
 export default async function Home() {
@@ -11,6 +11,15 @@ export default async function Home() {
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
     p_module_key: "contacts",
   });
+
+  const today = getBusinessToday();
+  const todayIso = today.toISOString().slice(0, 10);
+  const { data: upcomingEvents } = await supabase
+    .from("company_events")
+    .select("id, name, event_date")
+    .gte("event_date", todayIso)
+    .order("event_date")
+    .limit(5);
 
   let todayBirthdays: BirthdayContact[] = [];
   let upcomingBirthdays: BirthdayContact[] = [];
@@ -36,19 +45,22 @@ export default async function Home() {
       department_name: (c.departments as unknown as { name: string } | null)?.name ?? null,
     }));
 
-    const today = new Date();
     const split = splitTodayBirthdays(allBirthdayContacts, today);
     todayBirthdays = split.todayBirthdays;
     upcomingBirthdays = getUpcomingBirthdays(split.rest, today, 5);
   }
 
   return (
-    <div className="mx-auto mt-12 max-w-md space-y-6 p-6">
+    <div className="mx-auto max-w-6xl space-y-6 p-6">
       <div className="space-y-1">
         <h1 className="text-xl font-semibold">Bienvenido</h1>
         <p className="text-sm text-muted-foreground">{user?.email}</p>
       </div>
-      <BirthdaysWidget todayContacts={todayBirthdays} upcomingContacts={upcomingBirthdays} />
+      <BirthdaysWidget
+        todayContacts={todayBirthdays}
+        upcomingContacts={upcomingBirthdays}
+        events={upcomingEvents ?? []}
+      />
     </div>
   );
 }
