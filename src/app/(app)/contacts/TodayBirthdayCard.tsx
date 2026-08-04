@@ -52,17 +52,18 @@ export function TodayBirthdayCard({ contacts }: { contacts: BirthdayContact[] })
   const contact = contacts[active];
 
   return (
-    <div className="relative flex aspect-square w-full flex-col items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#04B1AF] to-emerald-500 p-8 text-center shadow-md md:aspect-auto md:h-full">
+    <div className="relative flex aspect-square w-full flex-col items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#04B1AF] to-emerald-500 px-8 py-6 text-center shadow-md md:aspect-auto md:h-full">
       {CONFETTI_PIECES.map((piece, i) => (
         <span
           key={i}
           aria-hidden
+          suppressHydrationWarning
           className="animate-confetti-fall absolute top-[-10%] h-3.5 w-2 opacity-90"
           style={{
-            left: `${piece.left}%`,
+            left: `${piece.left.toFixed(2)}%`,
             backgroundColor: piece.color,
-            animationDelay: `${piece.delay}s`,
-            animationDuration: `${piece.duration}s`,
+            animationDelay: `${piece.delay.toFixed(3)}s`,
+            animationDuration: `${piece.duration.toFixed(3)}s`,
           }}
         />
       ))}
@@ -70,15 +71,15 @@ export function TodayBirthdayCard({ contacts }: { contacts: BirthdayContact[] })
         contact={contact}
         trigger={
           <button type="button" className="relative z-10 flex w-full flex-col items-center gap-1 text-left">
-            <Avatar className="size-44 border-4 border-white shadow-lg">
+            <Avatar className="size-52 border-4 border-white shadow-lg">
               <AvatarImage src={contact.photo_url ?? undefined} alt="" />
-              <AvatarFallback className="bg-white text-5xl text-black">
+              <AvatarFallback className="bg-white text-6xl text-black">
                 {getInitials(contact.name)}
               </AvatarFallback>
             </Avatar>
-            <span className="mt-3 max-w-[280px] text-xl font-bold text-black">{contact.name}</span>
-            {contact.position && <span className="text-base text-gray-800">{contact.position}</span>}
-            <span className="mt-2 animate-bounce rounded-full border border-white/50 bg-white/20 px-4 py-1.5 text-sm font-bold text-white">
+            <span className="mt-2 max-w-[320px] text-2xl font-bold text-black">{contact.name}</span>
+            {contact.position && <span className="text-lg text-gray-800">{contact.position}</span>}
+            <span className="mt-1 animate-bounce rounded-full border border-white/50 bg-white/20 px-5 py-2 text-base font-bold text-white">
               🎉 ¡Hoy cumple años!
             </span>
           </button>

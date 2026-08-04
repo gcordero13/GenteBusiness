@@ -19,14 +19,14 @@ export function BirthdaysWidget({
     <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_1.5fr_1fr] md:items-stretch">
       {todayContacts.length > 0 && <TodayBirthdayCard contacts={todayContacts} />}
       {upcomingContacts.length > 0 && (
-        <div className="animate-in fade-in-0 slide-in-from-bottom-4 relative min-h-[480px] overflow-hidden rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-6 duration-700">
+        <div className="animate-in fade-in-0 slide-in-from-bottom-4 relative min-h-[400px] overflow-hidden rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 px-6 py-5 duration-700">
           <div
             aria-hidden
             className="animate-blob absolute -top-10 -right-10 size-32 rounded-full bg-[#04B1AF]/10 blur-2xl"
           />
-          <div className="relative mb-4 flex items-center gap-2 text-lg font-semibold">
-            <span className="flex size-10 shrink-0 animate-bounce items-center justify-center rounded-full bg-gradient-to-br from-[#04B1AF] to-emerald-500 text-white">
-              <Cake className="size-5" />
+          <div className="relative mb-2 flex items-center gap-3 text-xl font-semibold">
+            <span className="flex size-11 shrink-0 animate-bounce items-center justify-center rounded-full bg-gradient-to-br from-[#04B1AF] to-emerald-500 text-white">
+              <Cake className="size-6" />
             </span>
             Próximos cumpleaños
           </div>

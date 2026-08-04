@@ -51,7 +51,7 @@ export default async function Home() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
+    <div className="space-y-6 p-6">
       <div className="space-y-1">
         <h1 className="text-xl font-semibold">Bienvenido</h1>
         <p className="text-sm text-muted-foreground">{user?.email}</p>

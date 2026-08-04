@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatMonthDay, getInitials, isTodayBirthday, type BirthdayContact } from "@/lib/contacts";
 
 const GEOMETRY = {
-  full: { perspective: 1000, scaleStep: 0.22, maxVisible: 2, depth: 90, stepX: 82, tilt: 10, height: "h-64", avatar: "size-36", avatarText: "text-3xl", nameGap: "mt-4" },
+  full: { perspective: 1100, scaleStep: 0.22, maxVisible: 2, depth: 100, stepX: 92, tilt: 10, height: "h-64", avatar: "size-40", avatarText: "text-4xl", nameGap: "mt-2" },
   compact: { perspective: 800, scaleStep: 0.22, maxVisible: 1, depth: 70, stepX: 80, tilt: 10, height: "h-56", avatar: "size-32", avatarText: "text-3xl", nameGap: "mt-3" },
 };
 const AUTOPLAY_MS = 3 * 1000;
@@ -39,7 +39,7 @@ export function BirthdaysCoverflow({
   if (n === 0) return null;
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="mt-2 flex flex-col items-center gap-2">
       <div
         className={`relative flex ${g.height} w-full items-center justify-center`}
         style={{ perspective: `${g.perspective}px` }}
@@ -54,7 +54,7 @@ export function BirthdaysCoverflow({
             const isActive = rel === 0;
             const scale = Math.max(0.5, 1 - ax * g.scaleStep);
             const tx = rel * g.stepX;
-            const ty = ax === 1 ? (compact ? -22 : -24) : 0;
+            const ty = ax === 1 ? (compact ? -22 : -8) : 0;
             const tz = -ax * g.depth;
             const ry = -rel * g.tilt;
             const today = isTodayBirthday(c.birth_date);
@@ -90,10 +90,10 @@ export function BirthdaysCoverflow({
                     </Avatar>
                     {isActive && (
                       <div className={`${g.nameGap} flex flex-col items-center gap-1`}>
-                        <span className={compact ? "max-w-[200px] text-center text-base font-semibold" : "max-w-[220px] text-center text-lg font-semibold"}>
+                        <span className={compact ? "max-w-[200px] text-center text-base font-semibold" : "max-w-[260px] text-center text-xl font-semibold"}>
                           {c.name}
                         </span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className={compact ? "text-sm text-muted-foreground" : "text-base text-muted-foreground"}>
                           {c.birth_date ? formatMonthDay(c.birth_date) : ""}
                         </span>
                         {today && (
