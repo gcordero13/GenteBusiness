@@ -12,7 +12,10 @@ export default async function NewContactPage() {
   }
 
   const { data: companies } = await supabase.from("companies").select("id, name").order("name");
-  const { data: departments } = await supabase.from("departments").select("id, name").order("name");
+  const { data: departments } = await supabase
+    .from("departments")
+    .select("id, name, company_id")
+    .order("name");
   const { data: existingContacts } = await supabase
     .from("contacts")
     .select("id, first_name, last_name")

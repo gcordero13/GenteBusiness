@@ -24,7 +24,7 @@ export function BirthdaysWidget({
             aria-hidden
             className="animate-blob absolute -top-10 -right-10 size-32 rounded-full bg-[#04B1AF]/10 blur-2xl"
           />
-          <div className="relative mb-2 flex items-center gap-3 text-xl font-semibold">
+          <div className="relative mb-3 flex items-center gap-3 text-xl font-semibold">
             <span className="flex size-11 shrink-0 animate-bounce items-center justify-center rounded-full bg-gradient-to-br from-[#04B1AF] to-emerald-500 text-white">
               <Cake className="size-6" />
             </span>

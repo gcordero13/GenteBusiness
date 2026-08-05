@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { sanitizeFileName } from "@/lib/storagePath";
 import { saveCompany } from "./actions";
 
 interface CompanyInput {
@@ -36,7 +37,7 @@ export function CompanyForm({ initial }: { initial?: CompanyInput }) {
 
       if (logoFile) {
         const supabase = createBrowserClient();
-        const path = `${crypto.randomUUID()}-${logoFile.name}`;
+        const path = `${crypto.randomUUID()}-${sanitizeFileName(logoFile.name)}`;
         const { error: uploadError } = await supabase.storage
           .from("company-logos")
           .upload(path, logoFile);

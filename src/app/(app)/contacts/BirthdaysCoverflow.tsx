@@ -6,8 +6,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatMonthDay, getInitials, isTodayBirthday, type BirthdayContact } from "@/lib/contacts";
 
 const GEOMETRY = {
-  full: { perspective: 1100, scaleStep: 0.22, maxVisible: 2, depth: 100, stepX: 92, tilt: 10, height: "h-64", avatar: "size-40", avatarText: "text-4xl", nameGap: "mt-2" },
-  compact: { perspective: 800, scaleStep: 0.22, maxVisible: 1, depth: 70, stepX: 80, tilt: 10, height: "h-56", avatar: "size-32", avatarText: "text-3xl", nameGap: "mt-3" },
+  // Heights are sized so the avatar + its upward fan offset + the active
+  // person's name/date block below it always fit inside the box, with room
+  // to spare - this holds at every breakpoint since geometry doesn't change
+  // by viewport width, only the horizontal track width does.
+  full: { perspective: 1100, scaleStep: 0.22, maxVisible: 2, depth: 100, stepX: 92, tilt: 10, height: "h-[360px]", avatar: "size-40", avatarText: "text-4xl", nameGap: "mt-2" },
+  compact: { perspective: 800, scaleStep: 0.22, maxVisible: 1, depth: 70, stepX: 80, tilt: 10, height: "h-[300px]", avatar: "size-32", avatarText: "text-3xl", nameGap: "mt-3" },
 };
 const AUTOPLAY_MS = 3 * 1000;
 const TRANSITION =
@@ -39,7 +43,7 @@ export function BirthdaysCoverflow({
   if (n === 0) return null;
 
   return (
-    <div className="mt-2 flex flex-col items-center gap-2">
+    <div className="mt-3 flex flex-col items-center gap-2">
       <div
         className={`relative flex ${g.height} w-full items-center justify-center`}
         style={{ perspective: `${g.perspective}px` }}

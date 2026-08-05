@@ -37,6 +37,7 @@ export function Sidebar({
   canManageSettings,
   canUseDocumentStamps,
   canViewMaintenance,
+  canViewSolicitudesVacaciones,
   onLogout,
   onNavigate,
 }: {
@@ -50,6 +51,7 @@ export function Sidebar({
   canManageSettings: boolean;
   canUseDocumentStamps: boolean;
   canViewMaintenance: boolean;
+  canViewSolicitudesVacaciones: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -90,7 +92,9 @@ export function Sidebar({
   ];
 
   const solicitudesLinks: NavLink[] = [
-    { href: "/solicitudes/vacaciones", label: "Vacaciones", icon: Palmtree },
+    ...(canViewSolicitudesVacaciones
+      ? [{ href: "/solicitudes/vacaciones", label: "Vacaciones", icon: Palmtree }]
+      : []),
   ];
 
   return (
@@ -154,26 +158,28 @@ export function Sidebar({
               ))}
             </div>
           )}
-          <div className="space-y-1 pt-4">
-            {!collapsed && (
-              <p className="flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground">
-                <Palmtree className="size-3.5" />
-                Solicitudes
-              </p>
-            )}
-            {solicitudesLinks.map(({ href, label, icon: Icon }) => (
-              <a
-                key={href}
-                href={href}
-                title={label}
-                onClick={onNavigate}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
-              >
-                <Icon className="size-4 shrink-0" />
-                {!collapsed && <span>{label}</span>}
-              </a>
-            ))}
-          </div>
+          {solicitudesLinks.length > 0 && (
+            <div className="space-y-1 pt-4">
+              {!collapsed && (
+                <p className="flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground">
+                  <Palmtree className="size-3.5" />
+                  Solicitudes
+                </p>
+              )}
+              {solicitudesLinks.map(({ href, label, icon: Icon }) => (
+                <a
+                  key={href}
+                  href={href}
+                  title={label}
+                  onClick={onNavigate}
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
+                >
+                  <Icon className="size-4 shrink-0" />
+                  {!collapsed && <span>{label}</span>}
+                </a>
+              ))}
+            </div>
+          )}
         </nav>
       </div>
       <div className="hidden space-y-2 md:block">

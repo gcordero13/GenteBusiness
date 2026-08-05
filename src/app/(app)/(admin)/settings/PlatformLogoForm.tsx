@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { sanitizeFileName } from "@/lib/storagePath";
 import { savePlatformLogo } from "./actions";
 
 export function PlatformLogoForm({ initialLogoUrl }: { initialLogoUrl: string | null }) {
@@ -21,7 +22,7 @@ export function PlatformLogoForm({ initialLogoUrl }: { initialLogoUrl: string | 
 
     startTransition(async () => {
       const supabase = createBrowserClient();
-      const path = `platform/${crypto.randomUUID()}-${logoFile.name}`;
+      const path = `platform/${crypto.randomUUID()}-${sanitizeFileName(logoFile.name)}`;
       const { error: uploadError } = await supabase.storage
         .from("company-logos")
         .upload(path, logoFile);

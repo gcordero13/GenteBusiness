@@ -15,17 +15,25 @@ interface Option {
   name: string;
 }
 
+interface DepartmentOption extends Option {
+  company_id: string | null;
+}
+
 export function SearchFilters({
   companies,
   departments,
   canSeeInactiveToggle,
 }: {
   companies: Option[];
-  departments: Option[];
+  departments: DepartmentOption[];
   canSeeInactiveToggle: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const selectedCompany = searchParams.get("company") ?? "";
+  const visibleDepartments = selectedCompany
+    ? departments.filter((d) => d.company_id === selectedCompany)
+    : departments;
 
   function updateParam(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString());
@@ -33,6 +41,23 @@ export function SearchFilters({
       params.set(key, value);
     } else {
       params.delete(key);
+    }
+    router.push(`/contacts?${params.toString()}`);
+  }
+
+  function updateCompany(value: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set("company", value);
+    } else {
+      params.delete("company");
+    }
+    const currentDepartment = params.get("department");
+    const stillValid =
+      currentDepartment &&
+      departments.some((d) => d.id === currentDepartment && (!value || d.company_id === value));
+    if (!stillValid) {
+      params.delete("department");
     }
     router.push(`/contacts?${params.toString()}`);
   }
@@ -47,7 +72,7 @@ export function SearchFilters({
       />
       <Select
         value={searchParams.get("company") ?? ""}
-        onValueChange={(value) => updateParam("company", value)}
+        onValueChange={(value) => updateCompany(value)}
       >
         <SelectTrigger className="w-full sm:w-48">
           <SelectValue placeholder="Todas las empresas">
@@ -74,7 +99,7 @@ export function SearchFilters({
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {departments.map((d) => (
+          {visibleDepartments.map((d) => (
             <SelectItem key={d.id} value={d.id}>
               {d.name}
             </SelectItem>

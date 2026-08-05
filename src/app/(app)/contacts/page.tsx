@@ -68,7 +68,10 @@ export default async function ContactsPage({
 
   const { data: contacts } = await query;
   const { data: companies } = await supabase.from("companies").select("id, name").order("name");
-  const { data: departments } = await supabase.from("departments").select("id, name").order("name");
+  const { data: departments } = await supabase
+    .from("departments")
+    .select("id, name, company_id")
+    .order("name");
 
   const contactRows: ContactRow[] = (contacts ?? []).map((c) => ({
     id: c.id,

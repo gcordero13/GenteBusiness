@@ -12,11 +12,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { sanitizeFileName } from "@/lib/storagePath";
 import { saveContact, type ContactInput } from "./actions";
 
 interface Option {
   id: string;
   name: string;
+}
+
+interface DepartmentOption extends Option {
+  company_id: string | null;
 }
 
 export function ContactForm({
@@ -26,7 +31,7 @@ export function ContactForm({
   initial,
 }: {
   companies: Option[];
-  departments: Option[];
+  departments: DepartmentOption[];
   supervisors: Option[];
   initial?: ContactInput;
 }) {
@@ -49,9 +54,24 @@ export function ContactForm({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const visibleDepartments = form.company_id
+    ? departments.filter((d) => d.company_id === form.company_id)
+    : departments;
 
   function field<K extends keyof ContactInput>(key: K, value: ContactInput[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function setCompany(companyId: string) {
+    setForm((prev) => ({
+      ...prev,
+      company_id: companyId,
+      department_id: departments.some(
+        (d) => d.id === prev.department_id && d.company_id === companyId,
+      )
+        ? prev.department_id
+        : "",
+    }));
   }
 
   function submit() {
@@ -60,7 +80,7 @@ export function ContactForm({
 
       if (photoFile) {
         const supabase = createBrowserClient();
-        const path = `${crypto.randomUUID()}-${photoFile.name}`;
+        const path = `${crypto.randomUUID()}-${sanitizeFileName(photoFile.name)}`;
         const { error: uploadError } = await supabase.storage
           .from("contact-photos")
           .upload(path, photoFile);
@@ -114,7 +134,7 @@ export function ContactForm({
       </label>
       <div className="space-y-1">
         <Label>Empresa</Label>
-        <Select value={form.company_id} onValueChange={(v) => field("company_id", v ?? "")}>
+        <Select value={form.company_id} onValueChange={(v) => setCompany(v ?? "")}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Selecciona una empresa">
               {(value: string) => companies.find((c) => c.id === value)?.name ?? "Selecciona una empresa"}
@@ -140,7 +160,7 @@ export function ContactForm({
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {departments.map((d) => (
+            {visibleDepartments.map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}
               </SelectItem>
