@@ -69,6 +69,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
             department_id: contact.department_id ?? "",
             position: contact.position ?? "",
             birth_date: contact.birth_date ?? "",
+            hire_date: contact.hire_date ?? "",
             reports_to_id: contact.reports_to_id ?? "",
             photo_url: contact.photo_url ?? "",
           }}

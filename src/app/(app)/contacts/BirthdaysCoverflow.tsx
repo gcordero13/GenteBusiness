@@ -10,7 +10,7 @@ const GEOMETRY = {
   // person's name/date block below it always fit inside the box, with room
   // to spare - this holds at every breakpoint since geometry doesn't change
   // by viewport width, only the horizontal track width does.
-  full: { perspective: 1100, scaleStep: 0.22, maxVisible: 2, depth: 100, stepX: 92, tilt: 10, height: "h-[360px]", avatar: "size-40", avatarText: "text-4xl", nameGap: "mt-2" },
+  full: { perspective: 1100, scaleStep: 0.14, maxVisible: 2, depth: 70, stepX: 82, tilt: 10, height: "h-[360px]", avatar: "size-32", avatarText: "text-3xl", nameGap: "mt-5" },
   compact: { perspective: 800, scaleStep: 0.22, maxVisible: 1, depth: 70, stepX: 80, tilt: 10, height: "h-[300px]", avatar: "size-32", avatarText: "text-3xl", nameGap: "mt-3" },
 };
 const AUTOPLAY_MS = 3 * 1000;
@@ -58,7 +58,7 @@ export function BirthdaysCoverflow({
             const isActive = rel === 0;
             const scale = Math.max(0.5, 1 - ax * g.scaleStep);
             const tx = rel * g.stepX;
-            const ty = ax === 1 ? (compact ? -22 : -8) : 0;
+            const ty = ax === 1 ? (compact ? -22 : -6) : 0;
             const tz = -ax * g.depth;
             const ry = -rel * g.tilt;
             const today = isTodayBirthday(c.birth_date);
@@ -94,10 +94,10 @@ export function BirthdaysCoverflow({
                     </Avatar>
                     {isActive && (
                       <div className={`${g.nameGap} flex flex-col items-center gap-1`}>
-                        <span className={compact ? "max-w-[200px] text-center text-base font-semibold" : "max-w-[260px] text-center text-xl font-semibold"}>
+                        <span className={compact ? "max-w-[200px] text-center text-base font-semibold" : "max-w-[200px] truncate text-center text-base font-semibold"}>
                           {c.name}
                         </span>
-                        <span className={compact ? "text-sm text-muted-foreground" : "text-base text-muted-foreground"}>
+                        <span className={compact ? "text-sm text-muted-foreground" : "text-sm text-muted-foreground"}>
                           {c.birth_date ? formatMonthDay(c.birth_date) : ""}
                         </span>
                         {today && (

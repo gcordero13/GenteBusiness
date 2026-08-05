@@ -47,6 +47,7 @@ export function ContactForm({
       department_id: "",
       position: "",
       birth_date: "",
+      hire_date: "",
       reports_to_id: "",
       photo_url: "",
     },
@@ -195,6 +196,14 @@ export function ContactForm({
           type="date"
           value={form.birth_date}
           onChange={(e) => field("birth_date", e.target.value)}
+        />
+      </div>
+      <div className="space-y-1">
+        <Label>Fecha de contratación</Label>
+        <Input
+          type="date"
+          value={form.hire_date}
+          onChange={(e) => field("hire_date", e.target.value)}
         />
       </div>
       <div className="space-y-1">

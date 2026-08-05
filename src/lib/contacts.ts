@@ -144,6 +144,25 @@ export function isNewsActive(item: NewsDateRange, today: Date): boolean {
   return item.start_date <= todayIso && todayIso <= item.end_date;
 }
 
+export function formatTenure(hireDate: string, today: Date): string {
+  const [hireYear, hireMonth, hireDay] = hireDate.split("-").map(Number);
+  const todayYear = today.getUTCFullYear();
+  const todayMonth = today.getUTCMonth() + 1;
+  const todayDay = today.getUTCDate();
+
+  let totalMonths = (todayYear - hireYear) * 12 + (todayMonth - hireMonth);
+  if (todayDay < hireDay) totalMonths -= 1;
+  totalMonths = Math.max(0, totalMonths);
+
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+
+  if (years === 0 && months === 0) return "menos de 1 mes";
+  if (years === 0) return `${months} ${months === 1 ? "mes" : "meses"}`;
+  if (months === 0) return `${years} ${years === 1 ? "año" : "años"}`;
+  return `${years} ${years === 1 ? "año" : "años"} y ${months} ${months === 1 ? "mes" : "meses"}`;
+}
+
 export function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return parts

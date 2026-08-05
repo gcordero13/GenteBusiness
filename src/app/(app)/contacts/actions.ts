@@ -19,6 +19,7 @@ export interface ContactInput {
   department_id: string;
   position: string;
   birth_date: string;
+  hire_date: string;
   reports_to_id: string;
   photo_url: string;
 }
@@ -32,6 +33,7 @@ export async function saveContact(input: ContactInput) {
     extension: fields.extension || null,
     fleet_phone: fields.fleet_phone || null,
     birth_date: fields.birth_date || null,
+    hire_date: fields.hire_date || null,
     company_id: fields.company_id || null,
     department_id: fields.department_id || null,
     reports_to_id: fields.reports_to_id || null,

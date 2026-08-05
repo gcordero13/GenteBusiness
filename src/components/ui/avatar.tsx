@@ -25,10 +25,18 @@ function Avatar({
   )
 }
 
-function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
+function AvatarImage({ className, src, ...props }: AvatarPrimitive.Image.Props) {
+  // Base UI's Avatar.Image can enter a render loop when mounted with an
+  // undefined/empty src (observed as "Maximum update depth exceeded" in
+  // carousels that re-render on an interval, e.g. BirthdaysCoverflow).
+  // Skipping the mount entirely when there's no photo avoids that path and
+  // lets AvatarFallback show, which is the same visible result anyway.
+  if (!src) return null
+
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
+      src={src}
       className={cn(
         "aspect-square size-full rounded-full object-cover",
         className

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessToday, getUpcomingBirthdays, splitTodayBirthdays, type BirthdayContact } from "@/lib/contacts";
 import { BirthdaysWidget } from "./contacts/BirthdaysWidget";
-import { NewsWidget } from "./contacts/NewsWidget";
+import type { MyProfileCardData } from "./contacts/MyProfileCard";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -30,6 +30,24 @@ export default async function Home() {
     .order("start_date")
     .limit(5);
 
+  let myProfile: MyProfileCardData | null = null;
+  if (user?.email) {
+    const { data: myContact } = await supabase
+      .from("contacts")
+      .select("first_name, last_name, position, photo_url, hire_date")
+      .eq("email", user.email)
+      .maybeSingle();
+
+    if (myContact) {
+      myProfile = {
+        name: `${myContact.first_name} ${myContact.last_name}`,
+        position: myContact.position,
+        photo_url: myContact.photo_url,
+        hire_date: myContact.hire_date,
+      };
+    }
+  }
+
   let todayBirthdays: BirthdayContact[] = [];
   let upcomingBirthdays: BirthdayContact[] = [];
   if (flagsRows?.[0]?.can_view) {
@@ -56,21 +74,25 @@ export default async function Home() {
 
     const split = splitTodayBirthdays(allBirthdayContacts, today);
     todayBirthdays = split.todayBirthdays;
-    upcomingBirthdays = getUpcomingBirthdays(split.rest, today, 5);
+    upcomingBirthdays = getUpcomingBirthdays(split.rest, today, 7);
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold">Bienvenido</h1>
-        <p className="text-sm text-muted-foreground">{user?.email}</p>
-      </div>
+    <div className="space-y-4 p-6">
+      {!myProfile && (
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold">Bienvenido</h1>
+          <p className="text-sm text-muted-foreground">{user?.email}</p>
+        </div>
+      )}
       <BirthdaysWidget
+        myProfile={myProfile}
+        today={today}
         todayContacts={todayBirthdays}
         upcomingContacts={upcomingBirthdays}
         events={upcomingEvents ?? []}
+        news={activeNews ?? []}
       />
-      <NewsWidget items={activeNews ?? []} />
     </div>
   );
 }

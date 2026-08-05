@@ -3,6 +3,7 @@ import {
   buildOrgTree,
   escapeIlikePattern,
   formatMonthDay,
+  formatTenure,
   getInitials,
   getUpcomingBirthdays,
   isNewsActive,
@@ -274,5 +275,37 @@ describe("isNewsActive", () => {
   it("returns true for a single-day range matching today", () => {
     const today = new Date("2026-10-15T12:00:00Z");
     expect(isNewsActive({ start_date: "2026-10-15", end_date: "2026-10-15" }, today)).toBe(true);
+  });
+});
+
+describe("formatTenure", () => {
+  it("returns 'menos de 1 mes' for under a month", () => {
+    const today = new Date("2026-08-05T12:00:00Z");
+    expect(formatTenure("2026-07-20", today)).toBe("menos de 1 mes");
+  });
+
+  it("formats several months with no full year", () => {
+    const today = new Date("2026-08-05T12:00:00Z");
+    expect(formatTenure("2026-05-05", today)).toBe("3 meses");
+  });
+
+  it("formats exactly one year with no leftover months", () => {
+    const today = new Date("2026-08-05T12:00:00Z");
+    expect(formatTenure("2025-08-05", today)).toBe("1 año");
+  });
+
+  it("formats multiple years plus leftover months", () => {
+    const today = new Date("2026-08-05T12:00:00Z");
+    expect(formatTenure("2024-05-05", today)).toBe("2 años y 3 meses");
+  });
+
+  it("formats multiple whole years without a dangling 'y 0 meses'", () => {
+    const today = new Date("2026-08-05T12:00:00Z");
+    expect(formatTenure("2024-08-05", today)).toBe("2 años");
+  });
+
+  it("formats a single leftover month with singular wording", () => {
+    const today = new Date("2026-08-05T12:00:00Z");
+    expect(formatTenure("2024-07-05", today)).toBe("2 años y 1 mes");
   });
 });
