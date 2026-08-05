@@ -18,6 +18,7 @@ create table public.company_news (
   title text not null,
   description text not null,
   image_url text,
+  link_url text,
   start_date date not null,
   end_date date not null,
   created_at timestamptz not null default now(),
@@ -52,7 +53,7 @@ A new public storage bucket `news-images` is added, with policies mirroring `con
 
 `/activities` (existing page, module key `activities`) gains a second section below the current días-feriados table: **"Noticias y eventos"**.
 
-- `NewsForm` component (client), modeled on the existing `ActivityForm`: a dialog with `title` (text input), `description` (textarea), an optional image file input (reusing `sanitizeFileName` from `src/lib/storagePath.ts`, same upload flow as `ContactForm`/`CompanyForm`: upload to `news-images`, then `getPublicUrl`), and two date inputs (`start_date`, `end_date`). Client-side validation: `end_date >= start_date` (disable submit otherwise, mirroring how the existing form disables submit when required fields are empty).
+- `NewsForm` component (client), modeled on the existing `ActivityForm`: a dialog with `title` (text input), `description` (textarea), an optional image file input (reusing `sanitizeFileName` from `src/lib/storagePath.ts`, same upload flow as `ContactForm`/`CompanyForm`: upload to `news-images`, then `getPublicUrl`), an optional `link_url` text input (plain URL, e.g. "https://..."), and two date inputs (`start_date`, `end_date`). Client-side validation: `end_date >= start_date` (disable submit otherwise, mirroring how the existing form disables submit when required fields are empty).
 - A list/table of existing news items (title, date range, edit/delete), same shape as the current activities table, using `DeleteIconButton` for delete like `deleteActivity`.
 - New server actions `saveNews`/`deleteNews` in `src/app/(app)/(admin)/activities/actions.ts`, following `saveActivity`/`deleteActivity`'s exact shape (`revalidatePath("/activities")` + `revalidatePath("/")` since news now also appears on Home, instead of `/contacts`).
 - Same permission gate as today: page redirects to `/` if `!flags.can_manage` for the `activities` module.
@@ -64,7 +65,7 @@ A new public storage bucket `news-images` is added, with policies mirroring `con
 ```ts
 const { data: activeNews } = await supabase
   .from("company_news")
-  .select("id, title, description, image_url, start_date, end_date")
+  .select("id, title, description, image_url, link_url, start_date, end_date")
   .lte("start_date", todayIso)
   .gte("end_date", todayIso)
   .order("start_date")
@@ -76,7 +77,7 @@ const { data: activeNews } = await supabase
 A new `NewsWidget` client component (in `src/app/(app)/contacts/` alongside the other dashboard widgets, or a new `src/app/(app)/news/` folder — implementer's call, following whichever grouping reads more clearly) renders as its **own full-width row below** the existing 3-column `BirthdaysWidget` grid — per the approved layout option, this does not touch the birthday row's column widths at all.
 
 - 0 active items: widget renders nothing (`return null`), same convention as every other widget here.
-- 1 active item: static card — image thumbnail (or no thumbnail if `image_url` is null) + title + description, styled in the app's existing teal/emerald palette (`border-[#04B1AF]/20`, `bg-[#04B1AF]/5`), not tinted to match the news topic — the uploaded image itself carries that visual identity.
+- 1 active item: static card — image thumbnail (or no thumbnail if `image_url` is null) + title + description + a "Más información" link (only rendered if `link_url` is present, opens in a new tab), styled in the app's existing teal/emerald palette (`border-[#04B1AF]/20`, `bg-[#04B1AF]/5`), not tinted to match the news topic — the uploaded image itself carries that visual identity.
 - 2+ active items: same card, rotating through items automatically (interval + `useEffect`, matching the exact pattern already used in `TodayBirthdayCard`/`BirthdaysCoverflow`) with dot navigation to jump directly to an item.
 
 ## Data Flow
