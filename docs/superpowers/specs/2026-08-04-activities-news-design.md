@@ -31,23 +31,23 @@ create policy "company_news_select_any_authenticated" on public.company_news
 for select
 using ( auth.uid() is not null );
 
-create policy "company_news_write_platform_managers" on public.company_news
+create policy "company_news_write_activities_managers" on public.company_news
 for insert
-with check ( coalesce((select can_manage_platform from public.get_my_role_flags()), false) );
+with check ( coalesce((select can_manage from public.get_my_module_permissions('activities')), false) );
 
-create policy "company_news_update_platform_managers" on public.company_news
+create policy "company_news_update_activities_managers" on public.company_news
 for update
-using ( coalesce((select can_manage_platform from public.get_my_role_flags()), false) )
-with check ( coalesce((select can_manage_platform from public.get_my_role_flags()), false) );
+using ( coalesce((select can_manage from public.get_my_module_permissions('activities')), false) )
+with check ( coalesce((select can_manage from public.get_my_module_permissions('activities')), false) );
 
-create policy "company_news_delete_platform_managers" on public.company_news
+create policy "company_news_delete_activities_managers" on public.company_news
 for delete
-using ( coalesce((select can_manage_platform from public.get_my_role_flags()), false) );
+using ( coalesce((select can_manage from public.get_my_module_permissions('activities')), false) );
 ```
 
-This mirrors `company_events`'s existing RLS shape exactly (any authenticated user can read; `can_manage_platform` from `get_my_role_flags()` gates writes), for consistency with the established pattern in this codebase.
+This mirrors `company_events`'s *current* RLS shape exactly (any authenticated user can read; `can_manage` on the `activities` module gates writes). Note: `company_events`'s original migration used a now-dropped `get_my_role_flags()`/`can_manage_platform` global flag — that was superseded by the per-module permission system in `20260715120543_per_module_permissions.sql`, which re-pointed `company_events` (and `contact-photos`' storage policies) at `get_my_module_permissions(...)`. `company_news` is written directly against the current, live pattern.
 
-A new public storage bucket `news-images` is added, with policies mirroring `contact-photos`' migration (`20260714150108_contact_photos_storage.sql`): public read, insert/update gated by the same manage-platform check used above (not `can_add`/`can_edit`, since news publishing is a platform-manager action, not a per-contact edit), delete gated the same way.
+A new public storage bucket `news-images` is added, with policies mirroring `contact-photos`' *current* policies (also re-pointed in the same per-module-permissions migration, not its original 20260714 migration): public read, insert/update/delete gated by `can_manage` on `activities` (not `can_add`/`can_edit`, since news publishing is a platform-manager action, not a per-contact edit).
 
 ## Admin UI
 

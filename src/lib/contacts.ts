@@ -134,6 +134,16 @@ export function splitTodayBirthdays<T extends BirthdayContact>(
   return { todayBirthdays, rest };
 }
 
+export interface NewsDateRange {
+  start_date: string;
+  end_date: string;
+}
+
+export function isNewsActive(item: NewsDateRange, today: Date): boolean {
+  const todayIso = today.toISOString().slice(0, 10);
+  return item.start_date <= todayIso && todayIso <= item.end_date;
+}
+
 export function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return parts

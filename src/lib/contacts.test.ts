@@ -5,6 +5,7 @@ import {
   formatMonthDay,
   getInitials,
   getUpcomingBirthdays,
+  isNewsActive,
   isTodayBirthday,
   splitTodayBirthdays,
   whatsappUrl,
@@ -241,5 +242,37 @@ describe("splitTodayBirthdays", () => {
 
     expect(todayBirthdays.map((c) => c.id)).toEqual(["1"]);
     expect(rest.map((c) => c.id)).toEqual(["2"]);
+  });
+});
+
+describe("isNewsActive", () => {
+  it("returns false before the start date", () => {
+    const today = new Date("2026-10-01T12:00:00Z");
+    expect(isNewsActive({ start_date: "2026-10-15", end_date: "2026-10-31" }, today)).toBe(false);
+  });
+
+  it("returns true inside the date range", () => {
+    const today = new Date("2026-10-20T12:00:00Z");
+    expect(isNewsActive({ start_date: "2026-10-15", end_date: "2026-10-31" }, today)).toBe(true);
+  });
+
+  it("returns false after the end date", () => {
+    const today = new Date("2026-11-01T12:00:00Z");
+    expect(isNewsActive({ start_date: "2026-10-15", end_date: "2026-10-31" }, today)).toBe(false);
+  });
+
+  it("returns true exactly on the start date boundary", () => {
+    const today = new Date("2026-10-15T12:00:00Z");
+    expect(isNewsActive({ start_date: "2026-10-15", end_date: "2026-10-31" }, today)).toBe(true);
+  });
+
+  it("returns true exactly on the end date boundary", () => {
+    const today = new Date("2026-10-31T12:00:00Z");
+    expect(isNewsActive({ start_date: "2026-10-15", end_date: "2026-10-31" }, today)).toBe(true);
+  });
+
+  it("returns true for a single-day range matching today", () => {
+    const today = new Date("2026-10-15T12:00:00Z");
+    expect(isNewsActive({ start_date: "2026-10-15", end_date: "2026-10-15" }, today)).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessToday, getUpcomingBirthdays, splitTodayBirthdays, type BirthdayContact } from "@/lib/contacts";
 import { BirthdaysWidget } from "./contacts/BirthdaysWidget";
+import { NewsWidget } from "./contacts/NewsWidget";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -19,6 +20,14 @@ export default async function Home() {
     .select("id, name, event_date")
     .gte("event_date", todayIso)
     .order("event_date")
+    .limit(5);
+
+  const { data: activeNews } = await supabase
+    .from("company_news")
+    .select("id, title, description, image_url, link_url, start_date, end_date")
+    .lte("start_date", todayIso)
+    .gte("end_date", todayIso)
+    .order("start_date")
     .limit(5);
 
   let todayBirthdays: BirthdayContact[] = [];
@@ -61,6 +70,7 @@ export default async function Home() {
         upcomingContacts={upcomingBirthdays}
         events={upcomingEvents ?? []}
       />
+      <NewsWidget items={activeNews ?? []} />
     </div>
   );
 }
