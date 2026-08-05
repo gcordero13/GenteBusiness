@@ -147,7 +147,7 @@ export default async function ContactsPage({
       ) : activeView === "grouped" ? (
         <ContactsGrouped contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       ) : activeView === "org" ? (
-        <ContactsOrgChart contacts={contactRows} />
+        <ContactsOrgChart contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       ) : (
         <ContactsTable contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       )}
