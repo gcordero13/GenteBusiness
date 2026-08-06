@@ -54,7 +54,7 @@ export default async function Home() {
     const { data: contacts } = await supabase
       .from("contacts")
       .select(
-        "id, first_name, last_name, birth_date, photo_url, position, email, extension, fleet_phone, has_whatsapp, companies(name), departments(name)",
+        "id, first_name, last_name, birth_date, photo_url, position, email, extension, fleet_phone, has_whatsapp, hire_date, companies(name), departments(name)",
       )
       .eq("status", "active");
 
@@ -68,6 +68,7 @@ export default async function Home() {
       extension: c.extension,
       fleet_phone: c.fleet_phone,
       has_whatsapp: c.has_whatsapp,
+      hire_date: c.hire_date,
       company_name: (c.companies as unknown as { name: string } | null)?.name ?? null,
       department_name: (c.departments as unknown as { name: string } | null)?.name ?? null,
     }));

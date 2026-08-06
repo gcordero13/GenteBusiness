@@ -22,6 +22,7 @@ export interface ContactRow {
   fleet_phone: string | null;
   has_whatsapp: boolean;
   photo_url: string | null;
+  hire_date: string | null;
   reports_to_id: string | null;
   companies: { name: string } | null;
   departments: { name: string } | null;

@@ -24,6 +24,7 @@ function contact(overrides: Partial<BirthdayContact> = {}): BirthdayContact {
     extension: null,
     fleet_phone: null,
     has_whatsapp: false,
+    hire_date: null,
     company_name: null,
     department_name: null,
     ...overrides,

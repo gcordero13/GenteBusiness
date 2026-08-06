@@ -12,8 +12,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, MessageCircle, Phone } from "lucide-react";
-import { whatsappUrl } from "@/lib/contacts";
+import { Clock, Mail, MessageCircle, Phone } from "lucide-react";
+import { formatTenure, getBusinessToday, whatsappUrl } from "@/lib/contacts";
 import type { ContactRow } from "./ContactsTable";
 
 export function ContactViewDialog({
@@ -25,7 +25,10 @@ export function ContactViewDialog({
   canEdit: boolean;
   children: ReactNode;
 }) {
-  const hasContactInfo = Boolean(contact.extension || contact.fleet_phone || contact.email);
+  const hasContactInfo = Boolean(
+    contact.extension || contact.fleet_phone || contact.email || contact.hire_date,
+  );
+  const tenure = contact.hire_date ? formatTenure(contact.hire_date, getBusinessToday()) : null;
 
   return (
     <Dialog>
@@ -37,18 +40,20 @@ export function ContactViewDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col items-center gap-3 p-2 text-center">
-          <Avatar className="size-40">
+          <Avatar className="size-28 sm:size-40">
             <AvatarImage src={contact.photo_url ?? undefined} alt="" />
-            <AvatarFallback className="text-5xl">
+            <AvatarFallback className="text-3xl sm:text-5xl">
               {`${contact.first_name[0] ?? ""}${contact.last_name[0] ?? ""}`.toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <div className="space-y-1.5">
-            <p className="text-3xl font-semibold">
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-xl font-semibold break-words sm:text-3xl">
               {contact.first_name} {contact.last_name}
             </p>
-            {contact.position && <p className="text-lg text-muted-foreground">{contact.position}</p>}
-            <p className="text-lg text-muted-foreground">
+            {contact.position && (
+              <p className="text-base text-muted-foreground break-words sm:text-lg">{contact.position}</p>
+            )}
+            <p className="text-base text-muted-foreground break-words sm:text-lg">
               {contact.companies?.name}
               {contact.companies?.name && contact.departments?.name ? " · " : ""}
               {contact.departments?.name}
@@ -63,41 +68,52 @@ export function ContactViewDialog({
             {contact.extension && (
               <div className="flex items-center gap-3 rounded-lg border p-3">
                 <Phone className="size-6 shrink-0 text-muted-foreground" />
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">Extensión</p>
-                  <p className="text-lg font-semibold">{contact.extension}</p>
+                  <p className="text-base font-semibold break-words sm:text-lg">{contact.extension}</p>
                 </div>
               </div>
             )}
             {contact.fleet_phone && (
               <div className="flex items-center gap-3 rounded-lg border p-3">
                 <MessageCircle className="size-6 shrink-0 text-muted-foreground" />
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">Teléfono</p>
-                  <p className="text-lg font-semibold">
-                    {contact.fleet_phone}
-                    {contact.has_whatsapp && (
-                      <a
-                        href={whatsappUrl(contact.fleet_phone)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2 text-base font-normal underline underline-offset-2"
-                      >
-                        WhatsApp
-                      </a>
-                    )}
-                  </p>
+                  {contact.has_whatsapp ? (
+                    <a
+                      href={whatsappUrl(contact.fleet_phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-base font-semibold break-words underline underline-offset-2 sm:text-lg"
+                    >
+                      {contact.fleet_phone}
+                    </a>
+                  ) : (
+                    <p className="text-base font-semibold break-words sm:text-lg">{contact.fleet_phone}</p>
+                  )}
                 </div>
               </div>
             )}
             {contact.email && (
               <div className="flex items-center gap-3 rounded-lg border p-3 sm:col-span-2">
                 <Mail className="size-6 shrink-0 text-muted-foreground" />
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">Correo</p>
-                  <a href={`mailto:${contact.email}`} className="text-lg font-semibold underline underline-offset-2">
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="text-base font-semibold break-all underline underline-offset-2 sm:text-lg"
+                  >
                     {contact.email}
                   </a>
+                </div>
+              </div>
+            )}
+            {tenure && (
+              <div className="flex items-center gap-3 rounded-lg border p-3 sm:col-span-2">
+                <Clock className="size-6 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="text-sm text-muted-foreground">Tiempo en la empresa</p>
+                  <p className="text-base font-semibold sm:text-lg">{tenure}</p>
                 </div>
               </div>
             )}

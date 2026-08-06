@@ -48,7 +48,7 @@ export default async function ContactsPage({
   let query = supabase
     .from("contacts")
     .select(
-      "id, first_name, last_name, email, position, company_id, department_id, status, extension, fleet_phone, has_whatsapp, birth_date, photo_url, reports_to_id, companies(name), departments(name)",
+      "id, first_name, last_name, email, position, company_id, department_id, status, extension, fleet_phone, has_whatsapp, birth_date, photo_url, hire_date, reports_to_id, companies(name), departments(name)",
     )
     .order("first_name");
 
@@ -84,6 +84,7 @@ export default async function ContactsPage({
     fleet_phone: c.fleet_phone,
     has_whatsapp: c.has_whatsapp,
     photo_url: c.photo_url,
+    hire_date: c.hire_date,
     reports_to_id: c.reports_to_id,
     companies: (c.companies as unknown as { name: string } | null) ?? null,
     departments: (c.departments as unknown as { name: string } | null) ?? null,

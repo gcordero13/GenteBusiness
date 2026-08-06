@@ -8,6 +8,7 @@ export interface BirthdayContact {
   extension: string | null;
   fleet_phone: string | null;
   has_whatsapp: boolean;
+  hire_date: string | null;
   company_name: string | null;
   department_name: string | null;
 }
