@@ -137,3 +137,4 @@ create table punches (
 - Resolving a punch retroactively once an admin links a previously-unmatched `hikvision_employee_no` (the existing unmatched rows stay `contact_id = null` until a future backfill — not needed until sub-project 3 exists to display them).
 - Multiple offices/locations (confirmed out of scope for now — all current terminals are on one LAN behind one agent).
 - Push-based (real-time) event notification from the device — polling was chosen for simplicity; push is a possible future upgrade if 20-second latency ever becomes a real problem.
+- Using this same on-premise agent to monitor other local infrastructure (printer status, which services are down, etc.). Raised during design review as a future idea — worth reconsidering once there's a concrete second use case, but this spec's data model and agent are attendance-specific for now rather than a generic "collectors" platform.
