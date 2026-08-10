@@ -70,6 +70,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
             position: contact.position ?? "",
             birth_date: contact.birth_date ?? "",
             hire_date: contact.hire_date ?? "",
+            hikvision_employee_no: contact.hikvision_employee_no ?? "",
             reports_to_id: contact.reports_to_id ?? "",
             photo_url: contact.photo_url ?? "",
           }}

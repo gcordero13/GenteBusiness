@@ -48,6 +48,7 @@ export function ContactForm({
       position: "",
       birth_date: "",
       hire_date: "",
+      hikvision_employee_no: "",
       reports_to_id: "",
       photo_url: "",
     },
@@ -204,6 +205,13 @@ export function ContactForm({
           type="date"
           value={form.hire_date}
           onChange={(e) => field("hire_date", e.target.value)}
+        />
+      </div>
+      <div className="space-y-1">
+        <Label>Número de empleado (Hikvision)</Label>
+        <Input
+          value={form.hikvision_employee_no}
+          onChange={(e) => field("hikvision_employee_no", e.target.value)}
         />
       </div>
       <div className="space-y-1">
