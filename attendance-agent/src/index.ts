@@ -28,7 +28,10 @@ const cloudConfig = {
 const db = openDb("attendance-agent.db");
 let lastError: string | null = null;
 
+let refreshing = false;
 async function refreshDevices(): Promise<void> {
+  if (refreshing) return;
+  refreshing = true;
   try {
     const devices = await fetchDevices(cloudConfig);
     upsertDevices(
@@ -44,34 +47,48 @@ async function refreshDevices(): Promise<void> {
     lastError = null;
   } catch (err) {
     lastError = err instanceof Error ? err.message : String(err);
+  } finally {
+    refreshing = false;
   }
 }
 
+let polling = false;
 async function pollDevices(): Promise<void> {
-  for (const device of listDevices(db)) {
-    try {
-      const since = lastPunchTime(db, device.id);
-      const startTime = since ? new Date(since) : new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const endTime = new Date();
-      const events = await fetchNewEvents(device, startTime, endTime);
-      for (const event of events) {
-        insertPunchIfNew(db, {
-          deviceId: device.id,
-          employeeNoString: event.employeeNoString,
-          punchedAt: event.punchedAt,
-          rawEventId: event.rawEventId,
-        });
+  if (polling) return;
+  polling = true;
+  try {
+    for (const device of listDevices(db)) {
+      try {
+        const since = lastPunchTime(db, device.id);
+        const startTime = since ? new Date(since) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const endTime = new Date();
+        const events = await fetchNewEvents(device, startTime, endTime);
+        for (const event of events) {
+          insertPunchIfNew(db, {
+            deviceId: device.id,
+            employeeNoString: event.employeeNoString,
+            punchedAt: event.punchedAt,
+            rawEventId: event.rawEventId,
+          });
+        }
+      } catch (err) {
+        lastError = `${device.name}: ${err instanceof Error ? err.message : String(err)}`;
       }
-    } catch (err) {
-      lastError = `${device.name}: ${err instanceof Error ? err.message : String(err)}`;
     }
+  } catch (err) {
+    lastError = err instanceof Error ? err.message : String(err);
+  } finally {
+    polling = false;
   }
 }
 
+let syncing = false;
 async function syncPunches(): Promise<void> {
-  const pending = unsyncedPunches(db);
-  if (pending.length === 0) return;
+  if (syncing) return;
+  syncing = true;
   try {
+    const pending = unsyncedPunches(db);
+    if (pending.length === 0) return;
     await postPunches(
       cloudConfig,
       pending.map((p) => ({
@@ -86,6 +103,8 @@ async function syncPunches(): Promise<void> {
     );
   } catch (err) {
     lastError = err instanceof Error ? err.message : String(err);
+  } finally {
+    syncing = false;
   }
 }
 
@@ -104,9 +123,27 @@ async function main(): Promise<void> {
   await refreshDevices();
   renderTick();
 
-  setInterval(() => void refreshDevices().then(renderTick), 5 * 60 * 1000);
-  setInterval(() => void pollDevices().then(renderTick), 20 * 1000);
-  setInterval(() => void syncPunches().then(renderTick), 25 * 1000);
+  setInterval(() => {
+    refreshDevices()
+      .catch((err) => {
+        lastError = err instanceof Error ? err.message : String(err);
+      })
+      .finally(renderTick);
+  }, 5 * 60 * 1000);
+  setInterval(() => {
+    pollDevices()
+      .catch((err) => {
+        lastError = err instanceof Error ? err.message : String(err);
+      })
+      .finally(renderTick);
+  }, 20 * 1000);
+  setInterval(() => {
+    syncPunches()
+      .catch((err) => {
+        lastError = err instanceof Error ? err.message : String(err);
+      })
+      .finally(renderTick);
+  }, 25 * 1000);
 }
 
 main();

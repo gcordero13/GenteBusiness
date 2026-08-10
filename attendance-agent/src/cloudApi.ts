@@ -14,6 +14,7 @@ export interface CloudConfig {
 export async function fetchDevices(config: CloudConfig): Promise<CloudDevice[]> {
   const response = await fetch(`${config.baseUrl}/api/attendance/devices`, {
     headers: { Authorization: `Bearer ${config.secret}` },
+    signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -37,6 +38,7 @@ export async function postPunches(config: CloudConfig, punches: OutgoingPunch[])
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ punches }),
+    signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");

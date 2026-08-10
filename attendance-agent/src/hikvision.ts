@@ -32,32 +32,46 @@ export interface DeviceCredentials {
   password: string;
 }
 
+const PAGE_SIZE = 200;
+const MAX_PAGES = 50;
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export async function fetchNewEvents(
   device: DeviceCredentials,
   startTime: Date,
   endTime: Date,
 ): Promise<RawPunch[]> {
   const client = new DigestFetch(device.username, device.password);
-  const response = await client.fetch(`http://${device.ipAddress}/ISAPI/AccessControl/AcsEvent?format=json`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      AcsEventCond: {
-        searchID: crypto.randomUUID(),
-        searchResultPosition: 0,
-        maxResults: 200,
-        major: 0,
-        minor: 0,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-      },
-    }),
-  });
+  const allPunches: RawPunch[] = [];
 
-  if (!response.ok) {
-    throw new Error(`Hikvision device ${device.ipAddress} returned HTTP ${response.status}`);
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const response = await client.fetch(`http://${device.ipAddress}/ISAPI/AccessControl/AcsEvent?format=json`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        AcsEventCond: {
+          searchID: crypto.randomUUID(),
+          searchResultPosition: page * PAGE_SIZE,
+          maxResults: PAGE_SIZE,
+          major: 0,
+          minor: 0,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+        },
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Hikvision device ${device.ipAddress} returned HTTP ${response.status}`);
+    }
+
+    const body = await response.json();
+    allPunches.push(...parseAcsEventResponse(body));
+
+    const numOfMatches = (body as { AcsEvent?: { numOfMatches?: number } })?.AcsEvent?.numOfMatches ?? 0;
+    if (numOfMatches < PAGE_SIZE) break;
   }
 
-  const body = await response.json();
-  return parseAcsEventResponse(body);
+  return allPunches;
 }

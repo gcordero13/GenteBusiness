@@ -140,4 +140,64 @@ describe("fetchNewEvents", () => {
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "wrong" };
     await expect(fetchNewEvents(device, new Date(), new Date())).rejects.toThrow(/192\.168\.1\.50.*401/);
   });
+
+  it("paginates through multiple pages when a page returns a full batch (numOfMatches equals the page size)", async () => {
+    const DigestFetch = (await import("digest-fetch")).default;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          AcsEvent: {
+            numOfMatches: 200,
+            InfoList: [{ major: 5, minor: 75, time: "2026-08-10T08:00:00-04:00", employeeNoString: "1" }],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          AcsEvent: {
+            numOfMatches: 1,
+            InfoList: [{ major: 5, minor: 75, time: "2026-08-10T08:02:00-04:00", employeeNoString: "3" }],
+          },
+        }),
+      });
+    (DigestFetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(function () {
+      return { fetch: fetchMock };
+    });
+
+    const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
+    const punches = await fetchNewEvents(
+      device,
+      new Date("2026-08-10T00:00:00.000Z"),
+      new Date("2026-08-10T23:59:59.000Z"),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondCallBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(secondCallBody.AcsEventCond.searchResultPosition).toBe(200);
+    expect(punches.map((p) => p.employeeNoString)).toEqual(["1", "3"]);
+  });
+
+  it("stops after a bounded number of pages to avoid an unbounded loop if a device keeps reporting full pages", async () => {
+    const DigestFetch = (await import("digest-fetch")).default;
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        AcsEvent: {
+          numOfMatches: 200,
+          InfoList: [{ major: 5, minor: 75, time: "2026-08-10T08:00:00-04:00", employeeNoString: "1" }],
+        },
+      }),
+    });
+    (DigestFetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(function () {
+      return { fetch: fetchMock };
+    });
+
+    const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
+    await fetchNewEvents(device, new Date(), new Date());
+
+    expect(fetchMock).toHaveBeenCalledTimes(50);
+  });
 });
