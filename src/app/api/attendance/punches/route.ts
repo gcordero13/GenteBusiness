@@ -31,12 +31,18 @@ export async function POST(request: NextRequest) {
     (contacts ?? []).map((c) => [c.hikvision_employee_no as string, c.id as string]),
   );
 
-  const rows = punches.map((p) => ({
-    device_id: p.device_id,
-    employee_no_string: p.employee_no_string,
-    punched_at: p.punched_at,
-    contact_id: contactByEmployeeNo.get(p.employee_no_string) ?? null,
-  }));
+  const rowsByConflictKey = new Map(
+    punches.map((p) => [
+      `${p.device_id}:${p.employee_no_string}:${p.punched_at}`,
+      {
+        device_id: p.device_id,
+        employee_no_string: p.employee_no_string,
+        punched_at: p.punched_at,
+        contact_id: contactByEmployeeNo.get(p.employee_no_string) ?? null,
+      },
+    ]),
+  );
+  const rows = Array.from(rowsByConflictKey.values());
 
   const { data: upserted, error } = await admin
     .from("time_clock_punches")

@@ -118,4 +118,65 @@ describe("POST /api/attendance/punches", () => {
       .eq("employee_no_string", "999");
     expect(stored).toHaveLength(1);
   });
+
+  it("dedupes duplicate conflict keys within a single batch instead of erroring", async () => {
+    const admin = createAdminClient();
+    const { data: device } = await admin
+      .from("time_clock_devices")
+      .insert({ name: "Entrada Test", ip_address: "192.168.1.99", username: "admin", password: "secret" })
+      .select()
+      .single();
+    deviceId = device!.id;
+
+    const punch = { device_id: deviceId, employee_no_string: "999", punched_at: "2026-08-10T08:00:00.000Z" };
+    const response = await POST(makeRequest({ punches: [punch, punch] }, `Bearer ${SECRET}`));
+    expect(response.status).toBe(200);
+
+    const { data: stored } = await admin
+      .from("time_clock_punches")
+      .select("id")
+      .eq("device_id", deviceId)
+      .eq("employee_no_string", "999");
+    expect(stored).toHaveLength(1);
+  });
+
+  it("resolves contact_id independently for each employee number in a multi-punch batch", async () => {
+    const admin = createAdminClient();
+    const { data: device } = await admin
+      .from("time_clock_devices")
+      .insert({ name: "Entrada Test", ip_address: "192.168.1.99", username: "admin", password: "secret" })
+      .select()
+      .single();
+    deviceId = device!.id;
+
+    const { data: contact } = await admin
+      .from("contacts")
+      .insert({ first_name: "Test", last_name: "Employee", hikvision_employee_no: "555" })
+      .select()
+      .single();
+    contactId = contact!.id;
+
+    const response = await POST(
+      makeRequest(
+        {
+          punches: [
+            { device_id: deviceId, employee_no_string: "555", punched_at: "2026-08-10T08:00:00.000Z" },
+            { device_id: deviceId, employee_no_string: "999", punched_at: "2026-08-10T09:00:00.000Z" },
+          ],
+        },
+        `Bearer ${SECRET}`,
+      ),
+    );
+    expect(response.status).toBe(200);
+
+    const { data: stored } = await admin
+      .from("time_clock_punches")
+      .select("employee_no_string, contact_id")
+      .eq("device_id", deviceId)
+      .order("employee_no_string");
+    expect(stored).toEqual([
+      { employee_no_string: "555", contact_id: contactId },
+      { employee_no_string: "999", contact_id: null },
+    ]);
+  });
 });
