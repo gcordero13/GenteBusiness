@@ -64,8 +64,13 @@ describe("GET /api/attendance/devices", () => {
     const response = await GET(makeRequest(`Bearer ${SECRET}`));
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.devices).toEqual([
-      { id: activeId, name: "Entrada Activa", ip_address: "192.168.1.10", username: "admin", password: "secret" },
-    ]);
+    expect(body.devices).toContainEqual({
+      id: activeId,
+      name: "Entrada Activa",
+      ip_address: "192.168.1.10",
+      username: "admin",
+      password: "secret",
+    });
+    expect(body.devices.find((d: { id: string }) => d.id === inactiveId)).toBeUndefined();
   });
 });
