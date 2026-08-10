@@ -16,7 +16,8 @@ export async function fetchDevices(config: CloudConfig): Promise<CloudDevice[]> 
     headers: { Authorization: `Bearer ${config.secret}` },
   });
   if (!response.ok) {
-    throw new Error(`Failed to fetch devices: HTTP ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Failed to fetch devices: HTTP ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
   const body = (await response.json()) as { devices: CloudDevice[] };
   return body.devices;
@@ -38,6 +39,7 @@ export async function postPunches(config: CloudConfig, punches: OutgoingPunch[])
     body: JSON.stringify({ punches }),
   });
   if (!response.ok) {
-    throw new Error(`Failed to post punches: HTTP ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Failed to post punches: HTTP ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
 }

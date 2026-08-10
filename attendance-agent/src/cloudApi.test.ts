@@ -28,10 +28,30 @@ describe("cloudApi", () => {
     ]);
   });
 
-  it("fetchDevices throws when the cloud API responds with a non-2xx status", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+  it("fetchDevices throws with the response body detail when the cloud API responds with a non-2xx status", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => '{"error":"Unauthorized"}' }),
+    );
 
-    await expect(fetchDevices({ baseUrl: "https://example.com", secret: "wrong" })).rejects.toThrow("HTTP 401");
+    await expect(fetchDevices({ baseUrl: "https://example.com", secret: "wrong" })).rejects.toThrow(
+      'HTTP 401 - {"error":"Unauthorized"}',
+    );
+  });
+
+  it("falls back to a plain HTTP-status message when the response body can't be read", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: async () => {
+          throw new Error("body already consumed");
+        },
+      }),
+    );
+
+    await expect(fetchDevices({ baseUrl: "https://example.com", secret: "shh" })).rejects.toThrow("HTTP 500");
   });
 
   it("postPunches sends the batch as JSON with the Bearer token", async () => {
@@ -54,13 +74,16 @@ describe("cloudApi", () => {
     );
   });
 
-  it("postPunches throws when the cloud API rejects the batch", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+  it("postPunches throws with the response body detail when the cloud API rejects the batch", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => '{"error":"Unauthorized"}' }),
+    );
 
     await expect(
       postPunches({ baseUrl: "https://example.com", secret: "wrong" }, [
         { device_id: "d1", employee_no_string: "42", punched_at: "2026-08-10T08:00:00.000Z" },
       ]),
-    ).rejects.toThrow("HTTP 401");
+    ).rejects.toThrow('HTTP 401 - {"error":"Unauthorized"}');
   });
 });
