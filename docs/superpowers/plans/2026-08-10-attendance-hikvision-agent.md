@@ -1203,18 +1203,20 @@ Create `attendance-agent/package.json`:
     "install-startup": "node dist/installStartup.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0",
+    "better-sqlite3": "^13.0.3",
     "digest-fetch": "^3.1.1",
     "dotenv": "^17.4.2"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }
 }
 ```
+
+(Version note: the original plan pinned `better-sqlite3@^11.3.0`, which turned out to have no prebuilt binary for Node 24 — the dev machine building this had no working Python for a from-source `node-gyp` fallback, so `npm install` failed outright. Bumped to `^13.0.3`, confirmed to have a Node 24/win32-x64 prebuild and verified directly against the exact API this plan's `db.ts` uses — constructor, `.pragma()`, `.exec()`, `.prepare().run()`, `.transaction()` — all behave identically. `@types/better-sqlite3` bumped to `^9.6.0` to match; the types package versions independently of the runtime package and this is its latest release.)
 
 - [ ] **Step 2: Create `tsconfig.json`**
 
