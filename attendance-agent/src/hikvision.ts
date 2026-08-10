@@ -12,9 +12,13 @@ export interface RawPunch {
 }
 
 export function parseAcsEventResponse(body: unknown): RawPunch[] {
-  const infoList = (body as { AcsEvent?: { InfoList?: AcsEventInfo[] } })?.AcsEvent?.InfoList ?? [];
+  const rawInfoList = (body as { AcsEvent?: { InfoList?: AcsEventInfo[] | AcsEventInfo } })?.AcsEvent?.InfoList;
+  const infoList = Array.isArray(rawInfoList) ? rawInfoList : rawInfoList ? [rawInfoList] : [];
   return infoList
-    .filter((entry): entry is Required<AcsEventInfo> => Boolean(entry.employeeNoString && entry.time))
+    .filter(
+      (entry): entry is Required<AcsEventInfo> =>
+        Boolean(entry.employeeNoString && entry.time && !Number.isNaN(new Date(entry.time).getTime())),
+    )
     .map((entry) => ({
       employeeNoString: entry.employeeNoString,
       punchedAt: new Date(entry.time).toISOString(),
