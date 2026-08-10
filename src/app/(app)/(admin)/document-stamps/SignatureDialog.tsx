@@ -32,7 +32,13 @@ export function SignatureDialog({
   function getPos(canvas: HTMLCanvasElement, e: React.MouseEvent | React.TouchEvent) {
     const rect = canvas.getBoundingClientRect();
     const point = "touches" in e ? e.touches[0] : e;
-    return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+    // The canvas is styled to stretch to its container's width (`w-full`)
+    // while its drawing surface stays a fixed 440x160 - without this scale
+    // correction, the stroke drifts from the actual pointer position because
+    // the dialog renders it narrower than that fixed resolution.
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (point.clientX - rect.left) * scaleX, y: (point.clientY - rect.top) * scaleY };
   }
 
   function onDown(e: React.MouseEvent | React.TouchEvent) {
@@ -119,7 +125,7 @@ export function SignatureDialog({
             ref={canvasRef}
             width={440}
             height={160}
-            className="w-full rounded border bg-white"
+            className="w-full touch-none rounded border bg-white"
             onMouseDown={onDown}
             onMouseMove={onMove}
             onMouseUp={onUp}

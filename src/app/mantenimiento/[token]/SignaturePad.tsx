@@ -1,6 +1,14 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { saveMaintenanceSignature } from "./actions";
 
@@ -15,6 +23,7 @@ export function SignaturePad({
   label: string;
   alreadySigned: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
   const pointCountRef = useRef(0);
@@ -86,6 +95,7 @@ export function SignaturePad({
       }
       setError(null);
       setSaved(true);
+      setOpen(false);
     });
   }
 
@@ -94,30 +104,41 @@ export function SignaturePad({
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">{label}</p>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <canvas
-        ref={canvasRef}
-        width={400}
-        height={140}
-        className="w-full rounded border bg-white"
-        onMouseDown={onDown}
-        onMouseMove={onMove}
-        onMouseUp={onUp}
-        onMouseLeave={onUp}
-        onTouchStart={onDown}
-        onTouchMove={onMove}
-        onTouchEnd={onUp}
-      />
-      <div className="flex gap-2">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setError(null);
+      }}
+    >
+      <DialogTrigger render={<Button type="button" variant="outline">{label}</Button>} />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{label}</DialogTitle>
+        </DialogHeader>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <canvas
+          ref={canvasRef}
+          width={400}
+          height={140}
+          className="w-full touch-none rounded border bg-white"
+          onMouseDown={onDown}
+          onMouseMove={onMove}
+          onMouseUp={onUp}
+          onMouseLeave={onUp}
+          onTouchStart={onDown}
+          onTouchMove={onMove}
+          onTouchEnd={onUp}
+        />
         <Button type="button" variant="outline" size="sm" onClick={clear}>
           Borrar
         </Button>
-        <Button type="button" size="sm" onClick={submit} disabled={isPending}>
-          Guardar firma
-        </Button>
-      </div>
-    </div>
+        <DialogFooter>
+          <Button type="button" onClick={submit} disabled={isPending}>
+            Guardar firma
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
