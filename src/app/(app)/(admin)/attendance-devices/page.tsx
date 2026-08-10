@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ScanFace } from "lucide-react";
+import { Fingerprint } from "lucide-react";
 import { DeviceForm } from "./DeviceForm";
 
 export default async function AttendanceDevicesPage() {
@@ -33,7 +33,7 @@ export default async function AttendanceDevicesPage() {
       </div>
       {(devices ?? []).length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-16 text-center text-muted-foreground">
-          <ScanFace className="size-8" />
+          <Fingerprint className="size-8" />
           <p className="text-sm">No hay ponchadores registrados todavía.</p>
           <p className="text-xs">Crea el primero con el botón &quot;Nuevo ponchador&quot;.</p>
         </div>
