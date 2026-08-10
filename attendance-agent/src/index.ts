@@ -62,7 +62,7 @@ async function pollDevices(): Promise<void> {
         const since = lastPunchTime(db, device.id);
         const startTime = since ? new Date(since) : new Date(Date.now() - 24 * 60 * 60 * 1000);
         const endTime = new Date();
-        const events = await fetchNewEvents(device, startTime, endTime);
+        const { punches: events, hitPageCap } = await fetchNewEvents(device, startTime, endTime);
         for (const event of events) {
           insertPunchIfNew(db, {
             deviceId: device.id,
@@ -70,6 +70,9 @@ async function pollDevices(): Promise<void> {
             punchedAt: event.punchedAt,
             rawEventId: event.rawEventId,
           });
+        }
+        if (hitPageCap) {
+          lastError = `${device.name}: recibió más de ${events.length} ponches en un solo ciclo; algunos registros antiguos podrían no haberse sincronizado`;
         }
       } catch (err) {
         lastError = `${device.name}: ${err instanceof Error ? err.message : String(err)}`;
@@ -109,14 +112,18 @@ async function syncPunches(): Promise<void> {
 }
 
 function renderTick(): void {
-  draw(
-    renderMonitor({
-      recent: recentPunches(db, 20),
-      pendingCount: pendingCount(db),
-      deviceCount: listDevices(db).length,
-      lastError,
-    }),
-  );
+  try {
+    draw(
+      renderMonitor({
+        recent: recentPunches(db, 20),
+        pendingCount: pendingCount(db),
+        deviceCount: listDevices(db).length,
+        lastError,
+      }),
+    );
+  } catch (err) {
+    lastError = err instanceof Error ? err.message : String(err);
+  }
 }
 
 async function main(): Promise<void> {

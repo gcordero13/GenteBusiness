@@ -168,7 +168,7 @@ describe("fetchNewEvents", () => {
     });
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
-    const punches = await fetchNewEvents(
+    const { punches, hitPageCap } = await fetchNewEvents(
       device,
       new Date("2026-08-10T00:00:00.000Z"),
       new Date("2026-08-10T23:59:59.000Z"),
@@ -178,6 +178,7 @@ describe("fetchNewEvents", () => {
     const secondCallBody = JSON.parse(fetchMock.mock.calls[1][1].body);
     expect(secondCallBody.AcsEventCond.searchResultPosition).toBe(200);
     expect(punches.map((p) => p.employeeNoString)).toEqual(["1", "3"]);
+    expect(hitPageCap).toBe(false);
   });
 
   it("stops after a bounded number of pages to avoid an unbounded loop if a device keeps reporting full pages", async () => {
@@ -196,8 +197,9 @@ describe("fetchNewEvents", () => {
     });
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
-    await fetchNewEvents(device, new Date(), new Date());
+    const { hitPageCap } = await fetchNewEvents(device, new Date(), new Date());
 
     expect(fetchMock).toHaveBeenCalledTimes(50);
+    expect(hitPageCap).toBe(true);
   });
 });
