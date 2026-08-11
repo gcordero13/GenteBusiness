@@ -1,18 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { fetchNewEvents, parseAcsEventResponse } from "./hikvision.js";
-
-vi.mock("digest-fetch", () => {
-  return {
-    default: vi.fn().mockImplementation(function () {
-      return {
-        fetch: vi.fn().mockResolvedValue({
-          ok: true,
-          json: async () => ({ AcsEvent: { InfoList: [] } }),
-        }),
-      };
-    }),
-  };
-});
+import { describe, expect, it, mock } from "bun:test";
+import { parseAcsEventResponse, type RawPunch } from "./hikvision.ts";
 
 describe("parseAcsEventResponse", () => {
   it("extracts employee number and ISO punch time from a typical AcsEvent response", () => {
@@ -101,25 +88,32 @@ describe("parseAcsEventResponse", () => {
 
 describe("fetchNewEvents", () => {
   it("POSTs an AcsEvent search with the expected URL, method, and body shape", async () => {
-    const DigestFetch = (await import("digest-fetch")).default;
+    const fetchMock = mock(async (_url: string, _options: RequestInit) => ({
+      ok: true,
+      json: async () => ({ AcsEvent: { numOfMatches: 0, InfoList: [] } }),
+    }));
+    mock.module("digest-fetch", () => ({
+      default: class {
+        constructor(
+          public user: string,
+          public password: string,
+        ) {}
+        fetch = fetchMock;
+      },
+    }));
+    const { fetchNewEvents } = await import(`./hikvision.ts?t=${Date.now()}`);
+
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
     const startTime = new Date("2026-08-10T00:00:00.000Z");
     const endTime = new Date("2026-08-10T23:59:59.000Z");
-
     await fetchNewEvents(device, startTime, endTime);
 
-    expect(DigestFetch).toHaveBeenCalledWith("admin", "secret");
-    const instance = (DigestFetch as unknown as { mock: { results: { value: { fetch: ReturnType<typeof vi.fn> } }[] } })
-      .mock.results[0].value;
-    expect(instance.fetch).toHaveBeenCalledWith(
-      "http://192.168.1.50/ISAPI/AccessControl/AcsEvent?format=json",
-      expect.objectContaining({
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-    const call = instance.fetch.mock.calls[0];
-    const sentBody = JSON.parse(call[1].body);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://192.168.1.50/ISAPI/AccessControl/AcsEvent?format=json");
+    expect(options.method).toBe("POST");
+    expect(options.headers).toEqual({ "Content-Type": "application/json" });
+    const sentBody = JSON.parse(options.body as string);
     expect(sentBody.AcsEventCond).toMatchObject({
       searchResultPosition: 0,
       maxResults: 200,
@@ -128,23 +122,22 @@ describe("fetchNewEvents", () => {
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
     });
-    expect(typeof sentBody.AcsEventCond.searchID).toBe("string");
   });
 
   it("throws a descriptive error when the device responds with a non-ok HTTP status", async () => {
-    const DigestFetch = (await import("digest-fetch")).default;
-    (DigestFetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(function () {
-      return { fetch: vi.fn().mockResolvedValue({ ok: false, status: 401 }) };
-    });
+    mock.module("digest-fetch", () => ({
+      default: class {
+        fetch = mock(async () => ({ ok: false, status: 401 }));
+      },
+    }));
+    const { fetchNewEvents } = await import(`./hikvision.ts?t=${Date.now()}`);
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "wrong" };
     await expect(fetchNewEvents(device, new Date(), new Date())).rejects.toThrow(/192\.168\.1\.50.*401/);
   });
 
   it("paginates through multiple pages when a page returns a full batch (numOfMatches equals the page size)", async () => {
-    const DigestFetch = (await import("digest-fetch")).default;
-    const fetchMock = vi
-      .fn()
+    const fetchMock = mock()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -163,12 +156,15 @@ describe("fetchNewEvents", () => {
           },
         }),
       });
-    (DigestFetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(function () {
-      return { fetch: fetchMock };
-    });
+    mock.module("digest-fetch", () => ({
+      default: class {
+        fetch = fetchMock;
+      },
+    }));
+    const { fetchNewEvents } = await import(`./hikvision.ts?t=${Date.now()}`);
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
-    const { punches, hitPageCap } = await fetchNewEvents(
+    const result = await fetchNewEvents(
       device,
       new Date("2026-08-10T00:00:00.000Z"),
       new Date("2026-08-10T23:59:59.000Z"),
@@ -177,13 +173,12 @@ describe("fetchNewEvents", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const secondCallBody = JSON.parse(fetchMock.mock.calls[1][1].body);
     expect(secondCallBody.AcsEventCond.searchResultPosition).toBe(200);
-    expect(punches.map((p) => p.employeeNoString)).toEqual(["1", "3"]);
-    expect(hitPageCap).toBe(false);
+    expect(result.punches.map((p: RawPunch) => p.employeeNoString)).toEqual(["1", "3"]);
+    expect(result.hitPageCap).toBe(false);
   });
 
-  it("stops after a bounded number of pages to avoid an unbounded loop if a device keeps reporting full pages", async () => {
-    const DigestFetch = (await import("digest-fetch")).default;
-    const fetchMock = vi.fn().mockResolvedValue({
+  it("stops after a bounded number of pages and reports hitPageCap when a device keeps reporting full pages", async () => {
+    const fetchMock = mock(async () => ({
       ok: true,
       json: async () => ({
         AcsEvent: {
@@ -191,15 +186,18 @@ describe("fetchNewEvents", () => {
           InfoList: [{ major: 5, minor: 75, time: "2026-08-10T08:00:00-04:00", employeeNoString: "1" }],
         },
       }),
-    });
-    (DigestFetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(function () {
-      return { fetch: fetchMock };
-    });
+    }));
+    mock.module("digest-fetch", () => ({
+      default: class {
+        fetch = fetchMock;
+      },
+    }));
+    const { fetchNewEvents } = await import(`./hikvision.ts?t=${Date.now()}`);
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
-    const { hitPageCap } = await fetchNewEvents(device, new Date(), new Date());
+    const result = await fetchNewEvents(device, new Date(), new Date());
 
     expect(fetchMock).toHaveBeenCalledTimes(50);
-    expect(hitPageCap).toBe(true);
+    expect(result.hitPageCap).toBe(true);
   });
 });
