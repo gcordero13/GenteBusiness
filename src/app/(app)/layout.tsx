@@ -41,6 +41,7 @@ export default async function AppLayout({
       canViewMaintenance={Boolean(permissions.get("maintenance")?.can_view)}
       canViewSolicitudesVacaciones={Boolean(permissions.get("solicitudes_vacaciones")?.can_view)}
       canManageAttendanceDevices={Boolean(permissions.get("attendance_devices")?.can_manage)}
+      canManageSchedules={Boolean(permissions.get("schedules")?.can_manage)}
       onLogout={logout}
     >
       {children}

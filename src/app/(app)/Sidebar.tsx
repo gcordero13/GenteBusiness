@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 import {
   BookUser,
   Building2,
+  Clock,
   FileSignature,
   Fingerprint,
   LogOut,
@@ -40,6 +41,7 @@ export function Sidebar({
   canViewMaintenance,
   canViewSolicitudesVacaciones,
   canManageAttendanceDevices,
+  canManageSchedules,
   onLogout,
   onNavigate,
 }: {
@@ -55,6 +57,7 @@ export function Sidebar({
   canViewMaintenance: boolean;
   canViewSolicitudesVacaciones: boolean;
   canManageAttendanceDevices: boolean;
+  canManageSchedules: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -94,6 +97,7 @@ export function Sidebar({
     ...(canManageAttendanceDevices
       ? [{ href: "/attendance-devices", label: "Ponchadores", icon: Fingerprint }]
       : []),
+    ...(canManageSchedules ? [{ href: "/schedules", label: "Horarios", icon: Clock }] : []),
     ...(canManageSettings ? [{ href: "/settings", label: "Correo (SMTP)", icon: Settings }] : []),
   ];
 
