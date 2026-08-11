@@ -25,15 +25,16 @@ export default async function DepartmentsPage() {
 
   const { data: departments } = await supabase
     .from("departments")
-    .select("id, name, company_id, companies(name)")
+    .select("id, name, company_id, default_schedule_id, companies(name)")
     .order("name");
   const { data: companies } = await supabase.from("companies").select("id, name").order("name");
+  const { data: schedules } = await supabase.from("schedule_templates").select("id, name").order("name");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Departamentos</h1>
-        <DepartmentForm companies={companies ?? []} />
+        <DepartmentForm companies={companies ?? []} schedules={schedules ?? []} />
       </div>
       {(departments ?? []).length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-16 text-center text-muted-foreground">
@@ -59,7 +60,13 @@ export default async function DepartmentsPage() {
                   <div className="flex justify-end gap-2">
                     <DepartmentForm
                       companies={companies ?? []}
-                      initial={{ id: d.id, name: d.name, companyId: d.company_id }}
+                      schedules={schedules ?? []}
+                      initial={{
+                        id: d.id,
+                        name: d.name,
+                        companyId: d.company_id,
+                        defaultScheduleId: d.default_schedule_id,
+                      }}
                     />
                     {flags.can_delete && (
                       <DeleteIconButton

@@ -26,31 +26,43 @@ interface Company {
   name: string;
 }
 
+interface ScheduleOption {
+  id: string;
+  name: string;
+}
+
 interface DepartmentInput {
   id: string;
   name: string;
   companyId: string;
+  defaultScheduleId: string | null;
 }
 
 export function DepartmentForm({
   companies,
+  schedules,
   initial,
 }: {
   companies: Company[];
+  schedules: ScheduleOption[];
   initial?: DepartmentInput;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(initial?.name ?? "");
   const [companyId, setCompanyId] = useState(initial?.companyId ?? companies[0]?.id ?? "");
+  const [defaultScheduleId, setDefaultScheduleId] = useState(initial?.defaultScheduleId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function submit() {
     startTransition(async () => {
-      const result = await saveDepartment(initial?.id, name, companyId);
+      const result = await saveDepartment(initial?.id, name, companyId, defaultScheduleId || null);
       setError(result.error ?? null);
       if (!result.error) {
-        if (!initial) setName("");
+        if (!initial) {
+          setName("");
+          setDefaultScheduleId("");
+        }
         setOpen(false);
       }
     });
@@ -89,6 +101,20 @@ export function DepartmentForm({
             {companies.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={defaultScheduleId} onValueChange={(v) => setDefaultScheduleId(v ?? "")}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Horario por defecto (opcional)">
+              {(value: string) => schedules.find((s) => s.id === value)?.name ?? "Horario por defecto (opcional)"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {schedules.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>

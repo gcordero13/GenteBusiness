@@ -3,11 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export async function saveDepartment(id: string | undefined, name: string, companyId: string) {
+export async function saveDepartment(
+  id: string | undefined,
+  name: string,
+  companyId: string,
+  defaultScheduleId: string | null,
+) {
   const supabase = await createClient();
+  const payload = { name, company_id: companyId, default_schedule_id: defaultScheduleId };
   const query = id
-    ? supabase.from("departments").update({ name, company_id: companyId }).eq("id", id)
-    : supabase.from("departments").insert({ name, company_id: companyId });
+    ? supabase.from("departments").update(payload).eq("id", id)
+    : supabase.from("departments").insert(payload);
   const { error } = await query;
   if (error) return { error: error.message };
   revalidatePath("/departments");
