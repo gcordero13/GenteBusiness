@@ -79,6 +79,77 @@ describe("digestFetch", () => {
     expect(responseMatch![1]).toBe(expectedResponse);
   });
 
+  it("retries with a correctly-computed legacy (no-qop) Digest header when the server omits qop", async () => {
+    function md5(text: string): string {
+      const hasher = new Bun.CryptoHasher("md5");
+      hasher.update(text);
+      return hasher.digest("hex");
+    }
+
+    const realm = "TestRealm";
+    const nonce = "abc123nonce";
+    const username = "admin";
+    const password = "secret123";
+
+    const fetchMock = mock()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({ "WWW-Authenticate": `Digest realm="${realm}", nonce="${nonce}"` }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await digestFetch("http://192.168.1.50/ISAPI/test?format=json", username, password, { method: "POST" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, retryOptions] = fetchMock.mock.calls[1];
+    const authHeader = (retryOptions.headers as Record<string, string>).Authorization;
+    expect(authHeader).not.toContain("qop=");
+    expect(authHeader).not.toContain("nc=");
+    expect(authHeader).not.toContain("cnonce=");
+
+    const ha1 = md5(`${username}:${realm}:${password}`);
+    const ha2 = md5(`POST:/ISAPI/test?format=json`);
+    const expectedResponse = md5(`${ha1}:${nonce}:${ha2}`);
+    expect(authHeader).toContain(`response="${expectedResponse}"`);
+  });
+
+  it("falls back to the legacy (no-qop) digest when the server only offers an unsupported qop mode", async () => {
+    const fetchMock = mock()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({ "WWW-Authenticate": 'Digest realm="R", qop="auth-int", nonce="N"' }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await digestFetch("http://192.168.1.50/ISAPI/test?format=json", "admin", "secret", { method: "POST" });
+
+    const [, retryOptions] = fetchMock.mock.calls[1];
+    const authHeader = (retryOptions.headers as Record<string, string>).Authorization;
+    expect(authHeader).not.toContain("qop=");
+  });
+
+  it("selects auth from a multi-valued qop challenge instead of forwarding the raw list", async () => {
+    const fetchMock = mock()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({ "WWW-Authenticate": 'Digest realm="R", qop="auth,auth-int", nonce="N"' }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await digestFetch("http://192.168.1.50/ISAPI/test?format=json", "admin", "secret", { method: "POST" });
+
+    const [, retryOptions] = fetchMock.mock.calls[1];
+    const authHeader = (retryOptions.headers as Record<string, string>).Authorization;
+    expect(authHeader).toContain("qop=auth");
+    expect(authHeader).not.toContain("qop=auth,auth-int");
+  });
+
   it("passes the abort signal through to both the initial and retried requests", async () => {
     const fetchMock = mock()
       .mockResolvedValueOnce({

@@ -40,14 +40,20 @@ export async function digestFetch(
   password: string,
   options: DigestFetchOptions,
 ): Promise<Response> {
-  const initialResponse = await fetch(url, { ...options, headers: options.headers, signal: options.signal });
+  const initialResponse = await fetch(url, options);
   if (initialResponse.status !== 401) return initialResponse;
 
   const wwwAuth = initialResponse.headers.get("www-authenticate");
   if (!wwwAuth || !wwwAuth.toLowerCase().startsWith("digest ")) return initialResponse;
 
   const challenge = parseDigestChallenge(wwwAuth.slice(wwwAuth.indexOf(" ") + 1));
-  const { realm, nonce, qop, opaque } = challenge;
+  const { realm, nonce, opaque } = challenge;
+  // qop can be a comma-separated list of the server's supported values (RFC
+  // 2617 allows e.g. qop="auth,auth-int"); pick "auth" if it's offered
+  // (the only mode this client implements) rather than forwarding the raw,
+  // possibly multi-valued string into the hash and the outgoing header.
+  const offeredQop = challenge.qop?.split(",").map((v) => v.trim());
+  const qop = offeredQop?.includes("auth") ? "auth" : undefined;
   const parsedUrl = new URL(url);
   const uri = parsedUrl.pathname + parsedUrl.search;
   const method = options.method;
@@ -75,6 +81,5 @@ export async function digestFetch(
   return fetch(url, {
     ...options,
     headers: { ...options.headers, Authorization: `Digest ${authParts.join(", ")}` },
-    signal: options.signal,
   });
 }
