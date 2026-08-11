@@ -74,19 +74,8 @@ function installStartup(): void {
   console.log("El agente se iniciará automáticamente la próxima vez que Windows inicie sesión.");
 }
 
-if (process.argv.includes("--install-startup")) {
-  installStartup();
-  process.exit(0);
-}
-
-loadEnvFile();
-
-const cloudConfig = {
-  baseUrl: requireEnv("CLOUD_API_BASE_URL"),
-  secret: requireEnv("ATTENDANCE_AGENT_SECRET"),
-};
-
-const db = openDb(join(appDir, "attendance-agent.db"));
+let cloudConfig: { baseUrl: string; secret: string };
+let db: ReturnType<typeof openDb>;
 let lastError: string | null = null;
 
 let refreshing = false;
@@ -214,4 +203,33 @@ async function main(): Promise<void> {
   }, 25 * 1000);
 }
 
-main();
+async function waitForKeypressThenExit(code: number): Promise<never> {
+  console.error("");
+  console.error("Presiona Enter para cerrar esta ventana...");
+  await new Promise<void>((resolve) => {
+    process.stdin.once("data", () => resolve());
+  });
+  process.exit(code);
+}
+
+async function bootstrap(): Promise<void> {
+  if (process.argv.includes("--install-startup")) {
+    installStartup();
+    process.exit(0);
+  }
+
+  loadEnvFile();
+  cloudConfig = {
+    baseUrl: requireEnv("CLOUD_API_BASE_URL"),
+    secret: requireEnv("ATTENDANCE_AGENT_SECRET"),
+  };
+  db = openDb(join(appDir, "attendance-agent.db"));
+
+  await main();
+}
+
+bootstrap().catch(async (err) => {
+  console.error("El agente no pudo iniciar:");
+  console.error(err instanceof Error ? err.message : String(err));
+  await waitForKeypressThenExit(1);
+});
