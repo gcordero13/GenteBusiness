@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Cake, Clock, Mail, Phone } from "lucide-react";
+import { Cake, CalendarClock, Clock, Mail, Phone } from "lucide-react";
 import {
   formatMonthDay,
   formatTenure,
@@ -18,15 +18,19 @@ import {
   whatsappUrl,
   type BirthdayContact,
 } from "@/lib/contacts";
+import { formatScheduleLine, getEffectiveSchedule, type CompanySchedule } from "@/lib/schedules";
 
 export function BirthdayContactModal({
   contact,
   trigger,
+  companySchedule,
 }: {
   contact: BirthdayContact;
   trigger: ReactElement;
+  companySchedule: CompanySchedule;
 }) {
   const tenure = contact.hire_date ? formatTenure(contact.hire_date, getBusinessToday()) : null;
+  const scheduleLine = formatScheduleLine(getEffectiveSchedule(contact, companySchedule));
 
   return (
     <Dialog>
@@ -114,6 +118,13 @@ export function BirthdayContactModal({
               </div>
             </div>
           )}
+          <div className="flex items-center gap-3 rounded-lg border p-3 sm:col-span-2">
+            <CalendarClock className="size-6 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">Horario</p>
+              <p className="text-base font-semibold sm:text-lg">{scheduleLine}</p>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buildOrgTree, type OrgTreeNode } from "@/lib/contacts";
+import type { CompanySchedule } from "@/lib/schedules";
 import { ContactViewDialog } from "./ContactViewDialog";
 import type { ContactRow } from "./ContactsTable";
 
@@ -13,15 +14,17 @@ function OrgPerson({
   contact,
   depth,
   canEdit,
+  companySchedule,
 }: {
   contact: OrgContact;
   depth: number;
   canEdit: boolean;
+  companySchedule: CompanySchedule;
 }) {
   const initials = `${contact.first_name[0] ?? ""}${contact.last_name[0] ?? ""}`.toUpperCase();
 
   return (
-    <ContactViewDialog contact={contact} canEdit={canEdit}>
+    <ContactViewDialog contact={contact} canEdit={canEdit} companySchedule={companySchedule}>
       <div className="flex w-32 flex-col items-center gap-1 text-center">
         {depth === 0 ? (
           <div className="rounded-full bg-gradient-to-br from-[#04B1AF] to-emerald-500 p-1">
@@ -56,12 +59,14 @@ function OrgBranch({
   node,
   depth,
   canEdit,
+  companySchedule,
   collapsed,
   onToggle,
 }: {
   node: OrgTreeNode<OrgContact>;
   depth: number;
   canEdit: boolean;
+  companySchedule: CompanySchedule;
   collapsed: Set<string>;
   onToggle: (id: string) => void;
 }) {
@@ -71,7 +76,7 @@ function OrgBranch({
 
   return (
     <div className="flex flex-col items-center">
-      <OrgPerson contact={node.contact} depth={depth} canEdit={canEdit} />
+      <OrgPerson contact={node.contact} depth={depth} canEdit={canEdit} companySchedule={companySchedule} />
       {hasChildren && (
         <>
           <button
@@ -108,6 +113,7 @@ function OrgBranch({
                         node={child}
                         depth={depth + 1}
                         canEdit={canEdit}
+                        companySchedule={companySchedule}
                         collapsed={collapsed}
                         onToggle={onToggle}
                       />
@@ -126,9 +132,11 @@ function OrgBranch({
 export function ContactsOrgChart({
   contacts,
   canEdit = false,
+  companySchedule,
 }: {
   contacts: ContactRow[];
   canEdit?: boolean;
+  companySchedule: CompanySchedule;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [zoom, setZoom] = useState(1);
@@ -261,6 +269,7 @@ export function ContactsOrgChart({
               node={node}
               depth={0}
               canEdit={canEdit}
+              companySchedule={companySchedule}
               collapsed={collapsed}
               onToggle={toggle}
             />

@@ -2,15 +2,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Mail, MessageCircle, Phone } from "lucide-react";
 import { whatsappUrl } from "@/lib/contacts";
+import type { CompanySchedule } from "@/lib/schedules";
 import { ContactViewDialog } from "./ContactViewDialog";
 import type { ContactRow } from "./ContactsTable";
 
 export function ContactsCards({
   contacts,
   canEdit = false,
+  companySchedule,
 }: {
   contacts: ContactRow[];
   canEdit?: boolean;
+  companySchedule: CompanySchedule;
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -25,7 +28,7 @@ export function ContactsCards({
               {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <ContactViewDialog contact={c} canEdit={canEdit}>
+          <ContactViewDialog contact={c} canEdit={canEdit} companySchedule={companySchedule}>
             <span className="font-medium underline">
               {c.first_name} {c.last_name}
             </span>

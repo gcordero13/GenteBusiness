@@ -1,15 +1,29 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatTenure, getInitials } from "@/lib/contacts";
+import { formatScheduleLine, getEffectiveSchedule, type CompanySchedule } from "@/lib/schedules";
 
 export interface MyProfileCardData {
   name: string;
   position: string | null;
   photo_url: string | null;
   hire_date: string | null;
+  schedule_start_time: string | null;
+  schedule_end_time: string | null;
+  schedule_workdays: number[] | null;
+  schedule_tolerance_minutes: number | null;
 }
 
-export function MyProfileCard({ data, today }: { data: MyProfileCardData; today: Date }) {
+export function MyProfileCard({
+  data,
+  today,
+  companySchedule,
+}: {
+  data: MyProfileCardData;
+  today: Date;
+  companySchedule: CompanySchedule;
+}) {
   const tenure = data.hire_date ? formatTenure(data.hire_date, today) : null;
+  const scheduleLine = formatScheduleLine(getEffectiveSchedule(data, companySchedule));
 
   return (
     <div className="animate-in fade-in-0 slide-in-from-bottom-4 flex w-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-6 text-center duration-700">
@@ -27,6 +41,10 @@ export function MyProfileCard({ data, today }: { data: MyProfileCardData; today:
           <p className="font-medium">{tenure}</p>
         </div>
       )}
+      <div className="mt-2 w-full border-t pt-2 text-xs">
+        <span className="text-muted-foreground">Horario</span>
+        <p className="font-medium">{scheduleLine}</p>
+      </div>
     </div>
   );
 }

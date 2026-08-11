@@ -1,5 +1,6 @@
 import { Cake } from "lucide-react";
 import type { BirthdayContact } from "@/lib/contacts";
+import type { CompanySchedule } from "@/lib/schedules";
 import { BirthdaysCoverflow } from "./BirthdaysCoverflow";
 import { TodayBirthdayCard } from "./TodayBirthdayCard";
 import { EventsWidget, type CompanyEvent } from "./EventsWidget";
@@ -13,6 +14,7 @@ export function BirthdaysWidget({
   upcomingContacts,
   events,
   news,
+  companySchedule,
 }: {
   myProfile: MyProfileCardData | null;
   today: Date;
@@ -20,6 +22,7 @@ export function BirthdaysWidget({
   upcomingContacts: BirthdayContact[];
   events: CompanyEvent[];
   news: NewsItem[];
+  companySchedule: CompanySchedule;
 }) {
   if (
     !myProfile &&
@@ -34,12 +37,12 @@ export function BirthdaysWidget({
   return (
     <div className="grid grid-cols-1 gap-2 md:grid-cols-[0.8fr_0.8fr_1.6fr_0.8fr] md:items-stretch">
       <div className="flex flex-col gap-2 md:[grid-column:1]">
-        {myProfile && <MyProfileCard data={myProfile} today={today} />}
+        {myProfile && <MyProfileCard data={myProfile} today={today} companySchedule={companySchedule} />}
         <EventsWidget events={events} />
       </div>
       {todayContacts.length > 0 && (
         <div className="md:[grid-column:2]">
-          <TodayBirthdayCard contacts={todayContacts} />
+          <TodayBirthdayCard contacts={todayContacts} companySchedule={companySchedule} />
         </div>
       )}
       {upcomingContacts.length > 0 && (
@@ -54,7 +57,7 @@ export function BirthdaysWidget({
             </span>
             Próximos cumpleaños
           </div>
-          <BirthdaysCoverflow contacts={upcomingContacts} />
+          <BirthdaysCoverflow contacts={upcomingContacts} companySchedule={companySchedule} />
         </div>
       )}
       <div className="md:[grid-column:4]">

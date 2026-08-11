@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { BookUser } from "lucide-react";
 import { escapeIlikePattern } from "@/lib/contacts";
+import { type CompanySchedule } from "@/lib/schedules";
 import { SearchFilters } from "./SearchFilters";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 import { ContactsCards } from "./ContactsCards";
@@ -10,6 +11,13 @@ import { ContactsGrouped } from "./ContactsGrouped";
 import { ContactsOrgChart } from "./ContactsOrgChart";
 import { ExportContactsButton } from "./ExportContactsButton";
 import { ImportContactsDialog } from "./ImportContactsDialog";
+
+const DEFAULT_COMPANY_SCHEDULE: CompanySchedule = {
+  start_time: "08:00:00",
+  end_time: "17:00:00",
+  workdays: [1, 2, 3, 4, 5],
+  tolerance_minutes: 0,
+};
 
 export default async function ContactsPage({
   searchParams,
@@ -48,7 +56,7 @@ export default async function ContactsPage({
   let query = supabase
     .from("contacts")
     .select(
-      "id, first_name, last_name, email, position, company_id, department_id, status, extension, fleet_phone, has_whatsapp, birth_date, photo_url, hire_date, reports_to_id, companies(name), departments(name)",
+      "id, first_name, last_name, email, position, company_id, department_id, status, extension, fleet_phone, has_whatsapp, birth_date, photo_url, hire_date, schedule_start_time, schedule_end_time, schedule_workdays, schedule_tolerance_minutes, reports_to_id, companies(name), departments(name)",
     )
     .order("first_name");
 
@@ -72,6 +80,11 @@ export default async function ContactsPage({
     .from("departments")
     .select("id, name, company_id")
     .order("name");
+  const { data: companySchedule } = await supabase
+    .from("company_schedule")
+    .select("start_time, end_time, workdays, tolerance_minutes")
+    .eq("id", true)
+    .single();
 
   const contactRows: ContactRow[] = (contacts ?? []).map((c) => ({
     id: c.id,
@@ -85,6 +98,10 @@ export default async function ContactsPage({
     has_whatsapp: c.has_whatsapp,
     photo_url: c.photo_url,
     hire_date: c.hire_date,
+    schedule_start_time: c.schedule_start_time,
+    schedule_end_time: c.schedule_end_time,
+    schedule_workdays: c.schedule_workdays,
+    schedule_tolerance_minutes: c.schedule_tolerance_minutes,
     reports_to_id: c.reports_to_id,
     companies: (c.companies as unknown as { name: string } | null) ?? null,
     departments: (c.departments as unknown as { name: string } | null) ?? null,
@@ -144,13 +161,29 @@ export default async function ContactsPage({
           )}
         </div>
       ) : activeView === "cards" ? (
-        <ContactsCards contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
+        <ContactsCards
+          contacts={contactRows}
+          canEdit={Boolean(flags.can_edit)}
+          companySchedule={companySchedule ?? DEFAULT_COMPANY_SCHEDULE}
+        />
       ) : activeView === "grouped" ? (
-        <ContactsGrouped contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
+        <ContactsGrouped
+          contacts={contactRows}
+          canEdit={Boolean(flags.can_edit)}
+          companySchedule={companySchedule ?? DEFAULT_COMPANY_SCHEDULE}
+        />
       ) : activeView === "org" ? (
-        <ContactsOrgChart contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
+        <ContactsOrgChart
+          contacts={contactRows}
+          canEdit={Boolean(flags.can_edit)}
+          companySchedule={companySchedule ?? DEFAULT_COMPANY_SCHEDULE}
+        />
       ) : (
-        <ContactsTable contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
+        <ContactsTable
+          contacts={contactRows}
+          canEdit={Boolean(flags.can_edit)}
+          companySchedule={companySchedule ?? DEFAULT_COMPANY_SCHEDULE}
+        />
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessToday, getUpcomingBirthdays, splitTodayBirthdays, type BirthdayContact } from "@/lib/contacts";
+import type { CompanySchedule } from "@/lib/schedules";
 import { BirthdaysWidget } from "./contacts/BirthdaysWidget";
 import type { MyProfileCardData } from "./contacts/MyProfileCard";
 
@@ -30,11 +31,25 @@ export default async function Home() {
     .order("start_date")
     .limit(5);
 
+  const { data: companySchedule } = await supabase
+    .from("company_schedule")
+    .select("start_time, end_time, workdays, tolerance_minutes")
+    .eq("id", true)
+    .single();
+  const effectiveCompanySchedule: CompanySchedule = companySchedule ?? {
+    start_time: "08:00:00",
+    end_time: "17:00:00",
+    workdays: [1, 2, 3, 4, 5],
+    tolerance_minutes: 0,
+  };
+
   let myProfile: MyProfileCardData | null = null;
   if (user?.email) {
     const { data: myContact } = await supabase
       .from("contacts")
-      .select("first_name, last_name, position, photo_url, hire_date")
+      .select(
+        "first_name, last_name, position, photo_url, hire_date, schedule_start_time, schedule_end_time, schedule_workdays, schedule_tolerance_minutes",
+      )
       .eq("email", user.email)
       .maybeSingle();
 
@@ -44,6 +59,10 @@ export default async function Home() {
         position: myContact.position,
         photo_url: myContact.photo_url,
         hire_date: myContact.hire_date,
+        schedule_start_time: myContact.schedule_start_time,
+        schedule_end_time: myContact.schedule_end_time,
+        schedule_workdays: myContact.schedule_workdays,
+        schedule_tolerance_minutes: myContact.schedule_tolerance_minutes,
       };
     }
   }
@@ -54,7 +73,7 @@ export default async function Home() {
     const { data: contacts } = await supabase
       .from("contacts")
       .select(
-        "id, first_name, last_name, birth_date, photo_url, position, email, extension, fleet_phone, has_whatsapp, hire_date, companies(name), departments(name)",
+        "id, first_name, last_name, birth_date, photo_url, position, email, extension, fleet_phone, has_whatsapp, hire_date, schedule_start_time, schedule_end_time, schedule_workdays, schedule_tolerance_minutes, companies(name), departments(name)",
       )
       .eq("status", "active");
 
@@ -69,6 +88,10 @@ export default async function Home() {
       fleet_phone: c.fleet_phone,
       has_whatsapp: c.has_whatsapp,
       hire_date: c.hire_date,
+      schedule_start_time: c.schedule_start_time,
+      schedule_end_time: c.schedule_end_time,
+      schedule_workdays: c.schedule_workdays,
+      schedule_tolerance_minutes: c.schedule_tolerance_minutes,
       company_name: (c.companies as unknown as { name: string } | null)?.name ?? null,
       department_name: (c.departments as unknown as { name: string } | null)?.name ?? null,
     }));
@@ -93,6 +116,7 @@ export default async function Home() {
         upcomingContacts={upcomingBirthdays}
         events={upcomingEvents ?? []}
         news={activeNews ?? []}
+        companySchedule={effectiveCompanySchedule}
       />
     </div>
   );
