@@ -726,12 +726,25 @@ export async function saveScheduleTemplate(input: SaveScheduleTemplateInput): Pr
   // rows with is_default = true. getScheduleTemplatesContext would then
   // silently fall back to FALLBACK_SCHEDULE for every department/contact
   // relying on the default - a real behavior change with no visible error.
+  //
+  // The id filter is only applied when input.id is actually set (editing an
+  // existing row). schedule_templates.id is a uuid column - passing an empty
+  // string through .neq("id", "") for a brand-new schedule (input.id is
+  // undefined) would make Postgres raise "invalid input syntax for type
+  // uuid" rather than safely excluding nothing, and that error would then
+  // get silently swallowed by the unchecked `count` destructure below,
+  // masquerading as a false "can't remove the only default" rejection on
+  // every attempt to create a new, non-default schedule.
   if (!input.is_default) {
-    const { count } = await admin
+    let countQuery = admin
       .from("schedule_templates")
       .select("id", { count: "exact", head: true })
-      .eq("is_default", true)
-      .neq("id", input.id ?? "");
+      .eq("is_default", true);
+    if (input.id) {
+      countQuery = countQuery.neq("id", input.id);
+    }
+    const { count, error: countError } = await countQuery;
+    if (countError) return { error: countError.message };
     if (!count) {
       return { error: "No se puede quitar el horario predeterminado sin marcar otro primero." };
     }
