@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_COMPANY_SCHEDULE } from "@/lib/schedules";
 import { ScheduleForm } from "./ScheduleForm";
 
 export default async function SchedulesPage() {
@@ -26,10 +27,10 @@ export default async function SchedulesPage() {
       </p>
       <ScheduleForm
         initial={{
-          start_time: schedule?.start_time ?? "08:00:00",
-          end_time: schedule?.end_time ?? "17:00:00",
-          workdays: schedule?.workdays ?? [1, 2, 3, 4, 5],
-          tolerance_minutes: schedule?.tolerance_minutes ?? 0,
+          start_time: schedule?.start_time ?? DEFAULT_COMPANY_SCHEDULE.start_time,
+          end_time: schedule?.end_time ?? DEFAULT_COMPANY_SCHEDULE.end_time,
+          workdays: schedule?.workdays ?? DEFAULT_COMPANY_SCHEDULE.workdays,
+          tolerance_minutes: schedule?.tolerance_minutes ?? DEFAULT_COMPANY_SCHEDULE.tolerance_minutes,
         }}
       />
     </div>

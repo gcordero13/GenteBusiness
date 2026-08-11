@@ -5,6 +5,13 @@ export interface CompanySchedule {
   tolerance_minutes: number;
 }
 
+export const DEFAULT_COMPANY_SCHEDULE: CompanySchedule = {
+  start_time: "08:00:00",
+  end_time: "17:00:00",
+  workdays: [1, 2, 3, 4, 5],
+  tolerance_minutes: 0,
+};
+
 export interface ScheduleOverrideFields {
   schedule_start_time: string | null;
   schedule_end_time: string | null;

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { BookUser } from "lucide-react";
 import { escapeIlikePattern } from "@/lib/contacts";
-import { type CompanySchedule } from "@/lib/schedules";
+import { DEFAULT_COMPANY_SCHEDULE, type CompanySchedule } from "@/lib/schedules";
 import { SearchFilters } from "./SearchFilters";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 import { ContactsCards } from "./ContactsCards";
@@ -11,13 +11,6 @@ import { ContactsGrouped } from "./ContactsGrouped";
 import { ContactsOrgChart } from "./ContactsOrgChart";
 import { ExportContactsButton } from "./ExportContactsButton";
 import { ImportContactsDialog } from "./ImportContactsDialog";
-
-const DEFAULT_COMPANY_SCHEDULE: CompanySchedule = {
-  start_time: "08:00:00",
-  end_time: "17:00:00",
-  workdays: [1, 2, 3, 4, 5],
-  tolerance_minutes: 0,
-};
 
 export default async function ContactsPage({
   searchParams,

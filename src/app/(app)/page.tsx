@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessToday, getUpcomingBirthdays, splitTodayBirthdays, type BirthdayContact } from "@/lib/contacts";
-import type { CompanySchedule } from "@/lib/schedules";
+import { DEFAULT_COMPANY_SCHEDULE, type CompanySchedule } from "@/lib/schedules";
 import { BirthdaysWidget } from "./contacts/BirthdaysWidget";
 import type { MyProfileCardData } from "./contacts/MyProfileCard";
 
@@ -36,12 +36,7 @@ export default async function Home() {
     .select("start_time, end_time, workdays, tolerance_minutes")
     .eq("id", true)
     .single();
-  const effectiveCompanySchedule: CompanySchedule = companySchedule ?? {
-    start_time: "08:00:00",
-    end_time: "17:00:00",
-    workdays: [1, 2, 3, 4, 5],
-    tolerance_minutes: 0,
-  };
+  const effectiveCompanySchedule: CompanySchedule = companySchedule ?? DEFAULT_COMPANY_SCHEDULE;
 
   let myProfile: MyProfileCardData | null = null;
   if (user?.email) {
