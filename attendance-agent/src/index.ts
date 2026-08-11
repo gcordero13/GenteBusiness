@@ -1,4 +1,6 @@
-import "dotenv/config";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from "node:fs";
+import { join, dirname, basename } from "node:path";
+import { homedir } from "node:os";
 import {
   openDb,
   upsertDevices,
@@ -9,10 +11,28 @@ import {
   recentPunches,
   pendingCount,
   lastPunchTime,
-} from "./db.js";
-import { fetchDevices, postPunches } from "./cloudApi.js";
-import { fetchNewEvents } from "./hikvision.js";
-import { renderMonitor, draw } from "./monitor.js";
+} from "./db.ts";
+import { fetchDevices, postPunches } from "./cloudApi.ts";
+import { fetchNewEvents } from "./hikvision.ts";
+import { renderMonitor, draw } from "./monitor.ts";
+import { getAppDir } from "./paths.ts";
+
+const appDir = getAppDir();
+
+function loadEnvFile(): void {
+  const envPath = join(appDir, ".env");
+  if (!existsSync(envPath)) return;
+  const contents = readFileSync(envPath, "utf-8");
+  for (const line of contents.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (!(key in process.env)) process.env[key] = value;
+  }
+}
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -20,12 +40,37 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function installStartup(): void {
+  const startupDir = join(
+    homedir(),
+    "AppData",
+    "Roaming",
+    "Microsoft",
+    "Windows",
+    "Start Menu",
+    "Programs",
+    "Startup",
+  );
+  const destPath = join(startupDir, basename(process.execPath));
+  mkdirSync(startupDir, { recursive: true });
+  copyFileSync(process.execPath, destPath);
+  console.log(`Instalado: ${destPath}`);
+  console.log("El agente se iniciará automáticamente la próxima vez que Windows inicie sesión.");
+}
+
+if (process.argv.includes("--install-startup")) {
+  installStartup();
+  process.exit(0);
+}
+
+loadEnvFile();
+
 const cloudConfig = {
   baseUrl: requireEnv("CLOUD_API_BASE_URL"),
   secret: requireEnv("ATTENDANCE_AGENT_SECRET"),
 };
 
-const db = openDb("attendance-agent.db");
+const db = openDb(join(appDir, "attendance-agent.db"));
 let lastError: string | null = null;
 
 let refreshing = false;
