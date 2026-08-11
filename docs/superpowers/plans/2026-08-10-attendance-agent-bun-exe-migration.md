@@ -8,7 +8,7 @@
 
 **Why this is a real architecture change, not a small tweak:** the original design (`docs/superpowers/specs/2026-08-10-attendance-hikvision-agent-design.md`) explicitly chose Node.js + a plain folder specifically because `better-sqlite3` is a native addon that doesn't bundle cleanly into a single-executable build. That constraint is what's changing here — Bun ships SQLite as a built-in (`bun:sqlite`), not an npm native addon, which sidesteps the exact problem that ruled out a single-exe build the first time. This was confirmed by hand before writing this plan: `bun build --compile` was run against a real `bun:sqlite`-using script and produced a working, self-contained ~98 MB `.exe` with no external dependencies.
 
-**Tech Stack:** Bun 1.3+ (installed at `~/.bun/bin` on the dev machine that builds the executable — end users never need it), `bun:sqlite` (built-in), `bun:test` (built-in), `digest-fetch` (unchanged, still needed for Hikvision Digest auth), `@types/bun` (dev-only, for editor/type-check support).
+**Tech Stack:** Bun 1.3+ (installed at `~/.bun/bin` on the dev machine that builds the executable — end users never need it), `bun:sqlite` (built-in), `bun:test` (built-in), `@types/bun` (dev-only, for editor/type-check support). **`digest-fetch` was removed mid-migration** (see fact #8 below) — HTTP Digest auth is now implemented by hand in `src/digestAuth.ts` using Bun's native `Bun.CryptoHasher`.
 
 **Key technical facts confirmed by hand-testing before writing this plan** (so the tasks below can give exact code, not guesses):
 
@@ -18,7 +18,9 @@
 4. **A compiled Bun executable's `import.meta.dir`/`import.meta.path` resolve to a *virtual* bundle path** (e.g. `B:\~BUN\root\...`), not the executable's real location on disk — unusable for finding files next to the exe. **`process.execPath` correctly resolves to the real, current filesystem path of the running executable**, confirmed even after the exe is copied/renamed. So real-file resolution (the SQLite DB file, a `.env` file sitting next to the exe) must use `dirname(process.execPath)`, never `import.meta.dir`.
 5. **`process.execPath` is *not* reliable in dev mode** (`bun run src/index.ts`, not compiled) — there, it points at the Bun binary itself (`.../bun.exe`), not the project. Distinguish the two cases by checking whether `basename(process.execPath)` is `bun`/`bun.exe`: if so, we're in dev mode and `import.meta.dir` gives the right (real) directory; otherwise we're compiled and `dirname(process.execPath)` gives the right directory. Both cases were confirmed by hand.
 6. **Bun auto-loads a `.env` file, but only from the current working directory, not from the executable's own directory.** Confirmed by hand: running a compiled exe from a different `cwd` than the one containing its `.env` file does NOT pick up that `.env`. Since a Windows-Startup-launched `.exe` cannot be assumed to start with a helpful `cwd`, the agent must **explicitly** read and parse a `.env` file located via `dirname(process.execPath)` (in compiled mode) — relying on Bun's automatic loading is not safe here. This also means the `dotenv` npm package (used in the Node.js version) is no longer needed at all; write ~15 lines of manual parsing instead.
-7. **`digest-fetch`, global `fetch`, `crypto.randomUUID()`, and `AbortSignal.timeout()` all work identically under Bun** — confirmed by hand, no code changes needed anywhere these are used (`hikvision.ts`, `cloudApi.ts`).
+7. **Global `fetch`, `crypto.randomUUID()`, and `AbortSignal.timeout()` all work identically under Bun** — confirmed by hand, no code changes needed anywhere these are used (`hikvision.ts`, `cloudApi.ts`).
+
+8. **`digest-fetch` cannot be used in a `bun build --compile`d executable — discovered during this plan's own Task 8, not caught by any earlier test.** `bun test`/`bun run` both work fine, because they use Bun's own module loader directly. But compiling literally anything that constructs a `DigestFetch` instance and calls `.fetch()` on it crashes at runtime with `ReferenceError: require is not defined`, traced (by hand, with a minimal reproduction outside this project) to `digest-fetch`'s transitive dependency `js-sha256`, which contains `var crypto = eval("require('crypto')")` — a deliberate obfuscation some npm packages use to hide a Node-only `require` call from static bundler analysis (so bundlers don't try to polyfill it for a browser build). Bun's compiler doesn't see through the `eval()` either, but *unlike* a plain `require('crypto')` (which Bun's Node-compat layer handles fine in a compiled binary — confirmed separately), this specific evaluated form breaks. **Fix: `digest-fetch` was removed entirely** (along with its `js-sha256`/`js-sha512`/`md5`/etc. dependency tree) and replaced with `src/digestAuth.ts`, a ~50-line hand-written RFC 2617 Digest-auth implementation using only `fetch`, `crypto.randomUUID()`, and `Bun.CryptoHasher("md5")` (Bun's own native hasher — confirmed working both under `bun run` and compiled, since it never touches Node's `crypto` module or `require` at all). Verified correct against a real digest-challenge/response test server (both interpreted and compiled) before being adopted.
 
 ## File Structure
 
@@ -1044,6 +1046,461 @@ git commit -m "feat: port index.ts to Bun - drop dotenv, resolve paths via paths
 
 ---
 
+### Task 7b: Replace `digest-fetch` with a hand-written Digest-auth implementation
+
+**Discovered mid-migration, during Task 8's own build-and-smoke-test step** (see "Key technical fact" #8 above for the full root-cause story) — building the executable and running it standalone (exactly as Task 8 instructs) crashed immediately on the first Hikvision poll with `ReferenceError: require is not defined`, traced by hand to `digest-fetch`'s transitive dependency `js-sha256` hiding a Node-only `require('crypto')` behind `eval(...)` to dodge static bundler analysis, which breaks specifically under `bun build --compile`. `bun test`/`bun run dev` never caught this because they don't go through the compiled bundling path at all. This task removes `digest-fetch` and its whole dependency tree, replacing it with a small hand-written implementation that only uses Bun-native APIs confirmed to survive compilation.
+
+**Files:**
+- Create: `attendance-agent/src/digestAuth.ts`
+- Create: `attendance-agent/src/digestAuth.test.ts`
+- Modify: `attendance-agent/src/hikvision.ts`
+- Modify: `attendance-agent/src/hikvision.test.ts`
+- Modify: `attendance-agent/package.json` (remove the `digest-fetch` dependency)
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `attendance-agent/src/digestAuth.test.ts`:
+
+```ts
+import { afterEach, describe, expect, it, mock } from "bun:test";
+import { digestFetch } from "./digestAuth.ts";
+
+const originalFetch = globalThis.fetch;
+
+describe("digestFetch", () => {
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("returns the response directly when no 401 challenge is issued", async () => {
+    const fetchMock = mock(async () => ({ ok: true, status: 200 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const response = await digestFetch("http://example.com/x", "admin", "secret", { method: "GET" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+  });
+
+  it("returns the 401 response as-is when it has no Digest WWW-Authenticate header", async () => {
+    const fetchMock = mock(async () => ({ ok: false, status: 401, headers: new Headers() }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const response = await digestFetch("http://example.com/x", "admin", "secret", { method: "GET" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(401);
+  });
+
+  it("retries with a correctly-computed Digest Authorization header after a 401 challenge", async () => {
+    function md5(text: string): string {
+      const hasher = new Bun.CryptoHasher("md5");
+      hasher.update(text);
+      return hasher.digest("hex");
+    }
+
+    const realm = "TestRealm";
+    const nonce = "dcd98b7102dd2f0e8b11d0f600bfb0c093";
+    const username = "admin";
+    const password = "secret123";
+
+    const fetchMock = mock()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({
+          "WWW-Authenticate": `Digest realm="${realm}", qop="auth", nonce="${nonce}", opaque="abc123"`,
+        }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await digestFetch("http://192.168.1.50/ISAPI/test?format=json", username, password, { method: "POST" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, retryOptions] = fetchMock.mock.calls[1];
+    const authHeader = (retryOptions.headers as Record<string, string>).Authorization;
+    expect(authHeader).toContain(`username="${username}"`);
+    expect(authHeader).toContain(`realm="${realm}"`);
+    expect(authHeader).toContain(`nonce="${nonce}"`);
+    expect(authHeader).toContain('uri="/ISAPI/test?format=json"');
+
+    // Independently recompute the expected response digest using the same
+    // algorithm (with the actual nc/cnonce the client sent, since cnonce is
+    // randomly generated per call) and confirm it matches - proving the
+    // digest math itself is correct, not just that *a* response field exists.
+    const ncMatch = authHeader.match(/nc=(\w+)/);
+    const cnonceMatch = authHeader.match(/cnonce="([^"]+)"/);
+    const responseMatch = authHeader.match(/response="([^"]+)"/);
+    expect(ncMatch).not.toBeNull();
+    expect(cnonceMatch).not.toBeNull();
+    expect(responseMatch).not.toBeNull();
+    const nc = ncMatch![1];
+    const cnonce = cnonceMatch![1];
+    const ha1 = md5(`${username}:${realm}:${password}`);
+    const ha2 = md5(`POST:/ISAPI/test?format=json`);
+    const expectedResponse = md5(`${ha1}:${nonce}:${nc}:${cnonce}:auth:${ha2}`);
+    expect(responseMatch![1]).toBe(expectedResponse);
+  });
+
+  it("passes the abort signal through to both the initial and retried requests", async () => {
+    const fetchMock = mock()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({ "WWW-Authenticate": 'Digest realm="R", qop="auth", nonce="N"' }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const controller = new AbortController();
+    await digestFetch("http://example.com/x", "admin", "secret", { method: "GET", signal: controller.signal });
+
+    expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
+    expect(fetchMock.mock.calls[1][1].signal).toBe(controller.signal);
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `cd attendance-agent && bun test digestAuth.test.ts`
+Expected: FAIL — `Cannot find module './digestAuth.ts'`
+
+- [ ] **Step 3: Write `digestAuth.ts`**
+
+Create `attendance-agent/src/digestAuth.ts`:
+
+```ts
+function md5(text: string): string {
+  const hasher = new Bun.CryptoHasher("md5");
+  hasher.update(text);
+  return hasher.digest("hex");
+}
+
+function parseDigestChallenge(header: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const regex = /(\w+)=(?:"([^"]*)"|([^\s,]+))/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(header)) !== null) {
+    result[match[1]] = match[2] ?? match[3];
+  }
+  return result;
+}
+
+export interface DigestFetchOptions {
+  method: string;
+  headers?: Record<string, string>;
+  body?: string;
+  signal?: AbortSignal;
+}
+
+/**
+ * Performs an HTTP request with RFC 2617 Digest authentication, retrying
+ * once with credentials after an initial 401 challenge. Implemented by hand
+ * (rather than via the `digest-fetch` npm package) because `digest-fetch`'s
+ * transitive dependency `js-sha256` hides its `require('crypto')` call
+ * behind `eval(...)` specifically to dodge static bundler analysis - which
+ * breaks under `bun build --compile` (confirmed by hand: a compiled
+ * executable that merely constructs a `DigestFetch` instance crashes with
+ * `ReferenceError: require is not defined` the first time it's used). This
+ * implementation only uses Bun's native `Bun.CryptoHasher` (confirmed
+ * working both under `bun run` and compiled) and never touches Node's
+ * `crypto` module or `require` at all.
+ */
+export async function digestFetch(
+  url: string,
+  username: string,
+  password: string,
+  options: DigestFetchOptions,
+): Promise<Response> {
+  const initialResponse = await fetch(url, { ...options, headers: options.headers, signal: options.signal });
+  if (initialResponse.status !== 401) return initialResponse;
+
+  const wwwAuth = initialResponse.headers.get("www-authenticate");
+  if (!wwwAuth || !wwwAuth.toLowerCase().startsWith("digest ")) return initialResponse;
+
+  const challenge = parseDigestChallenge(wwwAuth.slice(wwwAuth.indexOf(" ") + 1));
+  const { realm, nonce, qop, opaque } = challenge;
+  const parsedUrl = new URL(url);
+  const uri = parsedUrl.pathname + parsedUrl.search;
+  const method = options.method;
+  const nc = "00000001";
+  const cnonce = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+
+  const ha1 = md5(`${username}:${realm}:${password}`);
+  const ha2 = md5(`${method}:${uri}`);
+  const response = qop
+    ? md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`)
+    : md5(`${ha1}:${nonce}:${ha2}`);
+
+  const authParts = [
+    `username="${username}"`,
+    `realm="${realm}"`,
+    `nonce="${nonce}"`,
+    `uri="${uri}"`,
+    qop ? `qop=${qop}` : null,
+    qop ? `nc=${nc}` : null,
+    qop ? `cnonce="${cnonce}"` : null,
+    `response="${response}"`,
+    opaque ? `opaque="${opaque}"` : null,
+  ].filter((v): v is string => v !== null);
+
+  return fetch(url, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Digest ${authParts.join(", ")}` },
+    signal: options.signal,
+  });
+}
+```
+
+- [ ] **Step 4: Run the new tests to verify they pass**
+
+Run: `cd attendance-agent && bun test digestAuth.test.ts`
+Expected: PASS (4/4)
+
+- [ ] **Step 5: Update `hikvision.ts` to use `digestFetch` instead of `digest-fetch`**
+
+Replace the `import DigestFetch from "digest-fetch";` line and the `fetchNewEvents` function in `attendance-agent/src/hikvision.ts` — everything above `export interface DeviceCredentials` (i.e. `parseAcsEventResponse` and its supporting `AcsEventInfo` interface) is untouched. Replace from the import line through the end of the file with:
+
+```ts
+import { digestFetch } from "./digestAuth.ts";
+
+// ... (AcsEventInfo interface, RawPunch interface, parseAcsEventResponse function - unchanged) ...
+
+export interface DeviceCredentials {
+  ipAddress: string;
+  username: string;
+  password: string;
+}
+
+const PAGE_SIZE = 200;
+// Assumes the device returns time-windowed AcsEvent search results in
+// ascending chronological order, so a capped fetch's already-captured
+// punches still advance lastPunchTime correctly and the next poll picks
+// up right after them. If a device is ever confirmed to return results
+// in a different order, this self-healing property breaks and a capped
+// fetch could permanently skip older events - watch for
+// "hit the page cap" surfacing via FetchNewEventsResult.hitPageCap below.
+const MAX_PAGES = 50;
+const REQUEST_TIMEOUT_MS = 15_000;
+
+export interface FetchNewEventsResult {
+  punches: RawPunch[];
+  hitPageCap: boolean;
+}
+
+export async function fetchNewEvents(
+  device: DeviceCredentials,
+  startTime: Date,
+  endTime: Date,
+): Promise<FetchNewEventsResult> {
+  const allPunches: RawPunch[] = [];
+  let hitPageCap = false;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const response = await digestFetch(
+      `http://${device.ipAddress}/ISAPI/AccessControl/AcsEvent?format=json`,
+      device.username,
+      device.password,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          AcsEventCond: {
+            searchID: crypto.randomUUID(),
+            searchResultPosition: page * PAGE_SIZE,
+            maxResults: PAGE_SIZE,
+            major: 0,
+            minor: 0,
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+          },
+        }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Hikvision device ${device.ipAddress} returned HTTP ${response.status}`);
+    }
+
+    const body = await response.json();
+    allPunches.push(...parseAcsEventResponse(body));
+
+    const numOfMatches = (body as { AcsEvent?: { numOfMatches?: number } })?.AcsEvent?.numOfMatches ?? 0;
+    if (numOfMatches < PAGE_SIZE) break;
+    if (page === MAX_PAGES - 1) hitPageCap = true;
+  }
+
+  return { punches: allPunches, hitPageCap };
+}
+```
+
+- [ ] **Step 6: Rewrite `hikvision.test.ts`'s `fetchNewEvents` tests**
+
+Since `digestFetch` calls global `fetch` directly (no more constructed `DigestFetch` class instance to mock via `mock.module()`), replace the entire `describe("fetchNewEvents", ...)` block in `attendance-agent/src/hikvision.test.ts` with the simpler global-`fetch`-stubbing pattern already used in `cloudApi.test.ts` (leave the `describe("parseAcsEventResponse", ...)` block above it completely untouched):
+
+```ts
+const originalFetch = globalThis.fetch;
+
+describe("fetchNewEvents", () => {
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("POSTs an AcsEvent search with the expected URL, method, and body shape", async () => {
+    const fetchMock = mock(async (_url: string, _options: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ AcsEvent: { numOfMatches: 0, InfoList: [] } }),
+    }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
+    const startTime = new Date("2026-08-10T00:00:00.000Z");
+    const endTime = new Date("2026-08-10T23:59:59.000Z");
+    await fetchNewEvents(device, startTime, endTime);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://192.168.1.50/ISAPI/AccessControl/AcsEvent?format=json");
+    expect(options.method).toBe("POST");
+    expect(options.headers).toEqual({ "Content-Type": "application/json" });
+    const sentBody = JSON.parse(options.body as string);
+    expect(sentBody.AcsEventCond).toMatchObject({
+      searchResultPosition: 0,
+      maxResults: 200,
+      major: 0,
+      minor: 0,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+    });
+  });
+
+  it("threads the device's username and password through to the Digest Authorization header", async () => {
+    const fetchMock = mock()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({
+          "WWW-Authenticate": 'Digest realm="DS-K1T321", qop="auth", nonce="abc123", opaque="xyz"',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ AcsEvent: { numOfMatches: 0, InfoList: [] } }),
+      });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
+    await fetchNewEvents(device, new Date(), new Date());
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondCallOptions = fetchMock.mock.calls[1][1];
+    const authHeader = (secondCallOptions.headers as Record<string, string>).Authorization;
+    expect(authHeader).toContain('username="admin"');
+  });
+
+  it("throws a descriptive error when the device responds with a non-ok HTTP status", async () => {
+    globalThis.fetch = mock(async () => ({ ok: false, status: 401 })) as unknown as typeof fetch;
+
+    const device = { ipAddress: "192.168.1.50", username: "admin", password: "wrong" };
+    await expect(fetchNewEvents(device, new Date(), new Date())).rejects.toThrow(/192\.168\.1\.50.*401/);
+  });
+
+  it("paginates through multiple pages when a page returns a full batch (numOfMatches equals the page size)", async () => {
+    const fetchMock = mock()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          AcsEvent: {
+            numOfMatches: 200,
+            InfoList: [{ major: 5, minor: 75, time: "2026-08-10T08:00:00-04:00", employeeNoString: "1" }],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          AcsEvent: {
+            numOfMatches: 1,
+            InfoList: [{ major: 5, minor: 75, time: "2026-08-10T08:02:00-04:00", employeeNoString: "3" }],
+          },
+        }),
+      });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
+    const result = await fetchNewEvents(
+      device,
+      new Date("2026-08-10T00:00:00.000Z"),
+      new Date("2026-08-10T23:59:59.000Z"),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondCallBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    expect(secondCallBody.AcsEventCond.searchResultPosition).toBe(200);
+    expect(result.punches.map((p) => p.employeeNoString)).toEqual(["1", "3"]);
+    expect(result.hitPageCap).toBe(false);
+  });
+
+  it("stops after a bounded number of pages and reports hitPageCap when a device keeps reporting full pages", async () => {
+    const fetchMock = mock(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        AcsEvent: {
+          numOfMatches: 200,
+          InfoList: [{ major: 5, minor: 75, time: "2026-08-10T08:00:00-04:00", employeeNoString: "1" }],
+        },
+      }),
+    }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
+    const result = await fetchNewEvents(device, new Date(), new Date());
+
+    expect(fetchMock).toHaveBeenCalledTimes(50);
+    expect(result.hitPageCap).toBe(true);
+  });
+});
+```
+
+Update the file's top `import` line accordingly: `import { afterEach, describe, expect, it, mock } from "bun:test";`.
+
+- [ ] **Step 7: Remove `digest-fetch` from `package.json`**
+
+In `attendance-agent/package.json`, remove the entire `"dependencies"` block's `"digest-fetch": "^3.1.1"` line (there will be no `dependencies` left at all — an empty `"dependencies": {}` or omitting the key entirely are both fine). Run `cd attendance-agent && bun install` afterward to regenerate `bun.lock` without it, and confirm `node_modules/digest-fetch`, `node_modules/js-sha256`, `node_modules/js-sha512`, `node_modules/md5`, `node_modules/base-64`, `node_modules/crypt`, `node_modules/charenc`, `node_modules/is-buffer` are all gone.
+
+- [ ] **Step 8: Run the full suite and verify the build**
+
+Run: `cd attendance-agent && bun test` — expected all tests pass (33 total: 8 `db.test.ts` + 10 `hikvision.test.ts` + 4 `digestAuth.test.ts` + 5 `cloudApi.test.ts` + 3 `monitor.test.ts` + 3 `paths.test.ts`).
+Run: `cd attendance-agent && bunx tsc --noEmit` — expect clean.
+Run: `cd attendance-agent && bun run build` — expect success.
+Then repeat the exact smoke test from Task 8 below (compiled exe, standalone directory, real `.env`) and confirm it no longer crashes with the `require is not defined` error.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add attendance-agent/src/digestAuth.ts attendance-agent/src/digestAuth.test.ts attendance-agent/src/hikvision.ts attendance-agent/src/hikvision.test.ts attendance-agent/package.json attendance-agent/bun.lock
+git commit -m "fix: replace digest-fetch with a hand-written Digest-auth implementation
+
+digest-fetch's transitive dependency js-sha256 hides a require('crypto')
+call behind eval(...) to dodge static bundler analysis, which crashes
+any bun build --compile'd executable that uses it with 'require is not
+defined' - only discovered by actually running the compiled binary
+(bun test/bun run never hit this path). Replaced with a ~50-line RFC
+2617 implementation using only Bun.CryptoHasher, confirmed correct
+against a real digest-challenge/response test server both interpreted
+and compiled."
+```
+
+---
+
 ### Task 8: Build the real executable and manually smoke-test it
 
 **Files:** none created/modified — this task runs the build and does a manual functional check, per the original plan's convention of manually verifying things that can't be unit-tested (a real compiled binary, real filesystem/Windows-Startup interaction).
@@ -1051,7 +1508,7 @@ git commit -m "feat: port index.ts to Bun - drop dotenv, resolve paths via paths
 - [ ] **Step 1: Run the full test suite one more time**
 
 Run: `cd attendance-agent && bun test`
-Expected: all tests pass (7 in `db.test.ts` + 10 in `hikvision.test.ts` + 5 in `cloudApi.test.ts` + 3 in `monitor.test.ts` + 2 in `paths.test.ts` = 27 total).
+Expected: all tests pass (8 in `db.test.ts` + 10 in `hikvision.test.ts` + 4 in `digestAuth.test.ts` + 5 in `cloudApi.test.ts` + 3 in `monitor.test.ts` + 3 in `paths.test.ts` = 33 total — this count reflects the `recentPunches` test added during Task 3's review, the `isRunningViaBunCli` test added during Task 7's review, and Task 7b's `digest-fetch` replacement).
 
 - [ ] **Step 2: Build the executable**
 
