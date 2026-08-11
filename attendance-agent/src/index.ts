@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from "node:fs";
-import { join, dirname, basename } from "node:path";
+import { existsSync, readFileSync, mkdirSync, copyFileSync } from "node:fs";
+import { join, basename } from "node:path";
 import { homedir } from "node:os";
 import {
   openDb,
@@ -15,7 +15,7 @@ import {
 import { fetchDevices, postPunches } from "./cloudApi.ts";
 import { fetchNewEvents } from "./hikvision.ts";
 import { renderMonitor, draw } from "./monitor.ts";
-import { getAppDir } from "./paths.ts";
+import { getAppDir, isRunningViaBunCli } from "./paths.ts";
 
 const appDir = getAppDir();
 
@@ -41,6 +41,12 @@ function requireEnv(name: string): string {
 }
 
 function installStartup(): void {
+  if (isRunningViaBunCli()) {
+    throw new Error(
+      "--install-startup must be run from the compiled attendance-agent.exe, not via `bun run` - " +
+        "process.execPath would point at the Bun binary itself, not this program.",
+    );
+  }
   const startupDir = join(
     homedir(),
     "AppData",

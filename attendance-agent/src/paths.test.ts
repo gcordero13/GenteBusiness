@@ -1,6 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { basename } from "node:path";
-import { getAppDir } from "./paths.ts";
+import { getAppDir, isRunningViaBunCli } from "./paths.ts";
+
+describe("isRunningViaBunCli", () => {
+  it("returns true under `bun test` (not a compiled executable)", () => {
+    expect(isRunningViaBunCli()).toBe(true);
+  });
+});
 
 describe("getAppDir", () => {
   it("returns a real, existing directory", () => {
