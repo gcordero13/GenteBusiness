@@ -1,5 +1,35 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
-import { fetchNewEvents, parseAcsEventResponse } from "./hikvision.ts";
+import { fetchNewEvents, formatLocalIso, parseAcsEventResponse } from "./hikvision.ts";
+
+describe("formatLocalIso", () => {
+  // Computes the expected offset suffix the same way the implementation
+  // does, rather than hardcoding e.g. "-04:00" - this test must pass
+  // regardless of which timezone the machine running it is actually set to.
+  function expectedOffsetSuffix(date: Date): string {
+    const offsetMinutes = -date.getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+    const absOffset = Math.abs(offsetMinutes);
+    const hours = String(Math.floor(absOffset / 60)).padStart(2, "0");
+    const mins = String(absOffset % 60).padStart(2, "0");
+    return `${sign}${hours}:${mins}`;
+  }
+
+  it("formats local date/time components with the machine's actual UTC offset, not toISOString()'s UTC/Z format", () => {
+    const date = new Date(2026, 7, 10, 6, 30, 47); // local: 2026-08-10 06:30:47
+    const result = formatLocalIso(date);
+
+    expect(result).toBe(`2026-08-10T06:30:47${expectedOffsetSuffix(date)}`);
+    expect(result).not.toContain("Z");
+    expect(result).not.toContain(".");
+  });
+
+  it("zero-pads single-digit month, day, hour, minute, and second", () => {
+    const date = new Date(2026, 0, 5, 3, 4, 5); // local: 2026-01-05 03:04:05
+    const result = formatLocalIso(date);
+
+    expect(result).toBe(`2026-01-05T03:04:05${expectedOffsetSuffix(date)}`);
+  });
+});
 
 describe("parseAcsEventResponse", () => {
   it("extracts employee number and ISO punch time from a typical AcsEvent response", () => {
@@ -117,9 +147,15 @@ describe("fetchNewEvents", () => {
       maxResults: 200,
       major: 0,
       minor: 0,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
+      startTime: formatLocalIso(startTime),
+      endTime: formatLocalIso(endTime),
     });
+    // Confirmed by hand against a real DS-K1T321EFWX terminal: it rejects
+    // toISOString()'s always-UTC "...Z" + milliseconds format with a
+    // generic "badJsonFormat" error, so this specifically must NOT be what
+    // gets sent.
+    expect(sentBody.AcsEventCond.startTime).not.toBe(startTime.toISOString());
+    expect(sentBody.AcsEventCond.startTime).not.toContain("Z");
   });
 
   it("threads the device's username and password through to the Digest Authorization header", async () => {

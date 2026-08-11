@@ -32,6 +32,30 @@ export interface DeviceCredentials {
   password: string;
 }
 
+/**
+ * Formats a Date as "YYYY-MM-DDTHH:mm:ss±HH:mm" (local time, explicit
+ * numeric UTC offset, no milliseconds) instead of Date.toISOString()'s
+ * always-UTC "...Z" format with milliseconds. Confirmed by hand against a
+ * real DS-K1T321EFWX terminal (firmware V3.9.3): a request using
+ * toISOString()'s format was rejected with a generic "badJsonFormat" error,
+ * while the exact same request using this local-offset format succeeded -
+ * the device's date parser is stricter than plain JSON syntax validation
+ * would suggest from the error name alone.
+ */
+export function formatLocalIso(date: Date): string {
+  const pad = (n: number, width = 2) => String(n).padStart(width, "0");
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absOffset = Math.abs(offsetMinutes);
+  const offsetHours = pad(Math.floor(absOffset / 60));
+  const offsetMins = pad(absOffset % 60);
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}` +
+    `${sign}${offsetHours}:${offsetMins}`
+  );
+}
+
 const PAGE_SIZE = 200;
 // Assumes the device returns time-windowed AcsEvent search results in
 // ascending chronological order, so a capped fetch's already-captured
@@ -71,8 +95,8 @@ export async function fetchNewEvents(
             maxResults: PAGE_SIZE,
             major: 0,
             minor: 0,
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
+            startTime: formatLocalIso(startTime),
+            endTime: formatLocalIso(endTime),
           },
         }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
