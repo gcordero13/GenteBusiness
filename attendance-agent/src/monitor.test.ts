@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { renderMonitor } from "./monitor.js";
+import { describe, expect, it } from "bun:test";
+import { renderMonitor } from "./monitor.ts";
 
 describe("renderMonitor", () => {
   it("shows a placeholder line when there are no captured punches yet", () => {

@@ -1,4 +1,4 @@
-import type { StoredPunch } from "./db.js";
+import type { StoredPunch } from "./db.ts";
 
 export interface MonitorState {
   recent: StoredPunch[];
