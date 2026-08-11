@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
   openDb,
   upsertDevices,
@@ -8,7 +8,7 @@ import {
   markSynced,
   pendingCount,
   lastPunchTime,
-} from "./db.js";
+} from "./db.ts";
 
 describe("db", () => {
   it("upserts and lists devices", () => {
