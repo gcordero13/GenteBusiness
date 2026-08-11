@@ -514,7 +514,7 @@ export async function getScheduleTemplatesContext(): Promise<ScheduleTemplatesCo
 }
 ```
 
-This mirrors the existing `src/lib/platformSettings.ts` pattern (a thin `server-only` data-fetch helper with no dedicated test file — matching that file's precedent, since it's a straightforward composition of an already-unit-tested pure library and a plain Supabase select).
+This mirrors the existing `src/lib/platformSettings.ts` pattern (a thin `server-only` data-fetch helper). **Correction found during Task 3's own code review:** `platformSettings.ts` in fact HAS a paired `platformSettings.test.ts`, and so does every other server-only fetch helper in `src/lib/` — this file needs the same treatment, not an exception. Add `src/lib/scheduleTemplates.test.ts` mirroring `platformSettings.test.ts`'s exact `vi.mock("@/lib/supabase/server", ...)` pattern, covering: multiple templates with days (verify the map and that the correct `is_default` row is picked, and that `is_default` itself doesn't leak into the returned `ScheduleTemplate` shape), empty data (falls back to `FALLBACK_SCHEDULE`), and templates present but none marked `is_default` (still falls back to `FALLBACK_SCHEDULE` rather than picking an arbitrary one). Also don't silently discard the query's `error` — log it before falling back, since a real RLS/fetch failure should leave a trace rather than looking identical to "no schedules configured yet" (this feeds every contact's displayed schedule, so the stakes are higher than `platformSettings.ts`'s cosmetic logo fallback).
 
 - [ ] **Step 2: Type-check**
 
