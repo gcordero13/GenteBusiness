@@ -128,6 +128,39 @@ describe("saveScheduleTemplate", () => {
 
     expect(result.error).toBeUndefined();
   });
+
+  it("saves a brand-new, non-default schedule without excluding any id from the default-count check", async () => {
+    mockAuthorizedCaller();
+    const countMock = vi.fn().mockResolvedValue({ count: 1 });
+    // The `.eq()` step must itself resolve to `{ count, error }` when awaited
+    // directly (the no-id branch never calls `.neq()`), while still exposing
+    // `.neq` for the with-id branch exercised by the other tests above.
+    const eqResult = Object.assign(Promise.resolve({ count: 1, error: null }), { neq: countMock });
+    const insertSingle = vi.fn().mockResolvedValue({ data: { id: "new-id" }, error: null });
+    const deleteDaysEq = vi.fn().mockResolvedValue({ error: null });
+    const admin = {
+      from: vi.fn((table: string) => {
+        if (table === "schedule_templates") {
+          return {
+            select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue(eqResult) }),
+            insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: insertSingle }) }),
+          };
+        }
+        return { delete: vi.fn().mockReturnValue({ eq: deleteDaysEq }), insert: vi.fn().mockResolvedValue({ error: null }) };
+      }),
+    };
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await saveScheduleTemplate({
+      name: "Ventas",
+      tolerance_minutes: 0,
+      is_default: false,
+      days: [],
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(countMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("deleteScheduleTemplate", () => {

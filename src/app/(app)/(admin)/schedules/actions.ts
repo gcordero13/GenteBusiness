@@ -41,11 +41,15 @@ export async function saveScheduleTemplate(input: SaveScheduleTemplateInput): Pr
   const admin = createAdminClient();
 
   if (!input.is_default) {
-    const { count } = await admin
+    let countQuery = admin
       .from("schedule_templates")
       .select("id", { count: "exact", head: true })
-      .eq("is_default", true)
-      .neq("id", input.id ?? "");
+      .eq("is_default", true);
+    if (input.id) {
+      countQuery = countQuery.neq("id", input.id);
+    }
+    const { count, error: countError } = await countQuery;
+    if (countError) return { error: countError.message };
     if (!count) {
       return { error: "No se puede quitar el horario predeterminado sin marcar otro primero." };
     }
