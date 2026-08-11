@@ -92,12 +92,15 @@ describe("fetchNewEvents", () => {
       ok: true,
       json: async () => ({ AcsEvent: { numOfMatches: 0, InfoList: [] } }),
     }));
+    const constructedWith: { user: string; password: string }[] = [];
     mock.module("digest-fetch", () => ({
       default: class {
         constructor(
           public user: string,
           public password: string,
-        ) {}
+        ) {
+          constructedWith.push({ user, password });
+        }
         fetch = fetchMock;
       },
     }));
@@ -108,6 +111,7 @@ describe("fetchNewEvents", () => {
     const endTime = new Date("2026-08-10T23:59:59.000Z");
     await fetchNewEvents(device, startTime, endTime);
 
+    expect(constructedWith).toEqual([{ user: "admin", password: "secret" }]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("http://192.168.1.50/ISAPI/AccessControl/AcsEvent?format=json");
