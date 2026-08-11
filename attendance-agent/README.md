@@ -2,15 +2,19 @@
 
 Runs on a Windows PC on the same network as the Hikvision terminal(s). Polls
 each registered terminal every ~20 seconds, stores captures in a local SQLite
-database (`attendance-agent.db`, created next to this folder), and syncs
+database (`attendance-agent.db`, created inside this same folder), and syncs
 unsynced rows to the GenteBusiness cloud API every ~25 seconds. Shows a live
 console view of recent captures.
 
 ## Setup (one time, on the office PC)
 
-1. Install Node.js 20 or newer.
+1. Install Node.js 20 or newer (descárgalo de https://nodejs.org, elige la
+   versión LTS).
 2. Copy this whole `attendance-agent` folder onto the PC.
-3. Open a terminal in this folder and run:
+3. Open a terminal in this folder (en el Explorador de Windows, entra a esta
+   carpeta, mantén presionada Shift y haz clic derecho en un espacio vacío,
+   luego selecciona "Abrir ventana de PowerShell aquí" o "Abrir en Terminal")
+   and run:
    ```
    npm install
    npm run build
@@ -20,8 +24,11 @@ console view of recent captures.
      `ATTENDANCE_AGENT_SECRET` environment variable.
    - `CLOUD_API_BASE_URL` — the production URL, e.g. `https://gente-business.vercel.app`.
 5. Register each Hikvision terminal (name, IP, username, password) on the
-   "Ponchadores" admin page in GenteBusiness. The agent picks these up
-   automatically within 5 minutes of starting, no restart needed.
+   "Ponchadores" admin page in GenteBusiness. La IP y las credenciales del
+   ponchador las debe tener quien instaló el equipo físicamente —
+   normalmente se pueden confirmar desde el menú de red en la pantalla del
+   propio ponchador. The agent picks these up automatically within 5 minutes
+   of starting, no restart needed.
 6. Test it manually first: `npm start`. Run this from a real interactive
    terminal window (Command Prompt or PowerShell) rather than redirecting its
    output to a file — the live console monitor clears and redraws the screen,

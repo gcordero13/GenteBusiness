@@ -15,7 +15,7 @@ const startupDir = join(
 
 const projectDir = process.cwd();
 const launcherPath = join(startupDir, "attendance-agent.cmd");
-const launcherContents = `@echo off\r\ncd /d "${projectDir}"\r\nnode "${join(projectDir, "dist", "index.js")}"\r\n`;
+const launcherContents = `@echo off\r\ncd /d "${projectDir}"\r\nnode "${join(projectDir, "dist", "index.js")}"\r\nif errorlevel 1 (\r\n  echo.\r\n  echo El agente se detuvo con un error. Revisa el mensaje de arriba.\r\n  pause\r\n)\r\n`;
 
 mkdirSync(startupDir, { recursive: true });
 writeFileSync(launcherPath, launcherContents);
