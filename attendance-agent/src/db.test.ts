@@ -6,6 +6,7 @@ import {
   insertPunchIfNew,
   unsyncedPunches,
   markSynced,
+  recentPunches,
   pendingCount,
   lastPunchTime,
 } from "./db.ts";
@@ -112,5 +113,35 @@ describe("db", () => {
       rawEventId: "evt-2",
     });
     expect(lastPunchTime(db, "d1")).toBe("2026-08-10T09:00:00.000Z");
+  });
+
+  it("returns the most recent punches first, up to the given limit", () => {
+    const db = openDb(":memory:");
+    insertPunchIfNew(db, {
+      deviceId: "d1",
+      employeeNoString: "42",
+      punchedAt: "2026-08-10T08:00:00.000Z",
+      rawEventId: "evt-1",
+    });
+    insertPunchIfNew(db, {
+      deviceId: "d1",
+      employeeNoString: "43",
+      punchedAt: "2026-08-10T09:00:00.000Z",
+      rawEventId: "evt-2",
+    });
+    insertPunchIfNew(db, {
+      deviceId: "d1",
+      employeeNoString: "44",
+      punchedAt: "2026-08-10T10:00:00.000Z",
+      rawEventId: "evt-3",
+    });
+
+    const limited = recentPunches(db, 2);
+    expect(limited).toHaveLength(2);
+    expect(limited.map((p) => p.employeeNoString)).toEqual(["44", "43"]);
+
+    const all = recentPunches(db, 20);
+    expect(all).toHaveLength(3);
+    expect(all.map((p) => p.employeeNoString)).toEqual(["44", "43", "42"]);
   });
 });
