@@ -91,6 +91,7 @@ rm -rf node_modules
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "types": ["bun-types"],
     "strict": true,
     "skipLibCheck": true,
@@ -99,6 +100,8 @@ rm -rf node_modules
   "include": ["src"]
 }
 ```
+
+(Fixed after Task 2 found the gap: every later task in this plan uses `.ts`-extension relative imports, Bun's own convention — TypeScript 5.9's `moduleResolution: "bundler"` doesn't permit that by default without `allowImportingTsExtensions: true`, confirmed by hand.)
 
 - [ ] **Step 4: Update `.gitignore`**
 
