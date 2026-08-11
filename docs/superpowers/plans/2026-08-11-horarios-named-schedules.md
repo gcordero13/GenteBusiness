@@ -720,6 +720,23 @@ export async function saveScheduleTemplate(input: SaveScheduleTemplateInput): Pr
 
   const admin = createAdminClient();
 
+  // Symmetric to deleteScheduleTemplate's guard below: without this, an
+  // admin could uncheck "is_default" on the schedule that's currently the
+  // only default without checking it on any other schedule, leaving zero
+  // rows with is_default = true. getScheduleTemplatesContext would then
+  // silently fall back to FALLBACK_SCHEDULE for every department/contact
+  // relying on the default - a real behavior change with no visible error.
+  if (!input.is_default) {
+    const { count } = await admin
+      .from("schedule_templates")
+      .select("id", { count: "exact", head: true })
+      .eq("is_default", true)
+      .neq("id", input.id ?? "");
+    if (!count) {
+      return { error: "No se puede quitar el horario predeterminado sin marcar otro primero." };
+    }
+  }
+
   if (input.is_default) {
     const { error: unsetError } = await admin
       .from("schedule_templates")
