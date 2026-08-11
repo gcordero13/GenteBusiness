@@ -24,10 +24,10 @@ console view of recent captures.
      `ATTENDANCE_AGENT_SECRET` environment variable.
    - `CLOUD_API_BASE_URL` — the production URL, e.g. `https://gente-business.vercel.app`.
 5. Register each Hikvision terminal (name, IP, username, password) on the
-   "Ponchadores" admin page in GenteBusiness. La IP y las credenciales del
+   "Ponchadores" admin page in GenteBusiness (la IP y las credenciales del
    ponchador las debe tener quien instaló el equipo físicamente —
    normalmente se pueden confirmar desde el menú de red en la pantalla del
-   propio ponchador. The agent picks these up automatically within 5 minutes
+   propio ponchador). The agent picks these up automatically within 5 minutes
    of starting, no restart needed.
 6. Test it manually first: `npm start`. Run this from a real interactive
    terminal window (Command Prompt or PowerShell) rather than redirecting its
