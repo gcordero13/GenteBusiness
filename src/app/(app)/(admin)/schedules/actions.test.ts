@@ -78,6 +78,56 @@ describe("saveScheduleTemplate", () => {
       { schedule_template_id: "new-id", day_of_week: 1, start_time: "09:00", end_time: "18:00" },
     ]);
   });
+
+  it("rejects unchecking the default on the schedule that's currently the only default", async () => {
+    mockAuthorizedCaller();
+    const countMock = vi.fn().mockResolvedValue({ count: 0 });
+    const admin = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ neq: countMock }) }),
+      }),
+    };
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await saveScheduleTemplate({
+      id: "current-default-id",
+      name: "General",
+      tolerance_minutes: 0,
+      is_default: false,
+      days: [],
+    });
+
+    expect(result.error).toBe("No se puede quitar el horario predeterminado sin marcar otro primero.");
+  });
+
+  it("allows saving as non-default when another schedule is still the default", async () => {
+    mockAuthorizedCaller();
+    const countMock = vi.fn().mockResolvedValue({ count: 1 });
+    const updateEq = vi.fn().mockResolvedValue({ error: null });
+    const deleteDaysEq = vi.fn().mockResolvedValue({ error: null });
+    const admin = {
+      from: vi.fn((table: string) => {
+        if (table === "schedule_templates") {
+          return {
+            select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ neq: countMock }) }),
+            update: vi.fn().mockReturnValue({ eq: updateEq }),
+          };
+        }
+        return { delete: vi.fn().mockReturnValue({ eq: deleteDaysEq }), insert: vi.fn().mockResolvedValue({ error: null }) };
+      }),
+    };
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await saveScheduleTemplate({
+      id: "some-other-id",
+      name: "Ventas",
+      tolerance_minutes: 0,
+      is_default: false,
+      days: [],
+    });
+
+    expect(result.error).toBeUndefined();
+  });
 });
 
 describe("deleteScheduleTemplate", () => {
