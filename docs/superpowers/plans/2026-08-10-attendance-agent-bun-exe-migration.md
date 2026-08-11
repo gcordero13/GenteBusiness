@@ -22,6 +22,8 @@
 
 8. **`digest-fetch` cannot be used in a `bun build --compile`d executable — discovered during this plan's own Task 8, not caught by any earlier test.** `bun test`/`bun run` both work fine, because they use Bun's own module loader directly. But compiling literally anything that constructs a `DigestFetch` instance and calls `.fetch()` on it crashes at runtime with `ReferenceError: require is not defined`, traced (by hand, with a minimal reproduction outside this project) to `digest-fetch`'s transitive dependency `js-sha256`, which contains `var crypto = eval("require('crypto')")` — a deliberate obfuscation some npm packages use to hide a Node-only `require` call from static bundler analysis (so bundlers don't try to polyfill it for a browser build). Bun's compiler doesn't see through the `eval()` either, but *unlike* a plain `require('crypto')` (which Bun's Node-compat layer handles fine in a compiled binary — confirmed separately), this specific evaluated form breaks. **Fix: `digest-fetch` was removed entirely** (along with its `js-sha256`/`js-sha512`/`md5`/etc. dependency tree) and replaced with `src/digestAuth.ts`, a ~50-line hand-written RFC 2617 Digest-auth implementation using only `fetch`, `crypto.randomUUID()`, and `Bun.CryptoHasher("md5")` (Bun's own native hasher — confirmed working both under `bun run` and compiled, since it never touches Node's `crypto` module or `require` at all). Verified correct against a real digest-challenge/response test server (both interpreted and compiled) before being adopted.
 
+9. **`mkdirSync(dir, { recursive: true })` can throw `EEXIST` even though `dir` already exists, in a compiled Bun executable — also only found by running the real compiled `.exe`.** Reproduced specifically against `installStartup()`'s real target path (`%APPDATA%\Roaming\Microsoft\Windows\Start Menu\Programs\Startup`, a folder that always already exists on a real Windows PC) — synthetic test paths of similar depth/structure did not reproduce it, so the exact trigger condition wasn't fully isolated, but the practical fix is simple and unconditionally safe: check `existsSync(dir)` first and only call `mkdirSync` if it's actually missing, rather than trusting `recursive: true`'s documented Node.js no-op-on-existing-directory behavior inside a compiled binary. Since the Startup folder always exists already, this bug would have failed on every single real `--install-startup` run, not as an edge case.
+
 ## File Structure
 
 All work happens inside the existing `attendance-agent/` folder (this migration replaces its contents, it does not create a new top-level folder).
@@ -870,7 +872,17 @@ function installStartup(): void {
     "Startup",
   );
   const destPath = join(startupDir, basename(process.execPath));
-  mkdirSync(startupDir, { recursive: true });
+  // Fixed after Task 8's smoke test caught a real bug: a compiled
+  // `bun build --compile` executable can throw EEXIST from
+  // `mkdirSync(dir, { recursive: true })` even though the dir already
+  // exists - reproduced specifically against this real, deep,
+  // always-already-existing Windows folder. Since the Startup folder always
+  // already exists on a real PC, this failed every single time in practice,
+  // not just as an edge case. Guard with existsSync instead of trusting
+  // `recursive: true` to no-op on an existing directory.
+  if (!existsSync(startupDir)) {
+    mkdirSync(startupDir, { recursive: true });
+  }
   copyFileSync(process.execPath, destPath);
   console.log(`Instalado: ${destPath}`);
   console.log("El agente se iniciará automáticamente la próxima vez que Windows inicie sesión.");
@@ -1404,7 +1416,7 @@ describe("fetchNewEvents", () => {
   });
 
   it("throws a descriptive error when the device responds with a non-ok HTTP status", async () => {
-    globalThis.fetch = mock(async () => ({ ok: false, status: 401 })) as unknown as typeof fetch;
+    globalThis.fetch = mock(async () => ({ ok: false, status: 401, headers: new Headers() })) as unknown as typeof fetch;
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "wrong" };
     await expect(fetchNewEvents(device, new Date(), new Date())).rejects.toThrow(/192\.168\.1\.50.*401/);

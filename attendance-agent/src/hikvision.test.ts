@@ -1,5 +1,5 @@
-import { describe, expect, it, mock } from "bun:test";
-import { parseAcsEventResponse, type RawPunch } from "./hikvision.ts";
+import { afterEach, describe, expect, it, mock } from "bun:test";
+import { fetchNewEvents, parseAcsEventResponse } from "./hikvision.ts";
 
 describe("parseAcsEventResponse", () => {
   it("extracts employee number and ISO punch time from a typical AcsEvent response", () => {
@@ -86,32 +86,26 @@ describe("parseAcsEventResponse", () => {
   });
 });
 
+const originalFetch = globalThis.fetch;
+
 describe("fetchNewEvents", () => {
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
   it("POSTs an AcsEvent search with the expected URL, method, and body shape", async () => {
     const fetchMock = mock(async (_url: string, _options: RequestInit) => ({
       ok: true,
+      status: 200,
       json: async () => ({ AcsEvent: { numOfMatches: 0, InfoList: [] } }),
     }));
-    const constructedWith: { user: string; password: string }[] = [];
-    mock.module("digest-fetch", () => ({
-      default: class {
-        constructor(
-          public user: string,
-          public password: string,
-        ) {
-          constructedWith.push({ user, password });
-        }
-        fetch = fetchMock;
-      },
-    }));
-    const { fetchNewEvents } = await import(`./hikvision.ts?t=${Date.now()}`);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
     const startTime = new Date("2026-08-10T00:00:00.000Z");
     const endTime = new Date("2026-08-10T23:59:59.000Z");
     await fetchNewEvents(device, startTime, endTime);
 
-    expect(constructedWith).toEqual([{ user: "admin", password: "secret" }]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("http://192.168.1.50/ISAPI/AccessControl/AcsEvent?format=json");
@@ -128,13 +122,33 @@ describe("fetchNewEvents", () => {
     });
   });
 
+  it("threads the device's username and password through to the Digest Authorization header", async () => {
+    const fetchMock = mock()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({
+          "WWW-Authenticate": 'Digest realm="DS-K1T321", qop="auth", nonce="abc123", opaque="xyz"',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ AcsEvent: { numOfMatches: 0, InfoList: [] } }),
+      });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
+    await fetchNewEvents(device, new Date(), new Date());
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondCallOptions = fetchMock.mock.calls[1][1];
+    const authHeader = (secondCallOptions.headers as Record<string, string>).Authorization;
+    expect(authHeader).toContain('username="admin"');
+  });
+
   it("throws a descriptive error when the device responds with a non-ok HTTP status", async () => {
-    mock.module("digest-fetch", () => ({
-      default: class {
-        fetch = mock(async () => ({ ok: false, status: 401 }));
-      },
-    }));
-    const { fetchNewEvents } = await import(`./hikvision.ts?t=${Date.now()}`);
+    globalThis.fetch = mock(async () => ({ ok: false, status: 401, headers: new Headers() })) as unknown as typeof fetch;
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "wrong" };
     await expect(fetchNewEvents(device, new Date(), new Date())).rejects.toThrow(/192\.168\.1\.50.*401/);
@@ -144,6 +158,7 @@ describe("fetchNewEvents", () => {
     const fetchMock = mock()
       .mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({
           AcsEvent: {
             numOfMatches: 200,
@@ -153,6 +168,7 @@ describe("fetchNewEvents", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({
           AcsEvent: {
             numOfMatches: 1,
@@ -160,12 +176,7 @@ describe("fetchNewEvents", () => {
           },
         }),
       });
-    mock.module("digest-fetch", () => ({
-      default: class {
-        fetch = fetchMock;
-      },
-    }));
-    const { fetchNewEvents } = await import(`./hikvision.ts?t=${Date.now()}`);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
     const result = await fetchNewEvents(
@@ -175,15 +186,16 @@ describe("fetchNewEvents", () => {
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const secondCallBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    const secondCallBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
     expect(secondCallBody.AcsEventCond.searchResultPosition).toBe(200);
-    expect(result.punches.map((p: RawPunch) => p.employeeNoString)).toEqual(["1", "3"]);
+    expect(result.punches.map((p) => p.employeeNoString)).toEqual(["1", "3"]);
     expect(result.hitPageCap).toBe(false);
   });
 
   it("stops after a bounded number of pages and reports hitPageCap when a device keeps reporting full pages", async () => {
     const fetchMock = mock(async () => ({
       ok: true,
+      status: 200,
       json: async () => ({
         AcsEvent: {
           numOfMatches: 200,
@@ -191,12 +203,7 @@ describe("fetchNewEvents", () => {
         },
       }),
     }));
-    mock.module("digest-fetch", () => ({
-      default: class {
-        fetch = fetchMock;
-      },
-    }));
-    const { fetchNewEvents } = await import(`./hikvision.ts?t=${Date.now()}`);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const device = { ipAddress: "192.168.1.50", username: "admin", password: "secret" };
     const result = await fetchNewEvents(device, new Date(), new Date());

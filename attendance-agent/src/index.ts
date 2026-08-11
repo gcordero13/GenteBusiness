@@ -58,7 +58,17 @@ function installStartup(): void {
     "Startup",
   );
   const destPath = join(startupDir, basename(process.execPath));
-  mkdirSync(startupDir, { recursive: true });
+  // Confirmed by hand: a compiled bun build --compile executable can throw
+  // EEXIST from mkdirSync(dir, { recursive: true }) even though the dir
+  // already exists - reproduced specifically against this real, deep,
+  // always-already-existing Windows folder (synthetic test paths of similar
+  // depth did not reproduce it). Since the Startup folder always already
+  // exists on a real PC, this isn't an edge case - it would fail every time
+  // in real deployment. Guard with existsSync instead of trusting
+  // `recursive: true` to no-op on an existing directory.
+  if (!existsSync(startupDir)) {
+    mkdirSync(startupDir, { recursive: true });
+  }
   copyFileSync(process.execPath, destPath);
   console.log(`Instalado: ${destPath}`);
   console.log("El agente se iniciará automáticamente la próxima vez que Windows inicie sesión.");

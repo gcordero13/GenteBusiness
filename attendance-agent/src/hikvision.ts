@@ -1,4 +1,4 @@
-import DigestFetch from "digest-fetch";
+import { digestFetch } from "./digestAuth.ts";
 
 interface AcsEventInfo {
   employeeNoString?: string;
@@ -53,27 +53,31 @@ export async function fetchNewEvents(
   startTime: Date,
   endTime: Date,
 ): Promise<FetchNewEventsResult> {
-  const client = new DigestFetch(device.username, device.password);
   const allPunches: RawPunch[] = [];
   let hitPageCap = false;
 
   for (let page = 0; page < MAX_PAGES; page++) {
-    const response = await client.fetch(`http://${device.ipAddress}/ISAPI/AccessControl/AcsEvent?format=json`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        AcsEventCond: {
-          searchID: crypto.randomUUID(),
-          searchResultPosition: page * PAGE_SIZE,
-          maxResults: PAGE_SIZE,
-          major: 0,
-          minor: 0,
-          startTime: startTime.toISOString(),
-          endTime: endTime.toISOString(),
-        },
-      }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
+    const response = await digestFetch(
+      `http://${device.ipAddress}/ISAPI/AccessControl/AcsEvent?format=json`,
+      device.username,
+      device.password,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          AcsEventCond: {
+            searchID: crypto.randomUUID(),
+            searchResultPosition: page * PAGE_SIZE,
+            maxResults: PAGE_SIZE,
+            major: 0,
+            minor: 0,
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+          },
+        }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      },
+    );
 
     if (!response.ok) {
       throw new Error(`Hikvision device ${device.ipAddress} returned HTTP ${response.status}`);
