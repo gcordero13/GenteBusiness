@@ -2,56 +2,63 @@ import { describe, expect, it } from "vitest";
 import {
   formatScheduleLine,
   formatScheduleTime,
-  formatWorkdays,
   getEffectiveSchedule,
-  type CompanySchedule,
-  type ScheduleOverrideFields,
+  resolveScheduleLine,
+  FALLBACK_SCHEDULE,
+  type ScheduleTemplate,
 } from "./schedules";
 
-const companyDefault: CompanySchedule = {
-  start_time: "08:00:00",
-  end_time: "17:00:00",
-  workdays: [1, 2, 3, 4, 5],
+const general: ScheduleTemplate = {
+  id: "general-id",
+  name: "General",
   tolerance_minutes: 0,
+  days: [
+    { day_of_week: 1, start_time: "08:00:00", end_time: "17:00:00" },
+    { day_of_week: 2, start_time: "08:00:00", end_time: "17:00:00" },
+    { day_of_week: 3, start_time: "08:00:00", end_time: "17:00:00" },
+    { day_of_week: 4, start_time: "08:00:00", end_time: "17:00:00" },
+    { day_of_week: 5, start_time: "08:00:00", end_time: "17:00:00" },
+  ],
+};
+
+const ventas: ScheduleTemplate = {
+  id: "ventas-id",
+  name: "Ventas",
+  tolerance_minutes: 0,
+  days: [
+    { day_of_week: 1, start_time: "09:00:00", end_time: "18:00:00" },
+    { day_of_week: 2, start_time: "09:00:00", end_time: "18:00:00" },
+    { day_of_week: 3, start_time: "09:00:00", end_time: "18:00:00" },
+    { day_of_week: 4, start_time: "09:00:00", end_time: "18:00:00" },
+    { day_of_week: 5, start_time: "09:00:00", end_time: "18:00:00" },
+    { day_of_week: 6, start_time: "10:00:00", end_time: "14:00:00" },
+  ],
 };
 
 describe("getEffectiveSchedule", () => {
-  it("uses the personal override when schedule_start_time is set", () => {
-    const override: ScheduleOverrideFields = {
-      schedule_start_time: "09:00:00",
-      schedule_end_time: "18:00:00",
-      schedule_workdays: [1, 2, 3, 4, 5, 6],
-      schedule_tolerance_minutes: 10,
-    };
+  const schedulesById = new Map([
+    [general.id, general],
+    [ventas.id, ventas],
+  ]);
 
-    expect(getEffectiveSchedule(override, companyDefault)).toEqual({
-      start_time: "09:00:00",
-      end_time: "18:00:00",
-      workdays: [1, 2, 3, 4, 5, 6],
-      tolerance_minutes: 10,
-    });
+  it("uses the contact's own override when set", () => {
+    const result = getEffectiveSchedule(ventas.id, general.id, schedulesById, general);
+    expect(result).toBe(ventas);
   });
 
-  it("uses the company default when no override is set", () => {
-    const override: ScheduleOverrideFields = {
-      schedule_start_time: null,
-      schedule_end_time: null,
-      schedule_workdays: null,
-      schedule_tolerance_minutes: null,
-    };
-
-    expect(getEffectiveSchedule(override, companyDefault)).toEqual(companyDefault);
+  it("uses the department default when the contact has no override", () => {
+    const result = getEffectiveSchedule(null, ventas.id, schedulesById, general);
+    expect(result).toBe(ventas);
   });
 
-  it("falls back entirely to the company default for a corrupted partial override (schedule_start_time null, siblings set) - only schedule_start_time is checked, not the siblings", () => {
-    const override: ScheduleOverrideFields = {
-      schedule_start_time: null,
-      schedule_end_time: "18:00:00",
-      schedule_workdays: [6],
-      schedule_tolerance_minutes: 99,
-    };
+  it("uses the global default when neither the contact nor the department has one set", () => {
+    const result = getEffectiveSchedule(null, null, schedulesById, general);
+    expect(result).toBe(general);
+  });
 
-    expect(getEffectiveSchedule(override, companyDefault)).toEqual(companyDefault);
+  it("falls back to the passed-in default schedule if a referenced id isn't in the map", () => {
+    const result = getEffectiveSchedule("missing-id", null, schedulesById, general);
+    expect(result).toBe(general);
   });
 });
 
@@ -77,26 +84,83 @@ describe("formatScheduleTime", () => {
   });
 });
 
-describe("formatWorkdays", () => {
-  it("formats a contiguous range as 'X a Y'", () => {
-    expect(formatWorkdays([1, 2, 3, 4, 5])).toBe("Lunes a viernes");
+describe("formatScheduleLine", () => {
+  it("groups a uniform weekday range and a separate Saturday block", () => {
+    expect(formatScheduleLine(ventas)).toBe("Lunes a viernes, 9:00 am – 6:00 pm · Sábado, 10:00 am – 2:00 pm");
   });
 
-  it("formats a single day by name", () => {
-    expect(formatWorkdays([3])).toBe("Miércoles");
+  it("formats a schedule with no Saturday as just the weekday range", () => {
+    expect(formatScheduleLine(general)).toBe("Lunes a viernes, 8:00 am – 5:00 pm");
   });
 
-  it("formats all seven days as the full-week contiguous range", () => {
-    expect(formatWorkdays([0, 1, 2, 3, 4, 5, 6])).toBe("Domingo a sábado");
+  it("formats a single worked day", () => {
+    const schedule: ScheduleTemplate = {
+      id: "x",
+      name: "x",
+      tolerance_minutes: 0,
+      days: [{ day_of_week: 3, start_time: "08:00:00", end_time: "17:00:00" }],
+    };
+    expect(formatScheduleLine(schedule)).toBe("Miércoles, 8:00 am – 5:00 pm");
   });
 
-  it("formats a non-contiguous set as a comma list", () => {
-    expect(formatWorkdays([1, 3, 5])).toBe("Lunes, miércoles, viernes");
+  it("groups all seven days into one range when every day shares identical hours", () => {
+    const schedule: ScheduleTemplate = {
+      id: "x",
+      name: "x",
+      tolerance_minutes: 0,
+      days: [0, 1, 2, 3, 4, 5, 6].map((day_of_week) => ({
+        day_of_week,
+        start_time: "08:00:00",
+        end_time: "17:00:00",
+      })),
+    };
+    expect(formatScheduleLine(schedule)).toBe("Domingo a sábado, 8:00 am – 5:00 pm");
+  });
+
+  it("does not merge days whose hours differ, even if consecutive", () => {
+    const schedule: ScheduleTemplate = {
+      id: "x",
+      name: "x",
+      tolerance_minutes: 0,
+      days: [
+        { day_of_week: 1, start_time: "08:00:00", end_time: "12:00:00" },
+        { day_of_week: 2, start_time: "13:00:00", end_time: "17:00:00" },
+      ],
+    };
+    expect(formatScheduleLine(schedule)).toBe("Lunes, 8:00 am – 12:00 pm · Martes, 1:00 pm – 5:00 pm");
+  });
+
+  it("sorts out-of-order input before grouping", () => {
+    const schedule: ScheduleTemplate = {
+      id: "x",
+      name: "x",
+      tolerance_minutes: 0,
+      days: [
+        { day_of_week: 5, start_time: "08:00:00", end_time: "17:00:00" },
+        { day_of_week: 1, start_time: "08:00:00", end_time: "17:00:00" },
+        { day_of_week: 3, start_time: "08:00:00", end_time: "17:00:00" },
+        { day_of_week: 2, start_time: "08:00:00", end_time: "17:00:00" },
+        { day_of_week: 4, start_time: "08:00:00", end_time: "17:00:00" },
+      ],
+    };
+    expect(formatScheduleLine(schedule)).toBe("Lunes a viernes, 8:00 am – 5:00 pm");
+  });
+
+  it("returns a placeholder for a schedule with no worked days at all", () => {
+    const schedule: ScheduleTemplate = { id: "x", name: "x", tolerance_minutes: 0, days: [] };
+    expect(formatScheduleLine(schedule)).toBe("Sin horario asignado");
   });
 });
 
-describe("formatScheduleLine", () => {
-  it("combines workdays and times into one display line", () => {
-    expect(formatScheduleLine(companyDefault)).toBe("Lunes a viernes, 8:00 am – 5:00 pm");
+describe("resolveScheduleLine", () => {
+  it("combines resolution and formatting in one call", () => {
+    const schedulesById = new Map([[general.id, general]]);
+    expect(resolveScheduleLine(null, null, schedulesById, general)).toBe("Lunes a viernes, 8:00 am – 5:00 pm");
+  });
+});
+
+describe("FALLBACK_SCHEDULE", () => {
+  it("is a plain Monday-Friday 8-5 schedule usable if the database query returns nothing", () => {
+    expect(formatScheduleLine(FALLBACK_SCHEDULE)).toBe("Lunes a viernes, 8:00 am – 5:00 pm");
   });
 });
