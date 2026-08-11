@@ -28,7 +28,10 @@ console view of recent captures.
    ponchador las debe tener quien instaló el equipo físicamente —
    normalmente se pueden confirmar desde el menú de red en la pantalla del
    propio ponchador). The agent picks these up automatically within 5 minutes
-   of starting, no restart needed.
+   of starting, no restart needed — if you register a terminal after already
+   starting the agent in step 6 below, it's normal to see
+   `Dispositivos registrados: 0` for up to 5 minutes; press Ctrl+C and run
+   `npm start` again if you don't want to wait.
 6. Test it manually first: `npm start`. Run this from a real interactive
    terminal window (Command Prompt or PowerShell) rather than redirecting its
    output to a file — the live console monitor clears and redraws the screen,
