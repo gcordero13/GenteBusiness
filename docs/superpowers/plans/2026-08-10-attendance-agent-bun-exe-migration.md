@@ -625,7 +625,7 @@ This mirrors the exact test coverage the Node.js version had (parser edge cases,
 - [ ] **Step 3: Run the tests**
 
 Run: `cd attendance-agent && bun test hikvision.test.ts`
-Expected: PASS (10/10 — 5 parser tests + 5 fetchNewEvents tests)
+Expected: PASS (9/9 — 5 parser tests + 4 fetchNewEvents tests; an earlier draft of this plan miscounted this as 10/5, fixed after Task 4 caught it)
 
 If `mock.module()`'s exact behavior around re-importing the module under test doesn't work as written above (this is the one part of this task with real uncertainty, since `bun:test`'s module-mocking API has evolved across Bun versions), adjust the mocking mechanics to whatever actually works on the installed Bun version — the important thing to preserve is: no live network/device call, and the same assertions (request shape, error message, pagination behavior, page-cap signal) all still get verified. If you have to deviate from the exact code above, report DONE_WITH_CONCERNS explaining what changed and why.
 
