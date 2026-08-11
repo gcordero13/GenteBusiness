@@ -6,6 +6,7 @@ import {
   BookUser,
   Building2,
   FileSignature,
+  Fingerprint,
   LogOut,
   Network,
   PanelLeftClose,
@@ -38,6 +39,7 @@ export function Sidebar({
   canUseDocumentStamps,
   canViewMaintenance,
   canViewSolicitudesVacaciones,
+  canManageAttendanceDevices,
   onLogout,
   onNavigate,
 }: {
@@ -52,6 +54,7 @@ export function Sidebar({
   canUseDocumentStamps: boolean;
   canViewMaintenance: boolean;
   canViewSolicitudesVacaciones: boolean;
+  canManageAttendanceDevices: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -88,6 +91,9 @@ export function Sidebar({
     ...(canManageCompanies ? [{ href: "/companies", label: "Empresas", icon: Building2 }] : []),
     ...(canManageDepartments ? [{ href: "/departments", label: "Departamentos", icon: Network }] : []),
     ...(canManageActivities ? [{ href: "/activities", label: "Actividades", icon: PartyPopper }] : []),
+    ...(canManageAttendanceDevices
+      ? [{ href: "/attendance-devices", label: "Ponchadores", icon: Fingerprint }]
+      : []),
     ...(canManageSettings ? [{ href: "/settings", label: "Correo (SMTP)", icon: Settings }] : []),
   ];
 

@@ -40,6 +40,7 @@ export default async function AppLayout({
       canUseDocumentStamps={Boolean(permissions.get("document_stamps")?.can_add)}
       canViewMaintenance={Boolean(permissions.get("maintenance")?.can_view)}
       canViewSolicitudesVacaciones={Boolean(permissions.get("solicitudes_vacaciones")?.can_view)}
+      canManageAttendanceDevices={Boolean(permissions.get("attendance_devices")?.can_manage)}
       onLogout={logout}
     >
       {children}
