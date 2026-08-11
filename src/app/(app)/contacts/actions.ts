@@ -32,6 +32,17 @@ export interface ContactInput {
 export async function saveContact(input: ContactInput) {
   const supabase = await createClient();
   const { id, ...fields } = input;
+
+  const scheduleFieldsFilled = [
+    Boolean(fields.schedule_start_time),
+    Boolean(fields.schedule_end_time),
+    fields.schedule_workdays.length > 0,
+    Boolean(fields.schedule_tolerance_minutes),
+  ].filter(Boolean).length;
+  if (scheduleFieldsFilled > 0 && scheduleFieldsFilled < 4) {
+    return { error: "Si configuras un horario personalizado, completa los cuatro campos de horario." };
+  }
+
   const payload = {
     ...fields,
     email: fields.email || null,
