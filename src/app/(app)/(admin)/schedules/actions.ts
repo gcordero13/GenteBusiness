@@ -14,9 +14,24 @@ interface ActionResult {
   error?: string;
 }
 
+async function callerCanManageSchedules(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase.rpc("get_my_module_permissions", { p_module_key: "schedules" });
+  return Boolean(data?.[0]?.can_manage);
+}
+
 export async function saveCompanySchedule(
   input: SaveCompanyScheduleInput,
 ): Promise<ActionResult> {
+  if (!(await callerCanManageSchedules())) {
+    return { error: "No autorizado" };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("company_schedule")
