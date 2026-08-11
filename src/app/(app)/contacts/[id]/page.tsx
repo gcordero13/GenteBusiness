@@ -71,6 +71,13 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
             birth_date: contact.birth_date ?? "",
             hire_date: contact.hire_date ?? "",
             hikvision_employee_no: contact.hikvision_employee_no ?? "",
+            schedule_start_time: contact.schedule_start_time?.slice(0, 5) ?? "",
+            schedule_end_time: contact.schedule_end_time?.slice(0, 5) ?? "",
+            schedule_workdays: contact.schedule_workdays ?? [],
+            schedule_tolerance_minutes:
+              contact.schedule_tolerance_minutes != null
+                ? String(contact.schedule_tolerance_minutes)
+                : "",
             reports_to_id: contact.reports_to_id ?? "",
             photo_url: contact.photo_url ?? "",
           }}

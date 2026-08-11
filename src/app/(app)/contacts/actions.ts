@@ -21,6 +21,10 @@ export interface ContactInput {
   birth_date: string;
   hire_date: string;
   hikvision_employee_no: string;
+  schedule_start_time: string;
+  schedule_end_time: string;
+  schedule_workdays: number[];
+  schedule_tolerance_minutes: string;
   reports_to_id: string;
   photo_url: string;
 }
@@ -36,6 +40,11 @@ export async function saveContact(input: ContactInput) {
     birth_date: fields.birth_date || null,
     hire_date: fields.hire_date || null,
     hikvision_employee_no: fields.hikvision_employee_no || null,
+    schedule_start_time: fields.schedule_start_time || null,
+    schedule_end_time: fields.schedule_end_time || null,
+    schedule_workdays: fields.schedule_workdays.length > 0 ? fields.schedule_workdays : null,
+    schedule_tolerance_minutes:
+      fields.schedule_tolerance_minutes !== "" ? Number(fields.schedule_tolerance_minutes) : null,
     company_id: fields.company_id || null,
     department_id: fields.department_id || null,
     reports_to_id: fields.reports_to_id || null,
