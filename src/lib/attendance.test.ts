@@ -8,6 +8,7 @@ import {
   attachScheduleComparison,
   averageMinutesEarly,
   classifyArrivalTier,
+  pickMotivationalPhrase,
 } from "./attendance";
 
 describe("toBusinessTimeParts", () => {
@@ -202,5 +203,35 @@ describe("classifyArrivalTier", () => {
 
   it("classifies well over 10 minutes early as muy_temprano", () => {
     expect(classifyArrivalTier(25, 0)).toBe("muy_temprano");
+  });
+});
+
+describe("pickMotivationalPhrase", () => {
+  it("substitutes {name} into the selected phrase", () => {
+    const result = pickMotivationalPhrase("a_tiempo", "Carlos", 0);
+    expect(result).toContain("Carlos");
+    expect(result).not.toContain("{name}");
+  });
+
+  it("returns the same phrase for the same tier and day of month every time", () => {
+    const first = pickMotivationalPhrase("temprano", "Ana", 5);
+    const second = pickMotivationalPhrase("temprano", "Ana", 5);
+    expect(first).toBe(second);
+  });
+
+  it("can return different phrases from the same tier's pool on different days", () => {
+    // muy_tarde has 3 phrases; day 0 and day 1 select different pool indices
+    const dayZero = pickMotivationalPhrase("muy_tarde", "Ana", 0);
+    const dayOne = pickMotivationalPhrase("muy_tarde", "Ana", 1);
+    expect(dayZero).not.toBe(dayOne);
+  });
+
+  it("only ever returns a phrase belonging to the requested tier", () => {
+    for (let day = 0; day < 31; day++) {
+      const result = pickMotivationalPhrase("muy_temprano", "Ana", day);
+      expect(result.includes("primeros") || result.includes("disciplina") || result.includes("máquina")).toBe(
+        true,
+      );
+    }
   });
 });

@@ -128,3 +128,39 @@ export function classifyArrivalTier(avgMinutesEarly: number, toleranceMinutes: n
   if (avgMinutesEarly < 10) return "temprano";
   return "muy_temprano";
 }
+
+// Verbatim phrase pool from the spec's "Motivational Message (Card 1)"
+// section - warm and encouraging in every tier, never blaming.
+const PHRASES_BY_TIER: Record<ArrivalTier, string[]> = {
+  muy_tarde: [
+    "{name}, sabemos que este mes no ha sido fácil para llegar a tiempo. ¡Un pequeño cambio en la rutina puede hacer la diferencia! 💪",
+    "Ánimo, {name}. Todos tenemos meses difíciles — lo importante es seguir intentándolo.",
+    "{name}, mañana es una nueva oportunidad para mejorar tu llegada. ¡Tú puedes!",
+  ],
+  un_poco_tarde: [
+    "Vas por buen camino, {name}. Solo un poco más de esfuerzo y llegarás a tiempo.",
+    "{name}, estás cerca de lograrlo. ¡Sigue así!",
+  ],
+  a_tiempo: [
+    "¡Bien hecho, {name}! Mantener la puntualidad no es fácil y lo estás logrando.",
+    "{name}, tu constancia llegando a tiempo no pasa desapercibida. ¡Gracias!",
+  ],
+  temprano: [
+    "¡Excelente, {name}! Llegar temprano habla muy bien de tu compromiso.",
+    "{name}, tu puntualidad es un ejemplo para el equipo. ¡Sigue así!",
+  ],
+  muy_temprano: [
+    "¡Impresionante, {name}! Eres de los primeros en llegar cada día.",
+    "{name}, tu disciplina para llegar temprano es admirable. ¡Felicidades!",
+    "¡{name}, eres una máquina de puntualidad! Gracias por dar el ejemplo.",
+  ],
+};
+
+// Picks one phrase from the matching tier's pool, substituting {name}.
+// dayOfMonth selects deterministically among that tier's pool via modulo -
+// stable within a day, varying day to day for repeat visitors.
+export function pickMotivationalPhrase(tier: ArrivalTier, name: string, dayOfMonth: number): string {
+  const pool = PHRASES_BY_TIER[tier];
+  const phrase = pool[dayOfMonth % pool.length];
+  return phrase.replace(/\{name\}/g, name);
+}
