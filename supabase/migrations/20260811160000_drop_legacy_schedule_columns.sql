@@ -1,3 +1,13 @@
+-- DEPLOY-GATED: do not paste this into the Supabase SQL Editor until the
+-- feature/horarios-named-schedules branch has been merged to main AND
+-- deployed to production, with the human confirming the new deployment is
+-- live. This drops company_schedule and four contacts.schedule_* columns
+-- that the OLD, currently-deployed Horarios code still reads on every page
+-- load - applying this before that code is replaced in production will
+-- break the live site. See docs/superpowers/plans/2026-08-11-horarios-named-schedules.md,
+-- Task 9, and its "CRITICAL: Migration timing" section at the top of that
+-- same file.
+
 drop table public.company_schedule;
 
 alter table public.contacts drop column schedule_start_time;
