@@ -1,14 +1,11 @@
-import type { CompanySchedule } from "@/lib/schedules";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 
 export function ContactsGrouped({
   contacts,
   canEdit = false,
-  companySchedule,
 }: {
   contacts: ContactRow[];
   canEdit?: boolean;
-  companySchedule: CompanySchedule;
 }) {
   const groups = new Map<string, ContactRow[]>();
   for (const contact of contacts) {
@@ -27,7 +24,7 @@ export function ContactsGrouped({
             {companyName} ({groupContacts.length})
           </summary>
           <div className="border-t p-2">
-            <ContactsTable contacts={groupContacts} canEdit={canEdit} companySchedule={companySchedule} />
+            <ContactsTable contacts={groupContacts} canEdit={canEdit} />
           </div>
         </details>
       ))}

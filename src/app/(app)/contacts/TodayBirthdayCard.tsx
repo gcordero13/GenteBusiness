@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials, type BirthdayContact } from "@/lib/contacts";
-import type { CompanySchedule } from "@/lib/schedules";
 import { BirthdayContactModal } from "./BirthdayContactModal";
 
 const AUTOPLAY_MS = 4 * 1000;
@@ -32,13 +31,7 @@ const CONFETTI_PIECES: ConfettiPiece[] = Array.from({ length: CONFETTI_COUNT }, 
   duration: 1.8 + pseudoRandom(i + 200) * 1.4,
 }));
 
-export function TodayBirthdayCard({
-  contacts,
-  companySchedule,
-}: {
-  contacts: BirthdayContact[];
-  companySchedule: CompanySchedule;
-}) {
+export function TodayBirthdayCard({ contacts }: { contacts: BirthdayContact[] }) {
   const n = contacts.length;
   const [active, setActive] = useState(0);
 
@@ -76,7 +69,6 @@ export function TodayBirthdayCard({
       ))}
       <BirthdayContactModal
         contact={contact}
-        companySchedule={companySchedule}
         trigger={
           <button type="button" className="relative z-10 flex w-full flex-col items-center gap-1 text-left">
             <Avatar className="size-52 border-4 border-white shadow-lg">

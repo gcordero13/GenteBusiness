@@ -14,25 +14,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, Clock, Mail, MessageCircle, Phone } from "lucide-react";
 import { formatTenure, getBusinessToday, whatsappUrl } from "@/lib/contacts";
-import { formatScheduleLine, getEffectiveSchedule, type CompanySchedule } from "@/lib/schedules";
 import type { ContactRow } from "./ContactsTable";
 
 export function ContactViewDialog({
   contact,
   canEdit,
-  companySchedule,
   children,
 }: {
   contact: ContactRow;
   canEdit: boolean;
-  companySchedule: CompanySchedule;
   children: ReactNode;
 }) {
   const hasContactInfo = Boolean(
     contact.extension || contact.fleet_phone || contact.email || contact.hire_date,
   );
   const tenure = contact.hire_date ? formatTenure(contact.hire_date, getBusinessToday()) : null;
-  const scheduleLine = formatScheduleLine(getEffectiveSchedule(contact, companySchedule));
 
   return (
     <Dialog>
@@ -132,7 +128,7 @@ export function ContactViewDialog({
             <CalendarClock className="size-6 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Horario</p>
-              <p className="text-base font-semibold sm:text-lg">{scheduleLine}</p>
+              <p className="text-base font-semibold sm:text-lg">{contact.schedule_line}</p>
             </div>
           </div>
         </div>

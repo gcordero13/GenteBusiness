@@ -9,7 +9,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, MessageCircle } from "lucide-react";
 import { whatsappUrl } from "@/lib/contacts";
-import type { CompanySchedule } from "@/lib/schedules";
 import { ContactViewDialog } from "./ContactViewDialog";
 
 export interface ContactRow {
@@ -24,10 +23,7 @@ export interface ContactRow {
   has_whatsapp: boolean;
   photo_url: string | null;
   hire_date: string | null;
-  schedule_start_time: string | null;
-  schedule_end_time: string | null;
-  schedule_workdays: number[] | null;
-  schedule_tolerance_minutes: number | null;
+  schedule_line: string;
   reports_to_id: string | null;
   companies: { name: string } | null;
   departments: { name: string } | null;
@@ -36,11 +32,9 @@ export interface ContactRow {
 export function ContactsTable({
   contacts,
   canEdit = false,
-  companySchedule,
 }: {
   contacts: ContactRow[];
   canEdit?: boolean;
-  companySchedule: CompanySchedule;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border">
@@ -59,7 +53,7 @@ export function ContactsTable({
           {contacts.map((c) => (
             <TableRow key={c.id}>
               <TableCell className="py-3">
-                <ContactViewDialog contact={c} canEdit={canEdit} companySchedule={companySchedule}>
+                <ContactViewDialog contact={c} canEdit={canEdit}>
                   <span className="flex items-center gap-3 hover:underline">
                     <Avatar className="size-8">
                       <AvatarImage src={c.photo_url ?? undefined} alt="" />
