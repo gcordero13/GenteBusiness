@@ -33,24 +33,51 @@ export function toBusinessTimeParts(punchedAtIso: string): { dateIso: string; mi
 // to be a day's "arrival."
 const ARRIVAL_CUTOFF_MINUTES = 12 * 60;
 
-// Groups raw punch timestamps by business-timezone calendar day and keeps
-// only the earliest BEFORE-NOON punch per day - that day's "arrival." A day
-// whose only punches are at/after noon has no arrival at all and is left out
-// of the result entirely, the same as a day with zero punches - a lone
-// afternoon punch is not evidence of when someone arrived that morning.
-export function deriveDailyArrivals(punchedAtIsoTimestamps: string[]): DailyArrival[] {
-  const earliestByDate = new Map<string, number>();
+export interface DailyAttendanceRow {
+  dateIso: string; // "YYYY-MM-DD", business-timezone calendar day
+  arrivalMinutes: number | null; // earliest punch before noon that day, or null
+  exitMinutes: number | null; // latest punch that day, or null - see rule below
+}
+
+// Groups raw punch timestamps by business-timezone calendar day. For each day
+// that has at least one punch:
+// - arrivalMinutes is the earliest punch before noon that day, or null if
+//   every punch that day was at/after noon - a lone afternoon punch is not
+//   evidence of when someone arrived that morning.
+// - exitMinutes is the day's latest punch, UNLESS that day has exactly one
+//   punch and it's already the arrival - a single morning punch isn't shown
+//   as both an entrada and a salida, since there's no second event to
+//   report. A day whose only punch is in the afternoon has no arrival, so
+//   that one punch is reported as exitMinutes instead - there's no arrival
+//   for it to collide with.
+export function buildDailyAttendanceRows(punchedAtIsoTimestamps: string[]): DailyAttendanceRow[] {
+  const minutesByDate = new Map<string, number[]>();
   for (const iso of punchedAtIsoTimestamps) {
     const { dateIso, minutesSinceMidnight } = toBusinessTimeParts(iso);
-    if (minutesSinceMidnight >= ARRIVAL_CUTOFF_MINUTES) continue;
-    const existing = earliestByDate.get(dateIso);
-    if (existing === undefined || minutesSinceMidnight < existing) {
-      earliestByDate.set(dateIso, minutesSinceMidnight);
-    }
+    const list = minutesByDate.get(dateIso) ?? [];
+    list.push(minutesSinceMidnight);
+    minutesByDate.set(dateIso, list);
   }
-  return Array.from(earliestByDate.entries())
-    .map(([dateIso, arrivalMinutes]) => ({ dateIso, arrivalMinutes }))
-    .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+
+  const rows: DailyAttendanceRow[] = [];
+  for (const [dateIso, minutes] of minutesByDate.entries()) {
+    const sorted = [...minutes].sort((a, b) => a - b);
+    const morningPunches = sorted.filter((m) => m < ARRIVAL_CUTOFF_MINUTES);
+    const arrivalMinutes = morningPunches.length > 0 ? morningPunches[0] : null;
+    const latest = sorted[sorted.length - 1];
+    const exitMinutes = sorted.length > 1 || arrivalMinutes === null ? latest : null;
+    rows.push({ dateIso, arrivalMinutes, exitMinutes });
+  }
+  return rows.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+}
+
+// Thin filter over buildDailyAttendanceRows - kept as its own function since
+// most callers (the monthly average, the schedule comparison) only care
+// about arrivals and shouldn't need to know exitMinutes exists at all.
+export function deriveDailyArrivals(punchedAtIsoTimestamps: string[]): DailyArrival[] {
+  return buildDailyAttendanceRows(punchedAtIsoTimestamps)
+    .filter((row): row is DailyAttendanceRow & { arrivalMinutes: number } => row.arrivalMinutes !== null)
+    .map((row) => ({ dateIso: row.dateIso, arrivalMinutes: row.arrivalMinutes }));
 }
 
 // Averages the time-of-day component across a set of daily arrivals. Returns

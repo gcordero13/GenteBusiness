@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   toBusinessTimeParts,
+  buildDailyAttendanceRows,
   deriveDailyArrivals,
   averageArrivalMinutes,
   formatArrivalTime,
@@ -30,6 +31,49 @@ describe("toBusinessTimeParts", () => {
     // 2026-01-01T04:00:00Z is exactly 2026-01-01 00:00 in America/Santo_Domingo
     const result = toBusinessTimeParts("2026-01-01T04:00:00.000Z");
     expect(result).toEqual({ dateIso: "2026-01-01", minutesSinceMidnight: 0 });
+  });
+});
+
+describe("buildDailyAttendanceRows", () => {
+  it("reports only an arrival for a day with a single morning punch", () => {
+    const result = buildDailyAttendanceRows(["2026-01-15T12:30:00.000Z"]); // 08:30 local
+    expect(result).toEqual([{ dateIso: "2026-01-15", arrivalMinutes: 8 * 60 + 30, exitMinutes: null }]);
+  });
+
+  it("reports both an arrival and an exit for a day with a morning and an afternoon punch", () => {
+    const result = buildDailyAttendanceRows([
+      "2026-01-15T12:30:00.000Z", // 08:30 local
+      "2026-01-15T21:00:00.000Z", // 17:00 local
+    ]);
+    expect(result).toEqual([{ dateIso: "2026-01-15", arrivalMinutes: 8 * 60 + 30, exitMinutes: 17 * 60 }]);
+  });
+
+  it("reports only an exit (no arrival) for a day with a single afternoon-only punch", () => {
+    const result = buildDailyAttendanceRows(["2026-01-15T21:00:00.000Z"]); // 17:00 local
+    expect(result).toEqual([{ dateIso: "2026-01-15", arrivalMinutes: null, exitMinutes: 17 * 60 }]);
+  });
+
+  it("reports the later of two afternoon-only punches as the exit, with no arrival", () => {
+    const result = buildDailyAttendanceRows([
+      "2026-01-15T19:00:00.000Z", // 15:00 local
+      "2026-01-15T21:00:00.000Z", // 17:00 local
+    ]);
+    expect(result).toEqual([{ dateIso: "2026-01-15", arrivalMinutes: null, exitMinutes: 17 * 60 }]);
+  });
+
+  it("returns one row per distinct day, sorted by date ascending", () => {
+    const result = buildDailyAttendanceRows([
+      "2026-01-16T12:00:00.000Z", // 08:00 local, the 16th
+      "2026-01-15T12:30:00.000Z", // 08:30 local, the 15th
+    ]);
+    expect(result).toEqual([
+      { dateIso: "2026-01-15", arrivalMinutes: 8 * 60 + 30, exitMinutes: null },
+      { dateIso: "2026-01-16", arrivalMinutes: 8 * 60, exitMinutes: null },
+    ]);
+  });
+
+  it("returns an empty array for no punches", () => {
+    expect(buildDailyAttendanceRows([])).toEqual([]);
   });
 });
 
