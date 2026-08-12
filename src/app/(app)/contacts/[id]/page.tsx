@@ -35,6 +35,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
     .select("id, first_name, last_name")
     .neq("id", id)
     .order("first_name");
+  const { data: schedules } = await supabase.from("schedule_templates").select("id, name").order("name");
 
   async function toggleStatus() {
     "use server";
@@ -57,6 +58,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
             id: c.id,
             name: `${c.first_name} ${c.last_name}`,
           }))}
+          schedules={schedules ?? []}
           initial={{
             id: contact.id,
             first_name: contact.first_name,
@@ -71,13 +73,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
             birth_date: contact.birth_date ?? "",
             hire_date: contact.hire_date ?? "",
             hikvision_employee_no: contact.hikvision_employee_no ?? "",
-            schedule_start_time: contact.schedule_start_time?.slice(0, 5) ?? "",
-            schedule_end_time: contact.schedule_end_time?.slice(0, 5) ?? "",
-            schedule_workdays: contact.schedule_workdays ?? [],
-            schedule_tolerance_minutes:
-              contact.schedule_tolerance_minutes != null
-                ? String(contact.schedule_tolerance_minutes)
-                : "",
+            schedule_id: contact.schedule_id ?? "",
             reports_to_id: contact.reports_to_id ?? "",
             photo_url: contact.photo_url ?? "",
           }}

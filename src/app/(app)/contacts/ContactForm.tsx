@@ -28,11 +28,13 @@ export function ContactForm({
   companies,
   departments,
   supervisors,
+  schedules,
   initial,
 }: {
   companies: Option[];
   departments: DepartmentOption[];
   supervisors: Option[];
+  schedules: Option[];
   initial?: ContactInput;
 }) {
   const [form, setForm] = useState<ContactInput>(
@@ -49,10 +51,7 @@ export function ContactForm({
       birth_date: "",
       hire_date: "",
       hikvision_employee_no: "",
-      schedule_start_time: "",
-      schedule_end_time: "",
-      schedule_workdays: [],
-      schedule_tolerance_minutes: "",
+      schedule_id: "",
       reports_to_id: "",
       photo_url: "",
     },
@@ -80,27 +79,7 @@ export function ContactForm({
     }));
   }
 
-  function toggleWorkday(day: number) {
-    setForm((prev) => ({
-      ...prev,
-      schedule_workdays: prev.schedule_workdays.includes(day)
-        ? prev.schedule_workdays.filter((d) => d !== day)
-        : [...prev.schedule_workdays, day].sort((a, b) => a - b),
-    }));
-  }
-
   function submit() {
-    const scheduleFieldsFilled = [
-      Boolean(form.schedule_start_time),
-      Boolean(form.schedule_end_time),
-      form.schedule_workdays.length > 0,
-      Boolean(form.schedule_tolerance_minutes),
-    ].filter(Boolean).length;
-    if (scheduleFieldsFilled > 0 && scheduleFieldsFilled < 4) {
-      setError("Si configuras un horario personalizado, completa los cuatro campos de horario.");
-      return;
-    }
-
     startTransition(async () => {
       let photoUrl = form.photo_url;
 
@@ -238,54 +217,24 @@ export function ContactForm({
           onChange={(e) => field("hikvision_employee_no", e.target.value)}
         />
       </div>
-      <div className="space-y-1 border-t pt-3">
-        <Label className="text-sm font-medium">Horario personalizado (opcional)</Label>
-        <p className="text-xs text-muted-foreground">
-          Déjalo en blanco para usar el horario de la empresa. Si lo llenas, completa los cuatro
-          campos.
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <Label>Hora de entrada</Label>
-          <Input
-            type="time"
-            value={form.schedule_start_time}
-            onChange={(e) => field("schedule_start_time", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label>Hora de salida</Label>
-          <Input
-            type="time"
-            value={form.schedule_end_time}
-            onChange={(e) => field("schedule_end_time", e.target.value)}
-          />
-        </div>
-      </div>
       <div className="space-y-1">
-        <Label>Días laborables</Label>
-        <div className="flex gap-3">
-          {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map((label, day) => (
-            <label key={day} className="flex flex-col items-center gap-1 text-xs">
-              <input
-                type="checkbox"
-                checked={form.schedule_workdays.includes(day)}
-                onChange={() => toggleWorkday(day)}
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-1">
-        <Label>Minutos de tolerancia</Label>
-        <Input
-          type="number"
-          min={0}
-          value={form.schedule_tolerance_minutes}
-          onChange={(e) => field("schedule_tolerance_minutes", e.target.value)}
-        />
+        <Label>Horario (excepción)</Label>
+        <Select value={form.schedule_id} onValueChange={(v) => field("schedule_id", v ?? "")}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Usar el horario de mi departamento">
+              {(value: string) =>
+                schedules.find((s) => s.id === value)?.name ?? "Usar el horario de mi departamento"
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {schedules.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-1">
         <Label>Foto de perfil (opcional)</Label>
