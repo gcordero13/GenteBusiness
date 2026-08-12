@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createTestUser, deleteTestUser, type TestUser } from "./supabaseTestHelpers";
 
 describe("role_profile_permissions seed data", () => {
   it("has the three default profiles with the right per-module flags, migrated from the old flat model", async () => {
@@ -62,5 +63,112 @@ describe("role_profile_permissions seed data", () => {
         "users",
       ].sort(),
     );
+  });
+});
+
+describe("role_profiles delete restrictions", () => {
+  let admin_user: TestUser | undefined;
+  let viewer: TestUser | undefined;
+  let createdProfileId: string | undefined;
+
+  afterEach(async () => {
+    const admin = createAdminClient();
+    if (createdProfileId) {
+      await admin.from("role_profiles").delete().eq("id", createdProfileId);
+      createdProfileId = undefined;
+    }
+    if (admin_user) await deleteTestUser(admin_user.id);
+    if (viewer) await deleteTestUser(viewer.id);
+    admin_user = undefined;
+    viewer = undefined;
+  });
+
+  it("lets a can_manage user delete an unassigned, non-Super-Admin profile, cascading its permission rows", async () => {
+    admin_user = await createTestUser("Super Admin");
+    const admin = createAdminClient();
+
+    const { data: created } = await admin
+      .from("role_profiles")
+      .insert({ name: `Throwaway ${crypto.randomUUID()}` })
+      .select()
+      .single();
+    createdProfileId = created!.id;
+
+    const { error } = await admin_user.client.from("role_profiles").delete().eq("id", createdProfileId);
+    expect(error).toBeNull();
+
+    const { data: stillThere } = await admin.from("role_profiles").select("id").eq("id", createdProfileId).maybeSingle();
+    expect(stillThere).toBeNull();
+
+    const { data: leftoverPermissions } = await admin
+      .from("role_profile_permissions")
+      .select("id")
+      .eq("role_profile_id", createdProfileId);
+    expect(leftoverPermissions).toEqual([]);
+
+    createdProfileId = undefined;
+  });
+
+  it("blocks deleting a profile that still has an assigned user", async () => {
+    admin_user = await createTestUser("Super Admin");
+    const admin = createAdminClient();
+
+    const { data: created } = await admin
+      .from("role_profiles")
+      .insert({ name: `Throwaway ${crypto.randomUUID()}` })
+      .select()
+      .single();
+    createdProfileId = created!.id;
+
+    viewer = await createTestUser("Viewer");
+    await admin.from("app_users").update({ role_profile_id: createdProfileId }).eq("id", viewer.id);
+
+    const { error } = await admin_user.client.from("role_profiles").delete().eq("id", createdProfileId);
+    expect(error).not.toBeNull();
+    expect(error?.message).toContain("usuario(s) asignado(s)");
+
+    const { data: stillThere } = await admin.from("role_profiles").select("id").eq("id", createdProfileId).maybeSingle();
+    expect(stillThere).not.toBeNull();
+  });
+
+  it("blocks deleting the Super Admin profile even with zero assigned users in a fresh check", async () => {
+    admin_user = await createTestUser("Super Admin");
+    const admin = createAdminClient();
+
+    const { data: superAdminProfile } = await admin
+      .from("role_profiles")
+      .select("id")
+      .eq("name", "Super Admin")
+      .single();
+
+    const { error } = await admin_user.client.from("role_profiles").delete().eq("id", superAdminProfile!.id);
+    expect(error).not.toBeNull();
+    expect(error?.message).toContain("Super Admin");
+
+    const { data: stillThere } = await admin
+      .from("role_profiles")
+      .select("id")
+      .eq("id", superAdminProfile!.id)
+      .maybeSingle();
+    expect(stillThere).not.toBeNull();
+  });
+
+  it("blocks a user without can_manage on role_profiles from deleting any profile", async () => {
+    const admin = createAdminClient();
+    const { data: created } = await admin
+      .from("role_profiles")
+      .insert({ name: `Throwaway ${crypto.randomUUID()}` })
+      .select()
+      .single();
+    createdProfileId = created!.id;
+
+    viewer = await createTestUser("Viewer");
+    const { error } = await viewer.client.from("role_profiles").delete().eq("id", createdProfileId);
+    // RLS silently excludes the row from the delete's target set rather than
+    // raising an error - the row simply isn't affected.
+    expect(error).toBeNull();
+
+    const { data: stillThere } = await admin.from("role_profiles").select("id").eq("id", createdProfileId).maybeSingle();
+    expect(stillThere).not.toBeNull();
   });
 });
