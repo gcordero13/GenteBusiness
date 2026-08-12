@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { BirthdayContactModal } from "./BirthdayContactModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatMonthDay, getInitials, isTodayBirthday, type BirthdayContact } from "@/lib/contacts";
-import type { CompanySchedule } from "@/lib/schedules";
 
 const GEOMETRY = {
   // Heights are sized so the avatar + its upward fan offset + the active
@@ -21,11 +20,9 @@ const TRANSITION =
 export function BirthdaysCoverflow({
   contacts,
   compact = false,
-  companySchedule,
 }: {
   contacts: BirthdayContact[];
   compact?: boolean;
-  companySchedule: CompanySchedule;
 }) {
   const n = contacts.length;
   const [active, setActive] = useState(0);
@@ -71,7 +68,6 @@ export function BirthdaysCoverflow({
               <BirthdayContactModal
                 key={c.id}
                 contact={c}
-                companySchedule={companySchedule}
                 trigger={
                   <button
                     type="button"

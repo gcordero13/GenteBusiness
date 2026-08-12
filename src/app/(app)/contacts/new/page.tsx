@@ -20,6 +20,7 @@ export default async function NewContactPage() {
     .from("contacts")
     .select("id, first_name, last_name")
     .order("first_name");
+  const { data: schedules } = await supabase.from("schedule_templates").select("id, name").order("name");
 
   return (
     <div className="mx-auto max-w-md space-y-6 p-6">
@@ -31,6 +32,7 @@ export default async function NewContactPage() {
           id: c.id,
           name: `${c.first_name} ${c.last_name}`,
         }))}
+        schedules={schedules ?? []}
       />
     </div>
   );

@@ -9,10 +9,7 @@ export interface BirthdayContact {
   fleet_phone: string | null;
   has_whatsapp: boolean;
   hire_date: string | null;
-  schedule_start_time: string | null;
-  schedule_end_time: string | null;
-  schedule_workdays: number[] | null;
-  schedule_tolerance_minutes: number | null;
+  schedule_line: string;
   company_name: string | null;
   department_name: string | null;
 }

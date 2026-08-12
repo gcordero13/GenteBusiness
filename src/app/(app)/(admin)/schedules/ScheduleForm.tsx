@@ -4,88 +4,155 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveCompanySchedule } from "./actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Pencil } from "lucide-react";
+import { saveScheduleTemplate, type ScheduleDayInput } from "./actions";
 
-const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const DAY_LABELS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
-export interface ScheduleFormInitial {
-  start_time: string;
-  end_time: string;
-  workdays: number[];
+export interface ScheduleTemplateInitial {
+  id: string;
+  name: string;
   tolerance_minutes: number;
+  is_default: boolean;
+  days: ScheduleDayInput[];
 }
 
-export function ScheduleForm({ initial }: { initial: ScheduleFormInitial }) {
-  const [startTime, setStartTime] = useState(initial.start_time.slice(0, 5));
-  const [endTime, setEndTime] = useState(initial.end_time.slice(0, 5));
-  const [workdays, setWorkdays] = useState<number[]>(initial.workdays);
-  const [toleranceMinutes, setToleranceMinutes] = useState(String(initial.tolerance_minutes));
+interface DayRowState {
+  day_of_week: number;
+  enabled: boolean;
+  start_time: string;
+  end_time: string;
+}
+
+function buildInitialDayRows(days: ScheduleDayInput[]): DayRowState[] {
+  return Array.from({ length: 7 }, (_, day_of_week) => {
+    const existing = days.find((d) => d.day_of_week === day_of_week);
+    return {
+      day_of_week,
+      enabled: Boolean(existing),
+      start_time: existing?.start_time.slice(0, 5) ?? "08:00",
+      end_time: existing?.end_time.slice(0, 5) ?? "17:00",
+    };
+  });
+}
+
+export function ScheduleForm({ initial }: { initial?: ScheduleTemplateInitial }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(initial?.name ?? "");
+  const [toleranceMinutes, setToleranceMinutes] = useState(String(initial?.tolerance_minutes ?? 0));
+  const [isDefault, setIsDefault] = useState(initial?.is_default ?? false);
+  const [days, setDays] = useState<DayRowState[]>(buildInitialDayRows(initial?.days ?? []));
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  function toggleDay(day: number) {
-    setWorkdays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b),
-    );
+  function updateDay(day_of_week: number, patch: Partial<DayRowState>) {
+    setDays((prev) => prev.map((d) => (d.day_of_week === day_of_week ? { ...d, ...patch } : d)));
   }
 
   function submit() {
     startTransition(async () => {
-      const result = await saveCompanySchedule({
-        start_time: startTime,
-        end_time: endTime,
-        workdays,
+      const result = await saveScheduleTemplate({
+        id: initial?.id,
+        name,
         tolerance_minutes: Number(toleranceMinutes) || 0,
+        is_default: isDefault,
+        days: days
+          .filter((d) => d.enabled)
+          .map((d) => ({ day_of_week: d.day_of_week, start_time: d.start_time, end_time: d.end_time })),
       });
-      setError(result.error ?? null);
-      setSuccess(!result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      if (!initial) {
+        setName("");
+        setToleranceMinutes("0");
+        setIsDefault(false);
+        setDays(buildInitialDayRows([]));
+      }
+      setError(null);
+      setOpen(false);
     });
   }
 
-  const canSubmit = startTime && endTime && workdays.length > 0;
+  const canSubmit = name.trim() !== "" && days.some((d) => d.enabled);
 
   return (
-    <div className="max-w-md space-y-4 rounded-lg border p-4">
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {success && <p className="text-sm text-emerald-600">Horario guardado.</p>}
-      <div className="grid grid-cols-2 gap-2">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          initial ? (
+            <Button variant="ghost" size="icon-sm" title="Editar">
+              <Pencil className="size-4" />
+            </Button>
+          ) : (
+            <Button>Nuevo horario</Button>
+          )
+        }
+      />
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{initial ? "Editar horario" : "Nuevo horario"}</DialogTitle>
+        </DialogHeader>
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="space-y-1">
-          <Label>Hora de entrada</Label>
-          <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          <Label>Nombre</Label>
+          <Input placeholder="Ej. Ventas" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="space-y-1">
-          <Label>Hora de salida</Label>
-          <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          <Label>Minutos de tolerancia</Label>
+          <Input
+            type="number"
+            min={0}
+            value={toleranceMinutes}
+            onChange={(e) => setToleranceMinutes(e.target.value)}
+          />
         </div>
-      </div>
-      <div className="space-y-1">
-        <Label>Días laborables</Label>
-        <div className="flex gap-3">
-          {DAY_LABELS.map((label, day) => (
-            <label key={day} className="flex flex-col items-center gap-1 text-xs">
-              <input
-                type="checkbox"
-                checked={workdays.includes(day)}
-                onChange={() => toggleDay(day)}
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
+          Usar como horario por defecto
+        </label>
+        <div className="space-y-2">
+          <Label>Días laborables</Label>
+          {days.map((day) => (
+            <div key={day.day_of_week} className="flex items-center gap-2">
+              <label className="flex w-28 shrink-0 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={day.enabled}
+                  onChange={(e) => updateDay(day.day_of_week, { enabled: e.target.checked })}
+                />
+                {DAY_LABELS[day.day_of_week]}
+              </label>
+              <Input
+                type="time"
+                disabled={!day.enabled}
+                value={day.start_time}
+                onChange={(e) => updateDay(day.day_of_week, { start_time: e.target.value })}
               />
-              {label}
-            </label>
+              <Input
+                type="time"
+                disabled={!day.enabled}
+                value={day.end_time}
+                onChange={(e) => updateDay(day.day_of_week, { end_time: e.target.value })}
+              />
+            </div>
           ))}
         </div>
-      </div>
-      <div className="space-y-1">
-        <Label>Minutos de tolerancia</Label>
-        <Input
-          type="number"
-          min={0}
-          value={toleranceMinutes}
-          onChange={(e) => setToleranceMinutes(e.target.value)}
-        />
-      </div>
-      <Button onClick={submit} disabled={isPending || !canSubmit}>
-        Guardar
-      </Button>
-    </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={isPending || !canSubmit}>
+            {initial ? "Guardar" : "Agregar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

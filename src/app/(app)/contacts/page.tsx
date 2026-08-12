@@ -3,7 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { BookUser } from "lucide-react";
 import { escapeIlikePattern } from "@/lib/contacts";
-import { DEFAULT_COMPANY_SCHEDULE, type CompanySchedule } from "@/lib/schedules";
+import { resolveScheduleLine } from "@/lib/schedules";
+import { getScheduleTemplatesContext } from "@/lib/scheduleTemplates";
 import { SearchFilters } from "./SearchFilters";
 import { ContactsTable, type ContactRow } from "./ContactsTable";
 import { ContactsCards } from "./ContactsCards";
@@ -49,7 +50,7 @@ export default async function ContactsPage({
   let query = supabase
     .from("contacts")
     .select(
-      "id, first_name, last_name, email, position, company_id, department_id, status, extension, fleet_phone, has_whatsapp, birth_date, photo_url, hire_date, schedule_start_time, schedule_end_time, schedule_workdays, schedule_tolerance_minutes, reports_to_id, companies(name), departments(name)",
+      "id, first_name, last_name, email, position, company_id, department_id, status, extension, fleet_phone, has_whatsapp, birth_date, photo_url, hire_date, schedule_id, reports_to_id, companies(name), departments(name)",
     )
     .order("first_name");
 
@@ -71,13 +72,10 @@ export default async function ContactsPage({
   const { data: companies } = await supabase.from("companies").select("id, name").order("name");
   const { data: departments } = await supabase
     .from("departments")
-    .select("id, name, company_id")
+    .select("id, name, company_id, default_schedule_id")
     .order("name");
-  const { data: companySchedule } = await supabase
-    .from("company_schedule")
-    .select("start_time, end_time, workdays, tolerance_minutes")
-    .eq("id", true)
-    .single();
+  const { schedulesById, defaultSchedule } = await getScheduleTemplatesContext();
+  const departmentDefaultById = new Map((departments ?? []).map((d) => [d.id, d.default_schedule_id]));
 
   const contactRows: ContactRow[] = (contacts ?? []).map((c) => ({
     id: c.id,
@@ -91,10 +89,12 @@ export default async function ContactsPage({
     has_whatsapp: c.has_whatsapp,
     photo_url: c.photo_url,
     hire_date: c.hire_date,
-    schedule_start_time: c.schedule_start_time,
-    schedule_end_time: c.schedule_end_time,
-    schedule_workdays: c.schedule_workdays,
-    schedule_tolerance_minutes: c.schedule_tolerance_minutes,
+    schedule_line: resolveScheduleLine(
+      c.schedule_id,
+      c.department_id ? departmentDefaultById.get(c.department_id) : null,
+      schedulesById,
+      defaultSchedule,
+    ),
     reports_to_id: c.reports_to_id,
     companies: (c.companies as unknown as { name: string } | null) ?? null,
     departments: (c.departments as unknown as { name: string } | null) ?? null,
@@ -154,29 +154,13 @@ export default async function ContactsPage({
           )}
         </div>
       ) : activeView === "cards" ? (
-        <ContactsCards
-          contacts={contactRows}
-          canEdit={Boolean(flags.can_edit)}
-          companySchedule={companySchedule ?? DEFAULT_COMPANY_SCHEDULE}
-        />
+        <ContactsCards contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       ) : activeView === "grouped" ? (
-        <ContactsGrouped
-          contacts={contactRows}
-          canEdit={Boolean(flags.can_edit)}
-          companySchedule={companySchedule ?? DEFAULT_COMPANY_SCHEDULE}
-        />
+        <ContactsGrouped contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       ) : activeView === "org" ? (
-        <ContactsOrgChart
-          contacts={contactRows}
-          canEdit={Boolean(flags.can_edit)}
-          companySchedule={companySchedule ?? DEFAULT_COMPANY_SCHEDULE}
-        />
+        <ContactsOrgChart contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       ) : (
-        <ContactsTable
-          contacts={contactRows}
-          canEdit={Boolean(flags.can_edit)}
-          companySchedule={companySchedule ?? DEFAULT_COMPANY_SCHEDULE}
-        />
+        <ContactsTable contacts={contactRows} canEdit={Boolean(flags.can_edit)} />
       )}
     </div>
   );

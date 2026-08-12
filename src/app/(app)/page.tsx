@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessToday, getUpcomingBirthdays, splitTodayBirthdays, type BirthdayContact } from "@/lib/contacts";
-import { DEFAULT_COMPANY_SCHEDULE, type CompanySchedule } from "@/lib/schedules";
+import { resolveScheduleLine } from "@/lib/schedules";
+import { getScheduleTemplatesContext } from "@/lib/scheduleTemplates";
 import { BirthdaysWidget } from "./contacts/BirthdaysWidget";
 import type { MyProfileCardData } from "./contacts/MyProfileCard";
 
@@ -31,20 +32,15 @@ export default async function Home() {
     .order("start_date")
     .limit(5);
 
-  const { data: companySchedule } = await supabase
-    .from("company_schedule")
-    .select("start_time, end_time, workdays, tolerance_minutes")
-    .eq("id", true)
-    .single();
-  const effectiveCompanySchedule: CompanySchedule = companySchedule ?? DEFAULT_COMPANY_SCHEDULE;
+  const { schedulesById, defaultSchedule } = await getScheduleTemplatesContext();
+  const { data: departments } = await supabase.from("departments").select("id, default_schedule_id");
+  const departmentDefaultById = new Map((departments ?? []).map((d) => [d.id, d.default_schedule_id]));
 
   let myProfile: MyProfileCardData | null = null;
   if (user?.email) {
     const { data: myContact } = await supabase
       .from("contacts")
-      .select(
-        "first_name, last_name, position, photo_url, hire_date, schedule_start_time, schedule_end_time, schedule_workdays, schedule_tolerance_minutes",
-      )
+      .select("first_name, last_name, position, photo_url, hire_date, schedule_id, department_id")
       .eq("email", user.email)
       .maybeSingle();
 
@@ -54,10 +50,12 @@ export default async function Home() {
         position: myContact.position,
         photo_url: myContact.photo_url,
         hire_date: myContact.hire_date,
-        schedule_start_time: myContact.schedule_start_time,
-        schedule_end_time: myContact.schedule_end_time,
-        schedule_workdays: myContact.schedule_workdays,
-        schedule_tolerance_minutes: myContact.schedule_tolerance_minutes,
+        schedule_line: resolveScheduleLine(
+          myContact.schedule_id,
+          myContact.department_id ? departmentDefaultById.get(myContact.department_id) : null,
+          schedulesById,
+          defaultSchedule,
+        ),
       };
     }
   }
@@ -68,7 +66,7 @@ export default async function Home() {
     const { data: contacts } = await supabase
       .from("contacts")
       .select(
-        "id, first_name, last_name, birth_date, photo_url, position, email, extension, fleet_phone, has_whatsapp, hire_date, schedule_start_time, schedule_end_time, schedule_workdays, schedule_tolerance_minutes, companies(name), departments(name)",
+        "id, first_name, last_name, birth_date, photo_url, position, email, extension, fleet_phone, has_whatsapp, hire_date, schedule_id, department_id, companies(name), departments(name)",
       )
       .eq("status", "active");
 
@@ -83,10 +81,12 @@ export default async function Home() {
       fleet_phone: c.fleet_phone,
       has_whatsapp: c.has_whatsapp,
       hire_date: c.hire_date,
-      schedule_start_time: c.schedule_start_time,
-      schedule_end_time: c.schedule_end_time,
-      schedule_workdays: c.schedule_workdays,
-      schedule_tolerance_minutes: c.schedule_tolerance_minutes,
+      schedule_line: resolveScheduleLine(
+        c.schedule_id,
+        c.department_id ? departmentDefaultById.get(c.department_id) : null,
+        schedulesById,
+        defaultSchedule,
+      ),
       company_name: (c.companies as unknown as { name: string } | null)?.name ?? null,
       department_name: (c.departments as unknown as { name: string } | null)?.name ?? null,
     }));
@@ -111,7 +111,6 @@ export default async function Home() {
         upcomingContacts={upcomingBirthdays}
         events={upcomingEvents ?? []}
         news={activeNews ?? []}
-        companySchedule={effectiveCompanySchedule}
       />
     </div>
   );
