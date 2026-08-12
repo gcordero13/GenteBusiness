@@ -57,6 +57,28 @@ describe("deriveDailyArrivals", () => {
   it("returns an empty array for no punches", () => {
     expect(deriveDailyArrivals([])).toEqual([]);
   });
+
+  it("excludes a day whose only punch is at or after noon - not a real morning arrival", () => {
+    const result = deriveDailyArrivals([
+      "2026-01-15T21:00:00.000Z", // 17:00 local - an afternoon-only punch, e.g. a stray exit/test punch
+    ]);
+    expect(result).toEqual([]);
+  });
+
+  it("still picks the morning punch as the arrival when the same day also has an afternoon punch", () => {
+    const result = deriveDailyArrivals([
+      "2026-01-15T21:00:00.000Z", // 17:00 local
+      "2026-01-15T12:30:00.000Z", // 08:30 local
+    ]);
+    expect(result).toEqual([{ dateIso: "2026-01-15", arrivalMinutes: 8 * 60 + 30 }]);
+  });
+
+  it("treats exactly noon as ineligible (the cutoff is exclusive of noon itself)", () => {
+    const result = deriveDailyArrivals([
+      "2026-01-15T16:00:00.000Z", // 12:00 local exactly
+    ]);
+    expect(result).toEqual([]);
+  });
 });
 
 describe("averageArrivalMinutes", () => {

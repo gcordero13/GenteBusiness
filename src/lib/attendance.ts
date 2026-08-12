@@ -27,12 +27,22 @@ export function toBusinessTimeParts(punchedAtIso: string): { dateIso: string; mi
   return { dateIso, minutesSinceMidnight };
 }
 
+// A punch at or after noon can't be a morning arrival - it's someone's exit
+// punch, a lunch-return punch, or (in practice) a stray device-test punch on
+// a day with no real check-in. Only punches before this cutoff are eligible
+// to be a day's "arrival."
+const ARRIVAL_CUTOFF_MINUTES = 12 * 60;
+
 // Groups raw punch timestamps by business-timezone calendar day and keeps
-// only the earliest punch per day - that day's "arrival."
+// only the earliest BEFORE-NOON punch per day - that day's "arrival." A day
+// whose only punches are at/after noon has no arrival at all and is left out
+// of the result entirely, the same as a day with zero punches - a lone
+// afternoon punch is not evidence of when someone arrived that morning.
 export function deriveDailyArrivals(punchedAtIsoTimestamps: string[]): DailyArrival[] {
   const earliestByDate = new Map<string, number>();
   for (const iso of punchedAtIsoTimestamps) {
     const { dateIso, minutesSinceMidnight } = toBusinessTimeParts(iso);
+    if (minutesSinceMidnight >= ARRIVAL_CUTOFF_MINUTES) continue;
     const existing = earliestByDate.get(dateIso);
     if (existing === undefined || minutesSinceMidnight < existing) {
       earliestByDate.set(dateIso, minutesSinceMidnight);
