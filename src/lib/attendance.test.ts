@@ -9,6 +9,7 @@ import {
   averageMinutesEarly,
   classifyArrivalTier,
   pickMotivationalPhrase,
+  rankEarlyArrivals,
 } from "./attendance";
 
 describe("toBusinessTimeParts", () => {
@@ -233,5 +234,72 @@ describe("pickMotivationalPhrase", () => {
         true,
       );
     }
+  });
+});
+
+describe("rankEarlyArrivals", () => {
+  function candidate(overrides: Partial<Parameters<typeof rankEarlyArrivals>[0][number]>) {
+    return {
+      contactId: "id",
+      name: "Someone",
+      photoUrl: null,
+      arrivalMinutes: 480,
+      scheduledStartMinutes: 480,
+      ...overrides,
+    };
+  }
+
+  it("sorts by minutesEarly descending", () => {
+    const result = rankEarlyArrivals(
+      [
+        candidate({ contactId: "a", arrivalMinutes: 470, scheduledStartMinutes: 480 }), // 10 early
+        candidate({ contactId: "b", arrivalMinutes: 460, scheduledStartMinutes: 480 }), // 20 early
+        candidate({ contactId: "c", arrivalMinutes: 475, scheduledStartMinutes: 480 }), // 5 early
+      ],
+      5,
+    );
+    expect(result.map((r) => r.contactId)).toEqual(["b", "a", "c"]);
+  });
+
+  it("excludes anyone who arrived late (negative minutesEarly)", () => {
+    const result = rankEarlyArrivals(
+      [
+        candidate({ contactId: "a", arrivalMinutes: 470, scheduledStartMinutes: 480 }), // 10 early
+        candidate({ contactId: "b", arrivalMinutes: 490, scheduledStartMinutes: 480 }), // 10 late
+      ],
+      5,
+    );
+    expect(result.map((r) => r.contactId)).toEqual(["a"]);
+  });
+
+  it("keeps someone who arrived exactly on time (minutesEarly = 0)", () => {
+    const result = rankEarlyArrivals([candidate({ contactId: "a", arrivalMinutes: 480, scheduledStartMinutes: 480 })], 5);
+    expect(result.map((r) => r.contactId)).toEqual(["a"]);
+  });
+
+  it("limits the result to the requested count", () => {
+    const candidates = [
+      candidate({ contactId: "a", arrivalMinutes: 470, scheduledStartMinutes: 480 }),
+      candidate({ contactId: "b", arrivalMinutes: 460, scheduledStartMinutes: 480 }),
+      candidate({ contactId: "c", arrivalMinutes: 450, scheduledStartMinutes: 480 }),
+    ];
+    const result = rankEarlyArrivals(candidates, 2);
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.contactId)).toEqual(["c", "b"]);
+  });
+
+  it("preserves input order for exact ties", () => {
+    const result = rankEarlyArrivals(
+      [
+        candidate({ contactId: "a", arrivalMinutes: 470, scheduledStartMinutes: 480 }),
+        candidate({ contactId: "b", arrivalMinutes: 470, scheduledStartMinutes: 480 }),
+      ],
+      5,
+    );
+    expect(result.map((r) => r.contactId)).toEqual(["a", "b"]);
+  });
+
+  it("returns an empty array for no candidates", () => {
+    expect(rankEarlyArrivals([], 5)).toEqual([]);
   });
 });

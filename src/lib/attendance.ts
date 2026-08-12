@@ -164,3 +164,27 @@ export function pickMotivationalPhrase(tier: ArrivalTier, name: string, dayOfMon
   const phrase = pool[dayOfMonth % pool.length];
   return phrase.replace(/\{name\}/g, name);
 }
+
+export interface EarlyArrivalCandidate {
+  contactId: string;
+  name: string;
+  photoUrl: string | null;
+  arrivalMinutes: number;
+  scheduledStartMinutes: number;
+}
+
+export interface EarlyArrivalRanking extends EarlyArrivalCandidate {
+  minutesEarly: number;
+}
+
+// Computes minutesEarly = scheduledStartMinutes - arrivalMinutes for each
+// candidate, drops anyone who arrived late (minutesEarly < 0), sorts
+// descending by minutesEarly (stable - Array.prototype.sort preserves the
+// relative order of equal elements), and returns the top `limit`.
+export function rankEarlyArrivals(candidates: EarlyArrivalCandidate[], limit: number): EarlyArrivalRanking[] {
+  return candidates
+    .map((c) => ({ ...c, minutesEarly: c.scheduledStartMinutes - c.arrivalMinutes }))
+    .filter((c) => c.minutesEarly >= 0)
+    .sort((a, b) => b.minutesEarly - a.minutesEarly)
+    .slice(0, limit);
+}
