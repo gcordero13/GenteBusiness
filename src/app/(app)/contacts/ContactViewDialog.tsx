@@ -138,7 +138,7 @@ export function ContactViewDialog({
         </div>
         {canEdit && (
           <DialogFooter>
-            <Button render={<a href={`/contacts/${contact.id}`}>Editar</a>} />
+            <Button nativeButton={false} render={<a href={`/contacts/${contact.id}`}>Editar</a>} />
           </DialogFooter>
         )}
       </DialogContent>
