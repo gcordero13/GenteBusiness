@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBusinessTimeParts, deriveDailyArrivals } from "./attendance";
+import { toBusinessTimeParts, deriveDailyArrivals, averageArrivalMinutes, formatArrivalTime } from "./attendance";
 
 describe("toBusinessTimeParts", () => {
   it("converts a UTC timestamp to the business-timezone calendar day and minutes-since-midnight", () => {
@@ -45,5 +45,50 @@ describe("deriveDailyArrivals", () => {
 
   it("returns an empty array for no punches", () => {
     expect(deriveDailyArrivals([])).toEqual([]);
+  });
+});
+
+describe("averageArrivalMinutes", () => {
+  it("returns null for an empty list", () => {
+    expect(averageArrivalMinutes([])).toBeNull();
+  });
+
+  it("returns the arrival time itself for a single day", () => {
+    expect(averageArrivalMinutes([{ dateIso: "2026-01-15", arrivalMinutes: 480 }])).toBe(480);
+  });
+
+  it("averages the arrival minutes across multiple days", () => {
+    const result = averageArrivalMinutes([
+      { dateIso: "2026-01-15", arrivalMinutes: 480 },
+      { dateIso: "2026-01-16", arrivalMinutes: 500 },
+    ]);
+    expect(result).toBe(490);
+  });
+});
+
+describe("formatArrivalTime", () => {
+  it("formats a morning time with am", () => {
+    expect(formatArrivalTime(8 * 60)).toBe("8:00 am");
+  });
+
+  it("formats an afternoon time with pm", () => {
+    expect(formatArrivalTime(17 * 60)).toBe("5:00 pm");
+  });
+
+  it("formats midnight as 12:00 am", () => {
+    expect(formatArrivalTime(0)).toBe("12:00 am");
+  });
+
+  it("formats noon as 12:00 pm", () => {
+    expect(formatArrivalTime(12 * 60)).toBe("12:00 pm");
+  });
+
+  it("zero-pads the minute", () => {
+    expect(formatArrivalTime(9 * 60 + 5)).toBe("9:05 am");
+  });
+
+  it("rounds a fractional minute count before formatting", () => {
+    // averageArrivalMinutes can return a fractional average across several days
+    expect(formatArrivalTime(8 * 60 + 30.6)).toBe("8:31 am");
   });
 });

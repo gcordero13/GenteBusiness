@@ -41,3 +41,23 @@ export function deriveDailyArrivals(punchedAtIsoTimestamps: string[]): DailyArri
     .map(([dateIso, arrivalMinutes]) => ({ dateIso, arrivalMinutes }))
     .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
 }
+
+// Averages the time-of-day component across a set of daily arrivals. Returns
+// null if the list is empty (no punches yet this month) rather than NaN.
+export function averageArrivalMinutes(arrivals: DailyArrival[]): number | null {
+  if (arrivals.length === 0) return null;
+  const total = arrivals.reduce((sum, a) => sum + a.arrivalMinutes, 0);
+  return total / arrivals.length;
+}
+
+// Formats minutes-since-midnight as "8:12 am" - the same am/pm convention
+// formatScheduleTime uses in src/lib/schedules.ts, but taking a raw (possibly
+// fractional, e.g. an average) minute count instead of a "HH:MM:SS" string.
+export function formatArrivalTime(minutesSinceMidnight: number): string {
+  const rounded = Math.round(minutesSinceMidnight);
+  const hour = Math.floor(rounded / 60) % 24;
+  const minute = rounded % 60;
+  const period = hour >= 12 ? "pm" : "am";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`;
+}
