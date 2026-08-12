@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { toBusinessTimeParts, deriveDailyArrivals, averageArrivalMinutes, formatArrivalTime } from "./attendance";
+import {
+  toBusinessTimeParts,
+  deriveDailyArrivals,
+  averageArrivalMinutes,
+  formatArrivalTime,
+  scheduleTimeToMinutes,
+  attachScheduleComparison,
+  averageMinutesEarly,
+} from "./attendance";
 
 describe("toBusinessTimeParts", () => {
   it("converts a UTC timestamp to the business-timezone calendar day and minutes-since-midnight", () => {
@@ -90,5 +98,66 @@ describe("formatArrivalTime", () => {
   it("rounds a fractional minute count before formatting", () => {
     // averageArrivalMinutes can return a fractional average across several days
     expect(formatArrivalTime(8 * 60 + 30.6)).toBe("8:31 am");
+  });
+});
+
+describe("scheduleTimeToMinutes", () => {
+  it("converts an HH:MM:SS schedule time to minutes since midnight", () => {
+    expect(scheduleTimeToMinutes("08:00:00")).toBe(480);
+    expect(scheduleTimeToMinutes("17:30:00")).toBe(1050);
+    expect(scheduleTimeToMinutes("00:00:00")).toBe(0);
+  });
+});
+
+describe("attachScheduleComparison", () => {
+  // Monday-Friday 8:00 am, tolerance irrelevant to this function
+  const schedule = {
+    id: "s1",
+    name: "General",
+    tolerance_minutes: 0,
+    days: [1, 2, 3, 4, 5].map((day_of_week) => ({
+      day_of_week,
+      start_time: "08:00:00",
+      end_time: "17:00:00",
+    })),
+  };
+
+  it("computes minutesEarly as positive when arriving before the scheduled start", () => {
+    // 2026-01-14 is a Wednesday
+    const result = attachScheduleComparison([{ dateIso: "2026-01-14", arrivalMinutes: 470 }], schedule);
+    expect(result).toEqual([{ dateIso: "2026-01-14", arrivalMinutes: 470, minutesEarly: 10 }]);
+  });
+
+  it("computes minutesEarly as negative when arriving after the scheduled start", () => {
+    const result = attachScheduleComparison([{ dateIso: "2026-01-14", arrivalMinutes: 490 }], schedule);
+    expect(result[0].minutesEarly).toBe(-10);
+  });
+
+  it("returns null minutesEarly for a day the schedule doesn't work (e.g. a Sunday)", () => {
+    // 2026-01-18 is a Sunday - not in this schedule's days
+    const result = attachScheduleComparison([{ dateIso: "2026-01-18", arrivalMinutes: 480 }], schedule);
+    expect(result).toEqual([{ dateIso: "2026-01-18", arrivalMinutes: 480, minutesEarly: null }]);
+  });
+});
+
+describe("averageMinutesEarly", () => {
+  it("returns null when every entry has a null minutesEarly", () => {
+    const result = averageMinutesEarly([
+      { dateIso: "2026-01-18", arrivalMinutes: 480, minutesEarly: null },
+    ]);
+    expect(result).toBeNull();
+  });
+
+  it("returns null for an empty list", () => {
+    expect(averageMinutesEarly([])).toBeNull();
+  });
+
+  it("averages only the non-null entries, ignoring null ones", () => {
+    const result = averageMinutesEarly([
+      { dateIso: "2026-01-14", arrivalMinutes: 470, minutesEarly: 10 },
+      { dateIso: "2026-01-15", arrivalMinutes: 490, minutesEarly: -10 },
+      { dateIso: "2026-01-18", arrivalMinutes: 480, minutesEarly: null },
+    ]);
+    expect(result).toBe(0);
   });
 });

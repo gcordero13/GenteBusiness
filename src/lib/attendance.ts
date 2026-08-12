@@ -1,4 +1,5 @@
 import { APP_TIMEZONE } from "./contacts";
+import type { ScheduleTemplate } from "./schedules";
 
 export interface DailyArrival {
   dateIso: string; // "YYYY-MM-DD", business-timezone calendar day
@@ -60,4 +61,52 @@ export function formatArrivalTime(minutesSinceMidnight: number): string {
   const period = hour >= 12 ? "pm" : "am";
   const displayHour = hour % 12 === 0 ? 12 : hour % 12;
   return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+// Converts a schedule's "HH:MM:SS" start/end time into minutes since
+// midnight. Exported because page.tsx also needs it to build Card 3's
+// EarlyArrivalCandidate.scheduledStartMinutes from a ScheduleDay.
+export function scheduleTimeToMinutes(time: string): number {
+  const [hourStr, minuteStr] = time.split(":");
+  return Number(hourStr) * 60 + Number(minuteStr);
+}
+
+function businessDayOfWeek(dateIso: string): number {
+  const [year, month, day] = dateIso.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+export interface DailyArrivalWithSchedule extends DailyArrival {
+  minutesEarly: number | null; // null if this date wasn't a scheduled workday
+}
+
+// Looks up each arrival's day of week (derived from dateIso) against
+// schedule.days. When there's a matching scheduled day, minutesEarly =
+// that day's start-time-in-minutes minus the arrival's minutesSinceMidnight
+// (positive = early, negative = late). When there's no match (not a
+// scheduled workday for this schedule), minutesEarly is null and that day
+// is excluded from any average - a day off shouldn't count as "very early."
+export function attachScheduleComparison(
+  arrivals: DailyArrival[],
+  schedule: ScheduleTemplate,
+): DailyArrivalWithSchedule[] {
+  const dayByDayOfWeek = new Map(schedule.days.map((d) => [d.day_of_week, d]));
+  return arrivals.map((arrival) => {
+    const scheduledDay = dayByDayOfWeek.get(businessDayOfWeek(arrival.dateIso));
+    if (!scheduledDay) {
+      return { ...arrival, minutesEarly: null };
+    }
+    return { ...arrival, minutesEarly: scheduleTimeToMinutes(scheduledDay.start_time) - arrival.arrivalMinutes };
+  });
+}
+
+// Averages only the non-null minutesEarly values. null if there are none
+// (e.g. every arrival fell on a day the schedule doesn't cover).
+export function averageMinutesEarly(arrivals: DailyArrivalWithSchedule[]): number | null {
+  const withSchedule = arrivals.filter((a) => a.minutesEarly !== null) as (DailyArrivalWithSchedule & {
+    minutesEarly: number;
+  })[];
+  if (withSchedule.length === 0) return null;
+  const total = withSchedule.reduce((sum, a) => sum + a.minutesEarly, 0);
+  return total / withSchedule.length;
 }
