@@ -7,6 +7,7 @@ import {
   scheduleTimeToMinutes,
   attachScheduleComparison,
   averageMinutesEarly,
+  classifyArrivalTier,
 } from "./attendance";
 
 describe("toBusinessTimeParts", () => {
@@ -159,5 +160,47 @@ describe("averageMinutesEarly", () => {
       { dateIso: "2026-01-18", arrivalMinutes: 480, minutesEarly: null },
     ]);
     expect(result).toBe(0);
+  });
+});
+
+describe("classifyArrivalTier", () => {
+  it("classifies more than 15 minutes late as muy_tarde", () => {
+    expect(classifyArrivalTier(-16, 0)).toBe("muy_tarde");
+  });
+
+  it("classifies exactly 15 minutes late as un_poco_tarde, not muy_tarde", () => {
+    expect(classifyArrivalTier(-15, 0)).toBe("un_poco_tarde");
+  });
+
+  it("classifies late beyond tolerance but within 15 minutes as un_poco_tarde", () => {
+    expect(classifyArrivalTier(-5, 0)).toBe("un_poco_tarde");
+  });
+
+  it("classifies exactly on time (average equals 0, zero tolerance) as a_tiempo", () => {
+    expect(classifyArrivalTier(0, 0)).toBe("a_tiempo");
+  });
+
+  it("classifies within a non-zero tolerance as a_tiempo, even if technically late", () => {
+    expect(classifyArrivalTier(-3, 5)).toBe("a_tiempo");
+  });
+
+  it("classifies within a non-zero tolerance as a_tiempo, even if technically early", () => {
+    expect(classifyArrivalTier(3, 5)).toBe("a_tiempo");
+  });
+
+  it("classifies more than tolerance early but under 10 minutes as temprano", () => {
+    expect(classifyArrivalTier(6, 5)).toBe("temprano");
+  });
+
+  it("classifies just under 10 minutes early as temprano, not muy_temprano", () => {
+    expect(classifyArrivalTier(9, 0)).toBe("temprano");
+  });
+
+  it("classifies exactly 10 minutes early as muy_temprano", () => {
+    expect(classifyArrivalTier(10, 0)).toBe("muy_temprano");
+  });
+
+  it("classifies well over 10 minutes early as muy_temprano", () => {
+    expect(classifyArrivalTier(25, 0)).toBe("muy_temprano");
   });
 });

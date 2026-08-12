@@ -110,3 +110,21 @@ export function averageMinutesEarly(arrivals: DailyArrivalWithSchedule[]): numbe
   const total = withSchedule.reduce((sum, a) => sum + a.minutesEarly, 0);
   return total / withSchedule.length;
 }
+
+export type ArrivalTier = "muy_tarde" | "un_poco_tarde" | "a_tiempo" | "temprano" | "muy_temprano";
+
+// avgMinutesEarly: positive = early on average, negative = late on average.
+// toleranceMinutes: the viewer's effective schedule's tolerance_minutes.
+// Boundaries match the spec's tier table exactly:
+//   < -15                    -> muy_tarde
+//   < -toleranceMinutes      -> un_poco_tarde
+//   <= toleranceMinutes      -> a_tiempo
+//   < 10                     -> temprano
+//   otherwise                -> muy_temprano
+export function classifyArrivalTier(avgMinutesEarly: number, toleranceMinutes: number): ArrivalTier {
+  if (avgMinutesEarly < -15) return "muy_tarde";
+  if (avgMinutesEarly < -toleranceMinutes) return "un_poco_tarde";
+  if (avgMinutesEarly <= toleranceMinutes) return "a_tiempo";
+  if (avgMinutesEarly < 10) return "temprano";
+  return "muy_temprano";
+}
