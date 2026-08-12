@@ -73,14 +73,15 @@ describe("role_profiles delete restrictions", () => {
 
   afterEach(async () => {
     const admin = createAdminClient();
-    if (createdProfileId) {
-      await admin.from("role_profiles").delete().eq("id", createdProfileId);
-      createdProfileId = undefined;
-    }
     if (admin_user) await deleteTestUser(admin_user.id);
     if (viewer) await deleteTestUser(viewer.id);
     admin_user = undefined;
     viewer = undefined;
+
+    if (createdProfileId) {
+      await admin.from("role_profiles").delete().eq("id", createdProfileId);
+      createdProfileId = undefined;
+    }
   });
 
   it("lets a can_manage user delete an unassigned, non-Super-Admin profile, cascading its permission rows", async () => {
