@@ -48,6 +48,8 @@ No new table. Punch volume is small enough (one company, a handful of devices) t
 
 `APP_TIMEZONE` (currently a private constant in `src/lib/contacts.ts`) is exported from that file so `src/lib/attendance.ts` can reuse it instead of redefining it.
 
+**`time_clock_punches` access:** this table has row-level security enabled with zero SELECT policies — only the service-role agent client (used by `/api/attendance/punches`) can read it today; the regular session-bound client `page.tsx` otherwise uses cannot. Rather than add a new "any authenticated user can read" policy (which would let any employee query any other employee's full raw punch history directly via the Supabase API, not just what these cards display), `page.tsx`'s new data-fetching for Cards 1–3 uses `createAdminClient()` (`src/lib/supabase/admin.ts`) solely for the `time_clock_punches` queries. This keeps exposure limited to exactly what the server code chooses to compute and render (the viewer's own average/today arrival, and the top-5 ranking) — no new RLS policy, no new direct-query surface.
+
 ## `src/lib/attendance.ts` — pure functions
 
 ```typescript
