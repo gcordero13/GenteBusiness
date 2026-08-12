@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RoleProfileForm } from "./RoleProfileForm";
+import { DeleteRoleProfileDialog } from "./DeleteRoleProfileDialog";
 
 export default async function RoleProfilesPage() {
   const supabase = await createClient();
@@ -43,14 +44,19 @@ export default async function RoleProfilesPage() {
             <TableRow key={profile.id}>
               <TableCell className="font-medium">{profile.name}</TableCell>
               <TableCell>
-                <RoleProfileForm
-                  modules={modules ?? []}
-                  initial={{
-                    id: profile.id,
-                    name: profile.name,
-                    permissions: (profile.role_profile_permissions ?? []) as never,
-                  }}
-                />
+                <div className="flex flex-wrap justify-end gap-2">
+                  <RoleProfileForm
+                    modules={modules ?? []}
+                    initial={{
+                      id: profile.id,
+                      name: profile.name,
+                      permissions: (profile.role_profile_permissions ?? []) as never,
+                    }}
+                  />
+                  {profile.name !== "Super Admin" && (
+                    <DeleteRoleProfileDialog profileId={profile.id} name={profile.name} />
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}
