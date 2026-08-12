@@ -84,6 +84,11 @@ export default async function Home() {
     }
 
     if (myContact?.hikvision_employee_no) {
+      // Bypasses RLS deliberately for these attendance queries only: time_clock_punches
+      // has no SELECT policy at all, and the Card 3 candidate list is intentionally
+      // company-wide with no permission gate (a spec decision, not an oversight) - see
+      // the "time_clock_punches access" / "contacts access for Card 3" notes in
+      // docs/superpowers/specs/2026-08-11-attendance-summary-cards-design.md.
       const admin = createAdminClient();
       const windowStartIso = new Date(today.getTime() - 40 * 24 * 60 * 60 * 1000).toISOString();
 
