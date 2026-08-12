@@ -235,13 +235,6 @@ export default async function Home() {
           <p className="text-sm text-muted-foreground">{user?.email}</p>
         </div>
       )}
-      {attendanceCards && (
-        <AttendanceSummaryCards
-          card1={attendanceCards.card1}
-          card2={attendanceCards.card2}
-          topArrivals={attendanceCards.topArrivals}
-        />
-      )}
       <BirthdaysWidget
         myProfile={myProfile}
         today={today}
@@ -250,6 +243,13 @@ export default async function Home() {
         events={upcomingEvents ?? []}
         news={activeNews ?? []}
       />
+      {attendanceCards && (
+        <AttendanceSummaryCards
+          card1={attendanceCards.card1}
+          card2={attendanceCards.card2}
+          topArrivals={attendanceCards.topArrivals}
+        />
+      )}
     </div>
   );
 }
