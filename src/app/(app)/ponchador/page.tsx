@@ -42,6 +42,11 @@ export default async function PonchadorPage() {
   const monthStartIso = `${todayIso.slice(0, 7)}-01`;
   const windowStartIso = new Date(today.getTime() - 40 * 24 * 60 * 60 * 1000).toISOString();
 
+  // Scoped by the time_clock_punches_select_own RLS policy (contact_id-based),
+  // not by employee_no_string like the home page's admin-client reads do -
+  // see "Data Access" in docs/superpowers/specs/2026-08-12-ponchador-module-design.md.
+  // The two agree in steady state; they could diverge only in edge cases like
+  // an employee number being reassigned after ingestion.
   const { data: punches } = await supabase
     .from("time_clock_punches")
     .select("punched_at")
