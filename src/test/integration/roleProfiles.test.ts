@@ -29,18 +29,18 @@ describe("role_profile_permissions seed data", () => {
         }),
       ]),
     );
-    // Every profile should have exactly 12 rows (one per module) after migration.
+    // Every profile should have exactly 13 rows (one per module) after migration.
     const byProfile = new Map<string, number>();
     for (const row of data ?? []) {
       const name = (row.role_profiles as unknown as { name: string }).name;
       byProfile.set(name, (byProfile.get(name) ?? 0) + 1);
     }
-    expect(byProfile.get("Viewer")).toBe(12);
-    expect(byProfile.get("Editor")).toBe(12);
-    expect(byProfile.get("Super Admin")).toBe(12);
+    expect(byProfile.get("Viewer")).toBe(13);
+    expect(byProfile.get("Editor")).toBe(13);
+    expect(byProfile.get("Super Admin")).toBe(13);
   });
 
-  it("has the 12 expected modules", async () => {
+  it("has the 13 expected modules", async () => {
     const admin = createAdminClient();
     const { data, error } = await admin.from("modules").select("key").order("key");
 
@@ -54,6 +54,7 @@ describe("role_profile_permissions seed data", () => {
         "departments",
         "document_stamps",
         "maintenance",
+        "ponchador",
         "role_profiles",
         "schedules",
         "settings",
