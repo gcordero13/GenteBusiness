@@ -31,6 +31,7 @@ export default async function AppLayout({
     <AppShell
       email={user?.email}
       canViewContacts={Boolean(permissions.get("contacts")?.can_view)}
+      canViewPonchador={Boolean(permissions.get("ponchador")?.can_view)}
       canManageUsers={Boolean(permissions.get("users")?.can_manage)}
       canManageRoleProfiles={Boolean(permissions.get("role_profiles")?.can_manage)}
       canManageCompanies={Boolean(permissions.get("companies")?.can_manage)}

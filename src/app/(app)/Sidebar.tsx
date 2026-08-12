@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 import {
   BookUser,
   Building2,
+  CalendarClock,
   Clock,
   FileSignature,
   Fingerprint,
@@ -31,6 +32,7 @@ interface NavLink {
 export function Sidebar({
   email,
   canViewContacts,
+  canViewPonchador,
   canManageUsers,
   canManageRoleProfiles,
   canManageCompanies,
@@ -47,6 +49,7 @@ export function Sidebar({
 }: {
   email?: string;
   canViewContacts: boolean;
+  canViewPonchador: boolean;
   canManageUsers: boolean;
   canManageRoleProfiles: boolean;
   canManageCompanies: boolean;
@@ -83,6 +86,7 @@ export function Sidebar({
 
   const mainLinks: NavLink[] = [
     { href: "/my-profile", label: "Mi perfil", icon: UserCircle },
+    ...(canViewPonchador ? [{ href: "/ponchador", label: "Ponchador", icon: CalendarClock }] : []),
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
     ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),
     ...(canViewMaintenance ? [{ href: "/maintenance", label: "Mantenimientos", icon: Wrench }] : []),
