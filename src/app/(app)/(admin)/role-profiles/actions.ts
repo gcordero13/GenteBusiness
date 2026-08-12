@@ -45,3 +45,15 @@ export async function saveRoleProfile(input: RoleProfileInput) {
   revalidatePath("/role-profiles");
   return {};
 }
+
+export async function deleteRoleProfile(id: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("role_profiles").delete().eq("id", id);
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/role-profiles");
+  return {};
+}
