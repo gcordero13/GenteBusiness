@@ -96,7 +96,7 @@ export function formatMonthDay(dateString: string): string {
   return `${day} de ${MONTH_NAMES_ES[month - 1]}`;
 }
 
-const APP_TIMEZONE = "America/Santo_Domingo";
+export const APP_TIMEZONE = "America/Santo_Domingo";
 
 // Vercel runs servers in UTC. Reading new Date()'s UTC calendar fields directly
 // would shift "today" by a day for several hours each evening in Santo Domingo
