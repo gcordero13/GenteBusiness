@@ -10,11 +10,33 @@ This builds directly on two things merged earlier the same day: the Hikvision pu
 
 A new 3-card block on the home page (`src/app/(app)/page.tsx`), in its own row separate from the existing birthdays/news widget grid:
 
-1. **Mi promedio** — the viewer's average arrival time so far this calendar month.
+1. **Mi promedio** — the viewer's average arrival time so far this calendar month, plus a personalized motivational or congratulatory phrase based on how early/late that average runs relative to their own schedule.
 2. **Mi llegada de hoy** — the viewer's arrival time today.
 3. **Top 5 de hoy** — the five people (company-wide) who arrived earliest today relative to their own effective schedule.
 
 The whole block is hidden entirely for any contact with no `hikvision_employee_no` assigned — no punch data means nothing meaningful to show, and no extra queries run for them.
+
+## Motivational Message (Card 1)
+
+Alongside the plain average-arrival-time value, Card 1 shows one line of personalized, name-addressed text ("{name}, ...") reflecting how the viewer is doing this month, in one of five tiers based on **average minutes early/late relative to their own effective schedule** (not the raw clock-time average — someone whose schedule starts at 7am and averages 6:50am is "10 minutes early" the same way someone on a 9am schedule averaging 8:50am is, even though their clock-time averages differ):
+
+| Tier | Condition (avg. minutes early; `T` = the viewer's schedule's `tolerance_minutes`) |
+|---|---|
+| Muy tarde | average is more than 15 minutes late |
+| Un poco tarde | late, beyond tolerance, but not more than 15 minutes |
+| A tiempo | within tolerance (`-T` to `+T` minutes) |
+| Temprano | more than `T` minutes early, but less than 10 |
+| Muy temprano | 10 or more minutes early |
+
+Each tier has its own pool of at least 2 phrases (12 total across all five tiers), every phrase containing a `{name}` placeholder filled with the viewer's first name. Which specific phrase from the matching tier's pool is shown is picked deterministically from the day of the month (`dayOfMonth % pool.length`) — stable within a day (no jarring change on every page refresh) but varying day to day for repeat visitors.
+
+**Phrase pool** (Spanish, warm and encouraging in tone — the "tarde" tiers never blame or shame, they encourage; the "temprano" tiers genuinely congratulate):
+
+- **Muy tarde:** "{name}, sabemos que este mes no ha sido fácil para llegar a tiempo. ¡Un pequeño cambio en la rutina puede hacer la diferencia! 💪" · "Ánimo, {name}. Todos tenemos meses difíciles — lo importante es seguir intentándolo." · "{name}, mañana es una nueva oportunidad para mejorar tu llegada. ¡Tú puedes!"
+- **Un poco tarde:** "Vas por buen camino, {name}. Solo un poco más de esfuerzo y llegarás a tiempo." · "{name}, estás cerca de lograrlo. ¡Sigue así!"
+- **A tiempo:** "¡Bien hecho, {name}! Mantener la puntualidad no es fácil y lo estás logrando." · "{name}, tu constancia llegando a tiempo no pasa desapercibida. ¡Gracias!"
+- **Temprano:** "¡Excelente, {name}! Llegar temprano habla muy bien de tu compromiso." · "{name}, tu puntualidad es un ejemplo para el equipo. ¡Sigue así!"
+- **Muy temprano:** "¡Impresionante, {name}! Eres de los primeros en llegar cada día." · "{name}, tu disciplina para llegar temprano es admirable. ¡Felicidades!" · "¡{name}, eres una máquina de puntualidad! Gracias por dar el ejemplo."
 
 ## Computation Model
 
@@ -52,6 +74,36 @@ export function averageArrivalMinutes(arrivals: DailyArrival[]): number | null;
 // minute count instead of a "HH:MM:SS" string.
 export function formatArrivalTime(minutesSinceMidnight: number): string;
 
+export interface DailyArrivalWithSchedule extends DailyArrival {
+  minutesEarly: number | null; // null if this date wasn't a scheduled workday
+}
+
+// Looks up each arrival's day_of_week (derived from dateIso) against
+// schedule.days. When there's a matching scheduled day, minutesEarly =
+// that day's start-time-in-minutes minus the arrival's minutesSinceMidnight
+// (positive = early, negative = late). When there's no match (not a
+// scheduled workday for this schedule), minutesEarly is null and that day
+// is excluded from any average - a day off shouldn't count as "very early."
+export function attachScheduleComparison(
+  arrivals: DailyArrival[],
+  schedule: ScheduleTemplate,
+): DailyArrivalWithSchedule[];
+
+// Averages only the non-null minutesEarly values. null if there are none
+// (e.g. every arrival fell on a day the schedule doesn't cover).
+export function averageMinutesEarly(arrivals: DailyArrivalWithSchedule[]): number | null;
+
+export type ArrivalTier = "muy_tarde" | "un_poco_tarde" | "a_tiempo" | "temprano" | "muy_temprano";
+
+// avgMinutesEarly: positive = early on average, negative = late on average.
+// toleranceMinutes: the viewer's effective schedule's tolerance_minutes.
+export function classifyArrivalTier(avgMinutesEarly: number, toleranceMinutes: number): ArrivalTier;
+
+// Picks one phrase from the matching tier's pool (see the Motivational
+// Message section above for the actual phrase text), substituting {name}.
+// dayOfMonth selects deterministically among that tier's pool via modulo.
+export function pickMotivationalPhrase(tier: ArrivalTier, name: string, dayOfMonth: number): string;
+
 export interface EarlyArrivalCandidate {
   contactId: string;
   name: string;
@@ -74,7 +126,7 @@ export function rankEarlyArrivals(candidates: EarlyArrivalCandidate[], limit: nu
 
 Runs only if the viewer's own `contacts` row has `hikvision_employee_no` set (checked as part of the existing `myContact` fetch, which already runs for the profile card).
 
-- **Card 1 (monthly average):** fetch the viewer's own `time_clock_punches` from roughly the last 40 days (wide enough to always cover "the 1st of this month" regardless of today's date), run `deriveDailyArrivals`, filter to `dateIso >= "<year>-<month>-01"`, run `averageArrivalMinutes`. `null` → render "Sin datos este mes."
+- **Card 1 (monthly average):** fetch the viewer's own `time_clock_punches` from roughly the last 40 days (wide enough to always cover "the 1st of this month" regardless of today's date), run `deriveDailyArrivals`, filter to `dateIso >= "<year>-<month>-01"`, run `averageArrivalMinutes` for the displayed clock-time value. `null` → render "Sin datos este mes" and skip the motivational phrase entirely (nothing to base it on). Otherwise, also run `attachScheduleComparison` (using the viewer's own effective schedule, already resolved via `getEffectiveSchedule` elsewhere on this page for `schedule_line`) → `averageMinutesEarly` → `classifyArrivalTier` (passing that same schedule's `tolerance_minutes`) → `pickMotivationalPhrase` (passing the viewer's first name and `today.getUTCDate()` as the day-of-month selector, consistent with how `getBusinessToday()` already encodes "today").
 - **Card 2 (today):** reuse the same fetch, filter to `dateIso === todayIso`, take that day's arrival if present. None → render "Aún no has ponchado hoy."
 - **Card 3 (top 5 today):** fetch every `status = 'active'` contact with `hikvision_employee_no is not null` (`id, first_name, last_name, photo_url, schedule_id, department_id`), plus `time_clock_punches` from the last 2 days for all their `hikvision_employee_no` values, plus `getScheduleTemplatesContext()` + `departments.default_schedule_id` (both already used elsewhere on this page for the profile card's `schedule_line`). For each contact: resolve their effective schedule via `getEffectiveSchedule`, look up today's `day_of_week` within that schedule's `days` array — no match means they're not scheduled to work today, skip them; find their earliest punch today via `toBusinessTimeParts` — no punch today, skip them; otherwise build an `EarlyArrivalCandidate` and feed the full list into `rankEarlyArrivals(candidates, 5)`.
 
@@ -88,11 +140,11 @@ A new component, `AttendanceSummaryCards.tsx`, rendered as its own row on the ho
 - `sm:` and up (`sm:grid-cols-2`): Mi promedio and Mi llegada de hoy sit side by side as two half-width cards; Top 5 spans both columns (`sm:col-span-2`) below them, since it naturally holds more content (5 rows) than the other two single-stat cards.
 - `lg:` and up (`lg:grid-cols-4`): Mi promedio and Mi llegada de hoy each take one column; Top 5 takes two columns (`lg:col-span-2`), so all three sit in a single row with Top 5 given proportionally more width. This mirrors `BirthdaysWidget`'s existing 4-column grid, which already gives its widest card (upcoming birthdays) double the width of its neighbors the same way.
 
-Each of the "Mi promedio"/"Mi llegada de hoy" cards is a single stat (icon + label + value), sized to stay legible without wrapping awkwardly at any width. The "Top 5" card's 5 rows (small avatar + name + "Llegó a las 6:50 am (10 min antes)") use `truncate` on the name the same way `MyProfileCard`/`ContactsCards` already do, so long names don't break the layout on narrow screens.
+Each of the "Mi promedio"/"Mi llegada de hoy" cards is a single stat (icon + label + value), sized to stay legible without wrapping awkwardly at any width. "Mi promedio" additionally shows the personalized phrase as a second, smaller line below the clock-time value (wrapping normally — these phrases run longer than the other cards' sub-lines, so they're not truncated to one line). The "Top 5" card's 5 rows (small avatar + name + "Llegó a las 6:50 am (10 min antes)") use `truncate` on the name the same way `MyProfileCard`/`ContactsCards` already do, so long names don't break the layout on narrow screens.
 
 ## Testing
 
-Unit tests for every function in `src/lib/attendance.ts`: `toBusinessTimeParts` (a few fixed timestamps, including one that crosses midnight UTC but not business-midnight, and vice versa — the exact class of bug `getBusinessToday()` was already patched for once), `deriveDailyArrivals` (multiple punches same day keeps the earliest, punches across several days), `averageArrivalMinutes` (empty list → null, single day, multiple days), `formatArrivalTime` (midnight, noon, standard times — mirroring `formatScheduleTime`'s existing test cases), `rankEarlyArrivals` (ties, negative/late exclusion, limiting to N, empty input).
+Unit tests for every function in `src/lib/attendance.ts`: `toBusinessTimeParts` (a few fixed timestamps, including one that crosses midnight UTC but not business-midnight, and vice versa — the exact class of bug `getBusinessToday()` was already patched for once), `deriveDailyArrivals` (multiple punches same day keeps the earliest, punches across several days), `averageArrivalMinutes` (empty list → null, single day, multiple days), `formatArrivalTime` (midnight, noon, standard times — mirroring `formatScheduleTime`'s existing test cases), `rankEarlyArrivals` (ties, negative/late exclusion, limiting to N, empty input), `attachScheduleComparison` (a day matching a scheduled day-of-week gets a `minutesEarly` value, a day with no matching scheduled day gets `null`), `averageMinutesEarly` (ignores nulls, empty/all-null → null), `classifyArrivalTier` (a case per tier, plus boundary values exactly at each cutoff and exactly at `±tolerance_minutes` for a non-zero tolerance), `pickMotivationalPhrase` (same tier + day-of-month always returns the same phrase; different days can return different phrases from the same tier's pool; `{name}` is substituted correctly).
 
 No new integration test is needed — `time_clock_punches`' RLS is already covered by `src/test/integration/attendancePunchesApi.test.ts` from the original Hikvision-agent work.
 
