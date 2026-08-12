@@ -11,29 +11,50 @@ Add a delete action to each role profile row, gated behind a confirmation dialog
 1. **Assigned users block the delete.** If any `app_users` row still references this profile, the delete is rejected with a message naming how many users are assigned and directing the admin to reassign them from the Users page first.
 2. **"Super Admin" can never be deleted**, checked by name, regardless of whether it currently has assigned users. This profile is referenced by name in this codebase's own seed/permission logic (e.g. several migrations resolve "the default profile" via `where name = 'Super Admin'`), so removing it would break assumptions the app itself relies on. Its delete button doesn't render at all in the table — there's no dead-end click to explain.
 
-No new migration: `role_profile_permissions.role_profile_id` already has `on delete cascade`, so a successful profile delete cleans up its own permission rows automatically. `app_users.role_profile_id`'s existing (cascade-less) foreign key is also kept as a defense-in-depth backstop in case the app-level user count check is ever bypassed.
+**Both safety checks live in a database trigger, not in the server action.** This codebase's established pattern for "reject certain writes with a friendly message" is a `BEFORE`-trigger that raises an exception (see `enforce_contacts_update_permissions` in `supabase/migrations/20260730120000_contacts_self_edit.sql`), not application code inside the "use server" function. There are two concrete reasons to follow that pattern here rather than checking in `actions.ts`:
+
+- **Testability.** This codebase's integration tests exercise RLS/trigger behavior by calling the Supabase client directly (`viewer.client.from(...).delete(...)`) - none of them invoke a "use server" function directly, because `createClient()` (`src/lib/supabase/server.ts`) depends on `next/headers`'s `cookies()`, which has no request scope to read from outside an actual Next.js request/response cycle. A check written only in `actions.ts` would be unreachable from an integration test.
+- **Defense in depth.** A trigger enforces the rule no matter what calls `DELETE` on this table - the server action, a future admin script, or a bug that bypasses the action's own logic - the same guarantee `enforce_contacts_update_permissions` already gives the `contacts` table's protected fields.
+
+## Migration — `role_profiles` delete restrictions
+
+```sql
+create or replace function public.enforce_role_profile_delete_restrictions()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  assigned_count integer;
+begin
+  if old.name = 'Super Admin' then
+    raise exception 'El perfil Super Admin no se puede eliminar.';
+  end if;
+
+  select count(*) into assigned_count from public.app_users where role_profile_id = old.id;
+  if assigned_count > 0 then
+    raise exception 'Este perfil tiene % usuario(s) asignado(s). Reasígnalos desde Usuarios antes de eliminarlo.', assigned_count;
+  end if;
+
+  return old;
+end;
+$$;
+
+create trigger role_profiles_before_delete
+  before delete on public.role_profiles
+  for each row execute function public.enforce_role_profile_delete_restrictions();
+```
+
+(Illustrative - the exact migration file, with a proper timestamped name, is written during implementation, following this codebase's established pattern of pasting a migration into Supabase's SQL Editor only when the plan explicitly says it's ready, with a STOP for human confirmation.)
+
+`role_profile_permissions.role_profile_id` already has `on delete cascade`, so once the trigger allows a delete through, the profile's own permission rows are cleaned up automatically - no change needed there. `app_users.role_profile_id`'s existing (cascade-less) foreign key remains as a second backstop, now redundant with the trigger's own assigned-user check but harmless to leave in place.
 
 ## `src/app/(app)/(admin)/role-profiles/actions.ts` — new server action
 
 ```typescript
 export async function deleteRoleProfile(id: string) {
   const supabase = await createClient();
-
-  const { data: profile } = await supabase.from("role_profiles").select("name").eq("id", id).single();
-  if (profile?.name === "Super Admin") {
-    return { error: "El perfil Super Admin no se puede eliminar." };
-  }
-
-  const { count } = await supabase
-    .from("app_users")
-    .select("id", { count: "exact", head: true })
-    .eq("role_profile_id", id);
-  if (count && count > 0) {
-    const plural = count === 1 ? "" : "s";
-    return {
-      error: `Este perfil tiene ${count} usuario${plural} asignado${plural}. Reasígnalos desde Usuarios antes de eliminarlo.`,
-    };
-  }
 
   const { error } = await supabase.from("role_profiles").delete().eq("id", id);
   if (error) {
@@ -44,6 +65,8 @@ export async function deleteRoleProfile(id: string) {
   return {};
 }
 ```
+
+Simple by design - both safety checks happen in the trigger above, so this action only needs to attempt the delete and surface whatever message comes back (the trigger's own `raise exception` text becomes `error.message`, the same way `enforce_contacts_update_permissions`'s messages already surface through existing contact-editing error handling).
 
 Matches `saveRoleProfile`'s existing return shape (`{error: string}` or `{}`) and its `revalidatePath("/role-profiles")` convention exactly.
 
@@ -139,14 +162,14 @@ The existing single-cell action column changes from a bare `<RoleProfileForm ...
 
 ## Testing
 
-Integration tests in `src/test/integration/roleProfiles.test.ts` (extending the existing file):
+Integration tests in `src/test/integration/roleProfiles.test.ts` (extending the existing file), exercising the trigger and RLS directly through a Supabase client the same way every other RLS/trigger test in this codebase does (e.g. `contactsSelfEdit.test.ts`) - not by calling `deleteRoleProfile` itself, since "use server" functions can't run outside a real request scope in this test environment:
 
-- A `can_manage` user can delete a role profile that has no assigned users and isn't "Super Admin" - the row and its `role_profile_permissions` rows are both gone afterward (cascade).
-- Deleting a role profile that has at least one assigned `app_users` row is rejected with an error mentioning the assigned-user count; the profile still exists afterward.
-- Deleting the "Super Admin" profile is rejected. `role_profiles.name` has a `unique` constraint, so there's exactly one such row (the real seeded one) - the test looks up its real id and calls `deleteRoleProfile` on it. This is safe to run against the real row: the action's name check runs *before* the assigned-user check or any actual delete, so the call returns the "cannot be deleted" error immediately regardless of how many users currently have that profile, and nothing is ever touched.
-- A user without `can_manage` on `role_profiles` cannot delete any profile (existing RLS policy already covers this - a `for all` policy scoped to `can_manage`; this test just confirms delete specifically, not only select/insert/update which existing tests may already cover).
+- A `can_manage` (Super Admin) test user's client can delete a freshly-created, unassigned, non-"Super Admin" role profile - the row and its `role_profile_permissions` rows are both gone afterward (cascade), confirmed by re-querying both tables.
+- Deleting a freshly-created role profile that has at least one `app_users` row assigned to it is rejected: the delete call returns a Postgres error whose message contains "usuario(s) asignado(s)"; the profile still exists afterward.
+- Deleting the real "Super Admin" profile (looked up by name - `role_profiles.name` is `unique`, so there's exactly one such row) is rejected with an error mentioning "Super Admin". This is safe to run against the real row: the trigger's name check runs before its assigned-user check and before any row is actually removed, so the delete is rejected regardless of how many users currently have that profile - nothing is ever touched either way.
+- A user without `can_manage` on `role_profiles` cannot delete any profile at all (the existing `role_profiles_all_platform_managers` RLS policy already covers this for every operation; this test confirms it specifically for delete, since existing tests may only cover select/insert/update).
 
-No new RLS policy needed - `role_profiles_all_platform_managers`'s `for all` already includes DELETE.
+No new RLS policy needed - `role_profiles_all_platform_managers`'s `for all` already includes DELETE. The trigger runs *in addition to* RLS, not instead of it: a non-`can_manage` user's delete attempt is already blocked by RLS before the trigger would even run.
 
 ## Out of Scope
 
