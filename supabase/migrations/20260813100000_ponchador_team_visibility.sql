@@ -139,7 +139,7 @@ $$;
 -- assigned, so the selector this feeds never offers someone with no
 -- attendance data to show.
 create or replace function public.list_my_ponchador_team()
-returns table (id uuid, first_name text, last_name text, position text)
+returns table (id uuid, first_name text, last_name text, "position" text)
 language plpgsql
 security definer
 set search_path = public
@@ -167,7 +167,7 @@ $$;
 -- Every active contact with a ponchador code assigned - only returns rows if
 -- the caller has can_manage on the ponchador module, empty otherwise.
 create or replace function public.list_all_ponchador_contacts()
-returns table (id uuid, first_name text, last_name text, position text, department_name text)
+returns table (id uuid, first_name text, last_name text, "position" text, department_name text)
 language plpgsql
 security definer
 set search_path = public
