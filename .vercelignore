@@ -1,0 +1,4 @@
+# attendance-agent is a separate local/Windows agent (its own package.json,
+# builds a standalone .exe) - it's not part of this Next.js app and must
+# never be uploaded as part of a Vercel deployment.
+attendance-agent/
