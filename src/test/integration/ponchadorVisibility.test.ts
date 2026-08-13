@@ -16,7 +16,10 @@ describe("Ponchador team/company visibility", () => {
     // each child before its parent and avoids leaking rows behind a
     // swallowed error.
     for (const id of [...contactIds].reverse()) {
-      await admin.from("contacts").delete().eq("id", id);
+      const { error } = await admin.from("contacts").delete().eq("id", id);
+      if (error) {
+        console.warn(`failed to delete contact ${id}: ${error.message}`);
+      }
     }
     contactIds = [];
     if (viewer) await deleteTestUser(viewer.id);
@@ -126,6 +129,7 @@ describe("Ponchador team/company visibility", () => {
     });
 
     expect(error).not.toBeNull();
+    expect(error?.message).toContain("not authorized");
     expect(data).toBeNull();
   });
 
