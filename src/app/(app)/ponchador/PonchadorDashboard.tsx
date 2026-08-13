@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { PeriodFilter } from "./PeriodFilter";
+import type { DayEstado, AttendancePeriodSummary } from "@/lib/attendance";
 
 export interface PonchadorRow {
   dateIso: string;
@@ -16,23 +17,25 @@ export interface PonchadorRow {
   arrivalLabel: string | null;
   exitLabel: string | null;
   workedLabel: string | null;
-  estado: "puntual" | "llegada_tarde" | "salida_anticipada" | "ausente" | "permiso";
+  estado: DayEstado;
   estadoLabel: string;
   observacion: string;
 }
 
-export interface PonchadorSummary {
-  diasHabiles: number;
-  diasTrabajados: number;
-  puntuales: number;
-  llegadasTarde: number;
-  salidasAnticipadas: number;
-  ausencias: number;
-  permisos: number;
-  feriados: number;
+export type PonchadorSummary = Pick<
+  AttendancePeriodSummary,
+  | "diasHabiles"
+  | "diasTrabajados"
+  | "puntuales"
+  | "llegadasTarde"
+  | "salidasAnticipadas"
+  | "ausencias"
+  | "permisos"
+  | "feriados"
+> & {
   horasTrabajadasLabel: string;
   promedioDiarioLabel: string;
-}
+};
 
 const ESTADO_BADGE_CLASSNAMES: Record<PonchadorRow["estado"], string> = {
   puntual: "bg-emerald-100 text-emerald-700",
