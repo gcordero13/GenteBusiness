@@ -11,6 +11,9 @@ import {
   classifyArrivalTier,
   pickMotivationalPhrase,
   rankEarlyArrivals,
+  buildAttendancePeriodRows,
+  summarizeAttendancePeriod,
+  classifyPuntualidadLabel,
 } from "./attendance";
 
 describe("toBusinessTimeParts", () => {
@@ -367,5 +370,208 @@ describe("rankEarlyArrivals", () => {
 
   it("returns an empty array for no candidates", () => {
     expect(rankEarlyArrivals([], 5)).toEqual([]);
+  });
+});
+
+describe("buildAttendancePeriodRows", () => {
+  // Monday-Friday 8:00 am - 5:00 pm, zero tolerance unless a test overrides it.
+  const schedule = {
+    id: "s1",
+    name: "General",
+    tolerance_minutes: 0,
+    days: [1, 2, 3, 4, 5].map((day_of_week) => ({
+      day_of_week,
+      start_time: "08:00:00",
+      end_time: "17:00:00",
+    })),
+  };
+
+  it("marks a scheduled day covered by approved leave as permiso, even with no punch", () => {
+    // 2026-01-12 is a Monday
+    const result = buildAttendancePeriodRows(
+      "2026-01-12",
+      "2026-01-12",
+      schedule,
+      [],
+      [{ dateFrom: "2026-01-12", dateTo: "2026-01-12" }],
+      15,
+    );
+    expect(result).toEqual([
+      {
+        dateIso: "2026-01-12",
+        arrivalMinutes: null,
+        exitMinutes: null,
+        workedMinutes: null,
+        estado: "permiso",
+        observacion: "Permiso aprobado",
+      },
+    ]);
+  });
+
+  it("marks a scheduled day with no punch and no leave as ausente", () => {
+    const result = buildAttendancePeriodRows("2026-01-12", "2026-01-12", schedule, [], [], 15);
+    expect(result).toEqual([
+      {
+        dateIso: "2026-01-12",
+        arrivalMinutes: null,
+        exitMinutes: null,
+        workedMinutes: null,
+        estado: "ausente",
+        observacion: "Sin justificación",
+      },
+    ]);
+  });
+
+  it("marks a late arrival as llegada_tarde, with the exact minute count in the observación", () => {
+    const result = buildAttendancePeriodRows(
+      "2026-01-12",
+      "2026-01-12",
+      schedule,
+      [{ dateIso: "2026-01-12", arrivalMinutes: 8 * 60 + 20, exitMinutes: 17 * 60 }],
+      [],
+      15,
+    );
+    expect(result).toEqual([
+      {
+        dateIso: "2026-01-12",
+        arrivalMinutes: 8 * 60 + 20,
+        exitMinutes: 17 * 60,
+        workedMinutes: 17 * 60 - (8 * 60 + 20),
+        estado: "llegada_tarde",
+        observacion: "20 min tarde",
+      },
+    ]);
+  });
+
+  it("marks an on-time arrival with an early exit beyond the threshold as salida_anticipada", () => {
+    const result = buildAttendancePeriodRows(
+      "2026-01-12",
+      "2026-01-12",
+      schedule,
+      [{ dateIso: "2026-01-12", arrivalMinutes: 8 * 60, exitMinutes: 16 * 60 }],
+      [],
+      15,
+    );
+    expect(result).toEqual([
+      {
+        dateIso: "2026-01-12",
+        arrivalMinutes: 8 * 60,
+        exitMinutes: 16 * 60,
+        workedMinutes: 16 * 60 - 8 * 60,
+        estado: "salida_anticipada",
+        observacion: "60 min antes",
+      },
+    ]);
+  });
+
+  it("prioritizes llegada_tarde over salida_anticipada when both apply the same day", () => {
+    const result = buildAttendancePeriodRows(
+      "2026-01-12",
+      "2026-01-12",
+      schedule,
+      [{ dateIso: "2026-01-12", arrivalMinutes: 8 * 60 + 20, exitMinutes: 16 * 60 }],
+      [],
+      15,
+    );
+    expect(result[0].estado).toBe("llegada_tarde");
+  });
+
+  it("marks a fully on-time day as puntual", () => {
+    const result = buildAttendancePeriodRows(
+      "2026-01-12",
+      "2026-01-12",
+      schedule,
+      [{ dateIso: "2026-01-12", arrivalMinutes: 8 * 60, exitMinutes: 17 * 60 }],
+      [],
+      15,
+    );
+    expect(result).toEqual([
+      {
+        dateIso: "2026-01-12",
+        arrivalMinutes: 8 * 60,
+        exitMinutes: 17 * 60,
+        workedMinutes: 9 * 60,
+        estado: "puntual",
+        observacion: "—",
+      },
+    ]);
+  });
+
+  it("excludes a day that isn't scheduled for this schedule", () => {
+    // 2026-01-11 is a Sunday - not in schedule.days
+    const result = buildAttendancePeriodRows("2026-01-11", "2026-01-11", schedule, [], [], 15);
+    expect(result).toEqual([]);
+  });
+
+  it("enumerates only scheduled days across a range that includes a weekend", () => {
+    // 2026-01-09 Fri, 01-10 Sat, 01-11 Sun, 01-12 Mon - only Fri and Mon are scheduled
+    const result = buildAttendancePeriodRows("2026-01-09", "2026-01-12", schedule, [], [], 15);
+    expect(result.map((r) => r.dateIso)).toEqual(["2026-01-09", "2026-01-12"]);
+  });
+
+  it("returns an empty array when periodEndIso is before periodStartIso", () => {
+    const result = buildAttendancePeriodRows("2026-01-12", "2026-01-11", schedule, [], [], 15);
+    expect(result).toEqual([]);
+  });
+});
+
+describe("summarizeAttendancePeriod", () => {
+  it("counts each estado and computes derived stats for a mixed period", () => {
+    const rows = [
+      { dateIso: "2026-01-05", arrivalMinutes: 480, exitMinutes: 1020, workedMinutes: 540, estado: "puntual" as const, observacion: "—" },
+      { dateIso: "2026-01-06", arrivalMinutes: 500, exitMinutes: 1020, workedMinutes: 520, estado: "llegada_tarde" as const, observacion: "20 min tarde" },
+      { dateIso: "2026-01-07", arrivalMinutes: 480, exitMinutes: 960, workedMinutes: 480, estado: "salida_anticipada" as const, observacion: "60 min antes" },
+      { dateIso: "2026-01-08", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "ausente" as const, observacion: "Sin justificación" },
+      { dateIso: "2026-01-09", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "permiso" as const, observacion: "Permiso aprobado" },
+    ];
+    const result = summarizeAttendancePeriod(rows);
+    expect(result).toEqual({
+      diasHabiles: 5,
+      diasTrabajados: 3,
+      puntuales: 1,
+      llegadasTarde: 1,
+      salidasAnticipadas: 1,
+      ausencias: 1,
+      permisos: 1,
+      feriados: 0,
+      horasTrabajadasMinutes: 540 + 520 + 480,
+      promedioEntradaMinutes: (480 + 500 + 480) / 3,
+      puntualidadPercent: Math.round((1 / 3) * 100),
+    });
+  });
+
+  it("returns null-safe stats for a period with zero días trabajados", () => {
+    const rows = [
+      { dateIso: "2026-01-08", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "ausente" as const, observacion: "Sin justificación" },
+      { dateIso: "2026-01-09", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "permiso" as const, observacion: "Permiso aprobado" },
+    ];
+    const result = summarizeAttendancePeriod(rows);
+    expect(result.diasTrabajados).toBe(0);
+    expect(result.promedioEntradaMinutes).toBeNull();
+    expect(result.puntualidadPercent).toBeNull();
+    expect(result.horasTrabajadasMinutes).toBe(0);
+    expect(result.feriados).toBe(0);
+  });
+});
+
+describe("classifyPuntualidadLabel", () => {
+  it("classifies below 85 as A mejorar", () => {
+    expect(classifyPuntualidadLabel(84)).toBe("A mejorar");
+  });
+
+  it("classifies exactly 85 as Buena", () => {
+    expect(classifyPuntualidadLabel(85)).toBe("Buena");
+  });
+
+  it("classifies just under 95 as Buena", () => {
+    expect(classifyPuntualidadLabel(94)).toBe("Buena");
+  });
+
+  it("classifies exactly 95 as Excelente", () => {
+    expect(classifyPuntualidadLabel(95)).toBe("Excelente");
+  });
+
+  it("returns null for null input", () => {
+    expect(classifyPuntualidadLabel(null)).toBeNull();
   });
 });

@@ -225,3 +225,175 @@ export function rankEarlyArrivals(candidates: EarlyArrivalCandidate[], limit: nu
     .sort((a, b) => b.minutesEarly - a.minutesEarly)
     .slice(0, limit);
 }
+
+export type DayEstado = "puntual" | "llegada_tarde" | "salida_anticipada" | "ausente" | "permiso";
+
+export interface AttendancePeriodRow {
+  dateIso: string;
+  arrivalMinutes: number | null;
+  exitMinutes: number | null;
+  workedMinutes: number | null; // exitMinutes - arrivalMinutes when both present, else null
+  estado: DayEstado;
+  observacion: string; // "—" when there's nothing to note
+}
+
+export interface ApprovedLeaveRange {
+  dateFrom: string; // "YYYY-MM-DD"
+  dateTo: string;
+}
+
+function enumerateDateRange(startIso: string, endIso: string): string[] {
+  const dates: string[] = [];
+  const [sy, sm, sd] = startIso.split("-").map(Number);
+  const [ey, em, ed] = endIso.split("-").map(Number);
+  let cursor = Date.UTC(sy, sm - 1, sd);
+  const end = Date.UTC(ey, em - 1, ed);
+  while (cursor <= end) {
+    const d = new Date(cursor);
+    const iso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+    dates.push(iso);
+    cursor += 24 * 60 * 60 * 1000;
+  }
+  return dates;
+}
+
+function isDateInRange(dateIso: string, startIso: string, endIso: string): boolean {
+  return dateIso >= startIso && dateIso <= endIso;
+}
+
+// Builds one row per scheduled workday between periodStartIso and
+// periodEndIso (inclusive). The caller is responsible for clamping
+// periodEndIso to getBusinessToday() so future days aren't evaluated for
+// absence. Non-workdays for this schedule are not included in the result at
+// all. For each scheduled day, in priority order:
+//   1. Covered by an approved leave range -> "permiso"
+//   2. No punch that day at all -> "ausente", observación "Sin justificación"
+//   3. Arrival later than schedule start + tolerance_minutes -> "llegada_tarde"
+//   4. Exit earlier than schedule end - earlyDepartureThresholdMinutes ->
+//      "salida_anticipada" (only checked if the day wasn't already
+//      "llegada_tarde" - arrival problems take priority over departure ones)
+//   5. Otherwise -> "puntual"
+export function buildAttendancePeriodRows(
+  periodStartIso: string,
+  periodEndIso: string,
+  schedule: ScheduleTemplate,
+  arrivalsAndExits: DailyAttendanceRow[],
+  approvedLeave: ApprovedLeaveRange[],
+  earlyDepartureThresholdMinutes: number,
+): AttendancePeriodRow[] {
+  const scheduledDayOfWeeks = new Map(schedule.days.map((d) => [d.day_of_week, d]));
+  const rowsByDate = new Map(arrivalsAndExits.map((r) => [r.dateIso, r]));
+
+  const rows: AttendancePeriodRow[] = [];
+  for (const dateIso of enumerateDateRange(periodStartIso, periodEndIso)) {
+    const scheduledDay = scheduledDayOfWeeks.get(businessDayOfWeek(dateIso));
+    if (!scheduledDay) continue;
+
+    const onLeave = approvedLeave.some((leave) => isDateInRange(dateIso, leave.dateFrom, leave.dateTo));
+    const attendance = rowsByDate.get(dateIso);
+    const arrivalMinutes = attendance?.arrivalMinutes ?? null;
+    const exitMinutes = attendance?.exitMinutes ?? null;
+    const workedMinutes = arrivalMinutes !== null && exitMinutes !== null ? exitMinutes - arrivalMinutes : null;
+
+    if (onLeave) {
+      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "permiso", observacion: "Permiso aprobado" });
+      continue;
+    }
+
+    if (arrivalMinutes === null) {
+      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "ausente", observacion: "Sin justificación" });
+      continue;
+    }
+
+    const scheduledStart = scheduleTimeToMinutes(scheduledDay.start_time);
+    const scheduledEnd = scheduleTimeToMinutes(scheduledDay.end_time);
+    const lateByTotal = arrivalMinutes - scheduledStart;
+    if (lateByTotal > schedule.tolerance_minutes) {
+      rows.push({
+        dateIso,
+        arrivalMinutes,
+        exitMinutes,
+        workedMinutes,
+        estado: "llegada_tarde",
+        observacion: `${lateByTotal} min tarde`,
+      });
+      continue;
+    }
+
+    if (exitMinutes !== null) {
+      const earlyByTotal = scheduledEnd - exitMinutes;
+      if (earlyByTotal > earlyDepartureThresholdMinutes) {
+        rows.push({
+          dateIso,
+          arrivalMinutes,
+          exitMinutes,
+          workedMinutes,
+          estado: "salida_anticipada",
+          observacion: `${earlyByTotal} min antes`,
+        });
+        continue;
+      }
+    }
+
+    rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "puntual", observacion: "—" });
+  }
+  return rows;
+}
+
+export interface AttendancePeriodSummary {
+  diasHabiles: number;
+  diasTrabajados: number; // puntual + llegada_tarde + salida_anticipada
+  puntuales: number;
+  llegadasTarde: number;
+  salidasAnticipadas: number;
+  ausencias: number;
+  permisos: number;
+  feriados: number; // always 0 - no holiday calendar exists yet
+  horasTrabajadasMinutes: number;
+  promedioEntradaMinutes: number | null;
+  puntualidadPercent: number | null;
+}
+
+// Pure aggregation over buildAttendancePeriodRows' own output - no new data
+// source, just counting/summing what's already there.
+export function summarizeAttendancePeriod(rows: AttendancePeriodRow[]): AttendancePeriodSummary {
+  const puntuales = rows.filter((r) => r.estado === "puntual").length;
+  const llegadasTarde = rows.filter((r) => r.estado === "llegada_tarde").length;
+  const salidasAnticipadas = rows.filter((r) => r.estado === "salida_anticipada").length;
+  const ausencias = rows.filter((r) => r.estado === "ausente").length;
+  const permisos = rows.filter((r) => r.estado === "permiso").length;
+  const diasTrabajados = puntuales + llegadasTarde + salidasAnticipadas;
+  const horasTrabajadasMinutes = rows.reduce((sum, r) => sum + (r.workedMinutes ?? 0), 0);
+
+  const arrivalsWorked = rows
+    .filter((r) => r.estado === "puntual" || r.estado === "llegada_tarde" || r.estado === "salida_anticipada")
+    .map((r) => r.arrivalMinutes)
+    .filter((m): m is number => m !== null);
+  const promedioEntradaMinutes =
+    arrivalsWorked.length === 0 ? null : arrivalsWorked.reduce((a, b) => a + b, 0) / arrivalsWorked.length;
+
+  const puntualidadPercent = diasTrabajados === 0 ? null : Math.round((puntuales / diasTrabajados) * 100);
+
+  return {
+    diasHabiles: rows.length,
+    diasTrabajados,
+    puntuales,
+    llegadasTarde,
+    salidasAnticipadas,
+    ausencias,
+    permisos,
+    feriados: 0,
+    horasTrabajadasMinutes,
+    promedioEntradaMinutes,
+    puntualidadPercent,
+  };
+}
+
+// Qualitative label shown next to the Puntualidad % stat card. null input
+// (no días trabajados yet this period) renders no badge at all.
+export function classifyPuntualidadLabel(puntualidadPercent: number | null): "Excelente" | "Buena" | "A mejorar" | null {
+  if (puntualidadPercent === null) return null;
+  if (puntualidadPercent >= 95) return "Excelente";
+  if (puntualidadPercent >= 85) return "Buena";
+  return "A mejorar";
+}
