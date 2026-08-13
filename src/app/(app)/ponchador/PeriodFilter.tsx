@@ -34,11 +34,20 @@ export function PeriodFilter({
     router.push(`/ponchador?${params.toString()}`);
   }
 
+  function updateYear(nextYear: string) {
+    const parsedYear = Number(nextYear);
+    const clampedMonth = parsedYear === currentYear ? Math.min(month, currentMonth) : month;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("year", nextYear);
+    params.set("month", String(clampedMonth));
+    router.push(`/ponchador?${params.toString()}`);
+  }
+
   const years = [currentYear - 2, currentYear - 1, currentYear];
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Select value={String(year)} onValueChange={(value) => value && updateParam("year", value)}>
+      <Select value={String(year)} onValueChange={(value) => value && updateYear(value)}>
         <SelectTrigger className="w-28">
           <SelectValue />
         </SelectTrigger>
