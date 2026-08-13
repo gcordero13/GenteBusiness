@@ -1,3 +1,28 @@
+-- Shared helper: every contact id anywhere in p_contact_id's downward
+-- reports_to_id chain (direct reports, their reports, and so on), however
+-- many levels deep. Uses plain UNION (not UNION ALL) so Postgres's
+-- duplicate-elimination-based cycle detection guarantees termination even if
+-- reports_to_id ever contains a cycle (e.g. a data-entry mistake sets A -> B
+-- and B -> A) - there's no DB constraint preventing that, and this function
+-- is reachable indirectly by any authenticated user via the security
+-- definer functions below, so an unbounded recursive query here would be a
+-- real availability risk.
+create or replace function public.get_ponchador_descendant_ids(p_contact_id uuid)
+returns setof uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  with recursive descendants as (
+    select cc.id from public.contacts cc where cc.reports_to_id = p_contact_id
+    union
+    select cc.id from public.contacts cc
+    join descendants d on cc.reports_to_id = d.id
+  )
+  select id from descendants;
+$$;
+
 -- Central check reused by every Ponchador cross-person data function below:
 -- can the caller view p_contact_id's Ponchador? Yes if it's their own
 -- contact, if they have can_manage on the ponchador module, or if
@@ -34,13 +59,9 @@ begin
   end if;
 
   return exists (
-    with recursive descendants as (
-      select cc.id from public.contacts cc where cc.reports_to_id = my_contact_id
-      union all
-      select cc.id from public.contacts cc
-      join descendants d on cc.reports_to_id = d.id
-    )
-    select 1 from descendants where id = p_contact_id
+    select 1
+    from public.get_ponchador_descendant_ids(my_contact_id) as t(id)
+    where t.id = p_contact_id
   );
 end;
 $$;
@@ -136,15 +157,9 @@ begin
   end if;
 
   return query
-    with recursive descendants as (
-      select cc.id from public.contacts cc where cc.reports_to_id = my_contact_id
-      union all
-      select cc.id from public.contacts cc
-      join descendants d on cc.reports_to_id = d.id
-    )
     select c.id, c.first_name, c.last_name, c.position
     from public.contacts c
-    join descendants d on d.id = c.id
+    join public.get_ponchador_descendant_ids(my_contact_id) as t(id) on t.id = c.id
     where c.status = 'active' and c.hikvision_employee_no is not null;
 end;
 $$;
