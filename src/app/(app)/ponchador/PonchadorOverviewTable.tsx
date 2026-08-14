@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -44,19 +45,22 @@ export function PonchadorOverviewTable({
 
   return (
     <div className="space-y-6">
-      {Array.from(groups.entries()).map(([department, members]) => (
-        <div key={department}>
-          <p className="mb-2 text-sm font-semibold text-muted-foreground">{department}</p>
-          <OverviewTableBody rows={members} />
-        </div>
-      ))}
+      {Array.from(groups.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([department, members]) => (
+          <div key={department}>
+            <p className="mb-2 text-sm font-semibold text-muted-foreground">{department}</p>
+            <OverviewTableBody rows={members} caption={department} />
+          </div>
+        ))}
     </div>
   );
 }
 
-function OverviewTableBody({ rows }: { rows: PonchadorOverviewRow[] }) {
+function OverviewTableBody({ rows, caption }: { rows: PonchadorOverviewRow[]; caption?: string }) {
   return (
     <Table>
+      {caption && <TableCaption className="sr-only">{caption}</TableCaption>}
       <TableHeader>
         <TableRow>
           <TableHead>Nombre</TableHead>
