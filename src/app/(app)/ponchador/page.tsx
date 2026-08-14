@@ -63,11 +63,16 @@ export default async function PonchadorPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: myContactRow } = await supabase
-    .from("contacts")
-    .select("id, hikvision_employee_no")
-    .eq("email", user!.email!)
-    .maybeSingle();
+  // Independent of each other: the own-contact lookup only needs the
+  // already-resolved user email, and both list_* RPCs derive the caller
+  // from auth.uid() server-side (list_all_ponchador_contacts itself returns
+  // an empty array when the caller lacks can_manage, so it's safe to always
+  // call it here rather than gating the fetch on canViewAll).
+  const [{ data: myContactRow }, { data: teamRows }, { data: allRows }] = await Promise.all([
+    supabase.from("contacts").select("id, hikvision_employee_no").eq("email", user!.email!).maybeSingle(),
+    supabase.rpc("list_my_ponchador_team"),
+    supabase.rpc("list_all_ponchador_contacts"),
+  ]);
 
   if (!myContactRow?.hikvision_employee_no) {
     return (
@@ -79,7 +84,6 @@ export default async function PonchadorPage({
   }
   const myContactId: string = myContactRow.id;
 
-  const { data: teamRows } = await supabase.rpc("list_my_ponchador_team");
   const team: PonchadorPersonOption[] = (teamRows ?? []).map(
     (r: { id: string; first_name: string; last_name: string }) => ({
       id: r.id,
@@ -90,7 +94,6 @@ export default async function PonchadorPage({
 
   let allPeople: PonchadorPersonOption[] = [];
   if (canViewAll) {
-    const { data: allRows } = await supabase.rpc("list_all_ponchador_contacts");
     allPeople = (allRows ?? []).map(
       (r: { id: string; first_name: string; last_name: string; department_name: string | null }) => ({
         id: r.id,
@@ -130,13 +133,21 @@ export default async function PonchadorPage({
 
   const scopeTabs = <PonchadorScopeTabs scope={scope} hasTeam={hasTeam} canViewAll={canViewAll} />;
 
+  // Shared by both the "pick a person" early return below and the final
+  // return, so the title/tabs row isn't duplicated in two JSX literals.
+  function pageHeader(title: string) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">{title}</h1>
+        {scopeTabs}
+      </div>
+    );
+  }
+
   if (scope !== "self" && !targetContactId) {
     return (
       <div className="space-y-4 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">Ponchador</h1>
-          {scopeTabs}
-        </div>
+        {pageHeader("Ponchador")}
         <PonchadorPersonSelector
           people={scope === "team" ? team : allPeople}
           contactId={null}
@@ -172,16 +183,6 @@ export default async function PonchadorPage({
 
   const isViewingSelf = effectiveContactId === myContactId;
 
-  const { schedulesById, defaultSchedule } = await getScheduleTemplatesContext();
-  const { data: departments } = await supabase.from("departments").select("id, default_schedule_id");
-  const departmentDefaultById = new Map((departments ?? []).map((d) => [d.id, d.default_schedule_id]));
-  const viewerSchedule = getEffectiveSchedule(
-    viewedContact.schedule_id,
-    viewedContact.department_id ? departmentDefaultById.get(viewedContact.department_id) : null,
-    schedulesById,
-    defaultSchedule,
-  );
-
   const windowStartIso = new Date(
     new Date(`${periodStartIso}T00:00:00.000Z`).getTime() - 24 * 60 * 60 * 1000,
   ).toISOString();
@@ -189,18 +190,40 @@ export default async function PonchadorPage({
     new Date(`${periodEndIsoUnclamped}T00:00:00.000Z`).getTime() + 2 * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const { data: punchRows } = await supabase.rpc("get_ponchador_punches", {
-    p_contact_id: effectiveContactId,
-    p_from: windowStartIso,
-    p_to: windowEndIso,
-  });
+  // Independent of each other once effectiveContactId and the period bounds
+  // are known: schedule templates and departments don't depend on the
+  // target contact at all, and the punches/leave RPCs only need
+  // effectiveContactId plus the already-computed period bounds.
+  const [
+    { schedulesById, defaultSchedule },
+    { data: departments },
+    { data: punchRows },
+    { data: leaveRows },
+  ] = await Promise.all([
+    getScheduleTemplatesContext(),
+    supabase.from("departments").select("id, default_schedule_id"),
+    supabase.rpc("get_ponchador_punches", {
+      p_contact_id: effectiveContactId,
+      p_from: windowStartIso,
+      p_to: windowEndIso,
+    }),
+    supabase.rpc("get_ponchador_approved_leave", {
+      p_contact_id: effectiveContactId,
+      p_period_start: periodStartIso,
+      p_period_end: periodEndIso,
+    }),
+  ]);
+
+  const departmentDefaultById = new Map((departments ?? []).map((d) => [d.id, d.default_schedule_id]));
+  const targetSchedule = getEffectiveSchedule(
+    viewedContact.schedule_id,
+    viewedContact.department_id ? departmentDefaultById.get(viewedContact.department_id) : null,
+    schedulesById,
+    defaultSchedule,
+  );
+
   const arrivalsAndExits = buildDailyAttendanceRows((punchRows ?? []).map((p: { punched_at: string }) => p.punched_at));
 
-  const { data: leaveRows } = await supabase.rpc("get_ponchador_approved_leave", {
-    p_contact_id: effectiveContactId,
-    p_period_start: periodStartIso,
-    p_period_end: periodEndIso,
-  });
   const approvedLeave: ApprovedLeaveRange[] = (leaveRows ?? []).map((r: { date_from: string; date_to: string }) => ({
     dateFrom: r.date_from,
     dateTo: r.date_to,
@@ -209,7 +232,7 @@ export default async function PonchadorPage({
   const periodRows = buildAttendancePeriodRows(
     periodStartIso,
     periodEndIso,
-    viewerSchedule,
+    targetSchedule,
     arrivalsAndExits,
     approvedLeave,
     EARLY_DEPARTURE_THRESHOLD_MINUTES,
@@ -223,10 +246,10 @@ export default async function PonchadorPage({
     const periodArrivals: DailyArrival[] = periodRows
       .filter((r): r is typeof r & { arrivalMinutes: number } => r.arrivalMinutes !== null)
       .map((r) => ({ dateIso: r.dateIso, arrivalMinutes: r.arrivalMinutes }));
-    const comparison = attachScheduleComparison(periodArrivals, viewerSchedule);
+    const comparison = attachScheduleComparison(periodArrivals, targetSchedule);
     const avgMinutesEarly = averageMinutesEarly(comparison);
     if (avgMinutesEarly !== null) {
-      const tier = classifyArrivalTier(avgMinutesEarly, viewerSchedule.tolerance_minutes);
+      const tier = classifyArrivalTier(avgMinutesEarly, targetSchedule.tolerance_minutes);
       motivationalPhrase = pickMotivationalPhrase(tier, viewedContact.first_name, today.getUTCDate());
       const roundedDelta = Math.round(Math.abs(avgMinutesEarly));
       averageArrivalDeltaLabel = `${roundedDelta} min ${avgMinutesEarly >= 0 ? "temprano" : "tarde"}`;
@@ -268,15 +291,12 @@ export default async function PonchadorPage({
       : `${summary.puntualidadPercent}%${puntualidadTierLabel ? ` · ${puntualidadTierLabel}` : ""}`;
   const diasTrabajadosLabel = `de ${summary.diasHabiles} días hábiles`;
   const periodLabel = `01 ${MONTH_NAMES_ES[month - 1]} - ${periodEndIsoUnclamped.slice(8, 10)} ${MONTH_NAMES_ES[month - 1]}`;
-  const scheduleFooterNote = `${isViewingSelf ? "Tu horario" : "Horario"}: ${formatScheduleLine(viewerSchedule)}. Tolerancia: ${viewerSchedule.tolerance_minutes} minutos.`;
+  const scheduleFooterNote = `${isViewingSelf ? "Tu horario" : "Horario"}: ${formatScheduleLine(targetSchedule)}. Tolerancia: ${targetSchedule.tolerance_minutes} minutos.`;
   const pageTitle = isViewingSelf ? "Ponchador" : `Ponchador de ${viewedContact.first_name} ${viewedContact.last_name}`;
 
   return (
     <div className="space-y-4 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{pageTitle}</h1>
-        {scopeTabs}
-      </div>
+      {pageHeader(pageTitle)}
       {scope !== "self" && (
         <PonchadorPersonSelector
           people={scope === "team" ? team : allPeople}
