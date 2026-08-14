@@ -17,6 +17,8 @@ import {
   type ApprovedLeaveRange,
 } from "@/lib/attendance";
 import { PonchadorDashboard, type PonchadorRow, type PonchadorSummary } from "./PonchadorDashboard";
+import { PonchadorScopeTabs, type PonchadorScope } from "./PonchadorScopeTabs";
+import { PonchadorPersonSelector, type PonchadorPersonOption } from "./PonchadorPersonSelector";
 
 const EARLY_DEPARTURE_THRESHOLD_MINUTES = 15;
 
@@ -46,7 +48,7 @@ function formatHoursMinutes(totalMinutes: number): string {
 export default async function PonchadorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; view?: string; contactId?: string }>;
 }) {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
@@ -55,18 +57,19 @@ export default async function PonchadorPage({
   if (!flagsRows?.[0]?.can_view) {
     redirect("/");
   }
+  const canViewAll = flagsRows[0].can_manage ?? false;
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: myContact } = await supabase
+  const { data: myContactRow } = await supabase
     .from("contacts")
-    .select("first_name, hikvision_employee_no, schedule_id, department_id")
+    .select("id, hikvision_employee_no")
     .eq("email", user!.email!)
     .maybeSingle();
 
-  if (!myContact?.hikvision_employee_no) {
+  if (!myContactRow?.hikvision_employee_no) {
     return (
       <div className="p-6">
         <h1 className="mb-4 text-xl font-semibold">Ponchador</h1>
@@ -74,13 +77,41 @@ export default async function PonchadorPage({
       </div>
     );
   }
+  const myContactId: string = myContactRow.id;
+
+  const { data: teamRows } = await supabase.rpc("list_my_ponchador_team");
+  const team: PonchadorPersonOption[] = (teamRows ?? []).map(
+    (r: { id: string; first_name: string; last_name: string }) => ({
+      id: r.id,
+      name: `${r.first_name} ${r.last_name}`.trim(),
+    }),
+  );
+  const hasTeam = team.length > 0;
+
+  let allPeople: PonchadorPersonOption[] = [];
+  if (canViewAll) {
+    const { data: allRows } = await supabase.rpc("list_all_ponchador_contacts");
+    allPeople = (allRows ?? []).map(
+      (r: { id: string; first_name: string; last_name: string; department_name: string | null }) => ({
+        id: r.id,
+        name: `${r.first_name} ${r.last_name}`.trim(),
+        departmentName: r.department_name,
+      }),
+    );
+  }
+
+  const params = await searchParams;
+  const requestedScope = params.view;
+  const scope: PonchadorScope =
+    requestedScope === "team" && hasTeam ? "team" : requestedScope === "all" && canViewAll ? "all" : "self";
+
+  const targetContactId: string | null = scope === "self" ? myContactId : (params.contactId ?? null);
 
   const today = getBusinessToday();
   const todayIso = today.toISOString().slice(0, 10);
   const currentYear = today.getUTCFullYear();
   const currentMonth = today.getUTCMonth() + 1;
 
-  const params = await searchParams;
   const requestedYear = Number(params.year);
   const requestedMonth = Number(params.month);
   const isValidRequestedPeriod =
@@ -97,12 +128,56 @@ export default async function PonchadorPage({
   const periodEndIsoUnclamped = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
   const periodEndIso = year === currentYear && month === currentMonth ? todayIso : periodEndIsoUnclamped;
 
+  const scopeTabs = <PonchadorScopeTabs scope={scope} hasTeam={hasTeam} canViewAll={canViewAll} />;
+
+  if (scope !== "self" && !targetContactId) {
+    return (
+      <div className="space-y-4 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold">Ponchador</h1>
+          {scopeTabs}
+        </div>
+        <PonchadorPersonSelector
+          people={scope === "team" ? team : allPeople}
+          contactId={null}
+          groupByDepartment={scope === "all"}
+        />
+        <p className="text-sm text-muted-foreground">Selecciona una persona para ver su registro.</p>
+      </div>
+    );
+  }
+
+  const { data: contactSummaryRows, error: contactSummaryError } = await supabase.rpc(
+    "get_ponchador_contact_summary",
+    { p_contact_id: targetContactId },
+  );
+
+  let effectiveContactId = targetContactId as string;
+  let viewedContact = contactSummaryRows?.[0];
+
+  if (contactSummaryError || !viewedContact) {
+    // Invalid/tampered contactId, or the caller lost access since a link was
+    // shared (e.g. no longer manages that person) - fall back to their own
+    // contact rather than erroring.
+    effectiveContactId = myContactId;
+    const fallback = await supabase.rpc("get_ponchador_contact_summary", { p_contact_id: myContactId });
+    viewedContact = fallback.data?.[0];
+  }
+
+  if (!viewedContact) {
+    // Shouldn't be reachable - myContactId was already confirmed to exist
+    // above - but keeps the page from crashing if it somehow is.
+    redirect("/ponchador");
+  }
+
+  const isViewingSelf = effectiveContactId === myContactId;
+
   const { schedulesById, defaultSchedule } = await getScheduleTemplatesContext();
   const { data: departments } = await supabase.from("departments").select("id, default_schedule_id");
   const departmentDefaultById = new Map((departments ?? []).map((d) => [d.id, d.default_schedule_id]));
   const viewerSchedule = getEffectiveSchedule(
-    myContact.schedule_id,
-    myContact.department_id ? departmentDefaultById.get(myContact.department_id) : null,
+    viewedContact.schedule_id,
+    viewedContact.department_id ? departmentDefaultById.get(viewedContact.department_id) : null,
     schedulesById,
     defaultSchedule,
   );
@@ -114,29 +189,19 @@ export default async function PonchadorPage({
     new Date(`${periodEndIsoUnclamped}T00:00:00.000Z`).getTime() + 2 * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  // Scoped by the time_clock_punches_select_own RLS policy (contact_id-based) -
-  // see "Data Access" in docs/superpowers/specs/2026-08-12-ponchador-module-design.md.
-  const { data: punches } = await supabase
-    .from("time_clock_punches")
-    .select("punched_at")
-    .gte("punched_at", windowStartIso)
-    .lt("punched_at", windowEndIso);
+  const { data: punchRows } = await supabase.rpc("get_ponchador_punches", {
+    p_contact_id: effectiveContactId,
+    p_from: windowStartIso,
+    p_to: windowEndIso,
+  });
+  const arrivalsAndExits = buildDailyAttendanceRows((punchRows ?? []).map((p: { punched_at: string }) => p.punched_at));
 
-  const arrivalsAndExits = buildDailyAttendanceRows((punches ?? []).map((p) => p.punched_at));
-
-  // requester_app_user_id filter is required: vacation_requests_select's RLS
-  // also lets a supervisor/RRHH-authorized viewer see OTHER people's
-  // requests - without this filter we could misattribute someone else's
-  // approved leave to this page's viewer.
-  const { data: leaveRequests } = await supabase
-    .from("vacation_requests")
-    .select("date_from, date_to")
-    .eq("requester_app_user_id", user!.id)
-    .eq("status", "aprobado")
-    .lte("date_from", periodEndIso)
-    .gte("date_to", periodStartIso);
-
-  const approvedLeave: ApprovedLeaveRange[] = (leaveRequests ?? []).map((r) => ({
+  const { data: leaveRows } = await supabase.rpc("get_ponchador_approved_leave", {
+    p_contact_id: effectiveContactId,
+    p_period_start: periodStartIso,
+    p_period_end: periodEndIso,
+  });
+  const approvedLeave: ApprovedLeaveRange[] = (leaveRows ?? []).map((r: { date_from: string; date_to: string }) => ({
     dateFrom: r.date_from,
     dateTo: r.date_to,
   }));
@@ -152,19 +217,20 @@ export default async function PonchadorPage({
   const summary = summarizeAttendancePeriod(periodRows);
   const puntualidadTierLabel = classifyPuntualidadLabel(summary.puntualidadPercent);
 
-  const periodArrivals: DailyArrival[] = periodRows
-    .filter((r): r is typeof r & { arrivalMinutes: number } => r.arrivalMinutes !== null)
-    .map((r) => ({ dateIso: r.dateIso, arrivalMinutes: r.arrivalMinutes }));
-  const comparison = attachScheduleComparison(periodArrivals, viewerSchedule);
-  const avgMinutesEarly = averageMinutesEarly(comparison);
-
   let motivationalPhrase: string | null = null;
   let averageArrivalDeltaLabel: string | null = null;
-  if (avgMinutesEarly !== null) {
-    const tier = classifyArrivalTier(avgMinutesEarly, viewerSchedule.tolerance_minutes);
-    motivationalPhrase = pickMotivationalPhrase(tier, myContact.first_name, today.getUTCDate());
-    const roundedDelta = Math.round(Math.abs(avgMinutesEarly));
-    averageArrivalDeltaLabel = `${roundedDelta} min ${avgMinutesEarly >= 0 ? "temprano" : "tarde"}`;
+  if (isViewingSelf) {
+    const periodArrivals: DailyArrival[] = periodRows
+      .filter((r): r is typeof r & { arrivalMinutes: number } => r.arrivalMinutes !== null)
+      .map((r) => ({ dateIso: r.dateIso, arrivalMinutes: r.arrivalMinutes }));
+    const comparison = attachScheduleComparison(periodArrivals, viewerSchedule);
+    const avgMinutesEarly = averageMinutesEarly(comparison);
+    if (avgMinutesEarly !== null) {
+      const tier = classifyArrivalTier(avgMinutesEarly, viewerSchedule.tolerance_minutes);
+      motivationalPhrase = pickMotivationalPhrase(tier, viewedContact.first_name, today.getUTCDate());
+      const roundedDelta = Math.round(Math.abs(avgMinutesEarly));
+      averageArrivalDeltaLabel = `${roundedDelta} min ${avgMinutesEarly >= 0 ? "temprano" : "tarde"}`;
+    }
   }
 
   const ponchadorRows: PonchadorRow[] = periodRows.map((r) => ({
@@ -202,11 +268,22 @@ export default async function PonchadorPage({
       : `${summary.puntualidadPercent}%${puntualidadTierLabel ? ` · ${puntualidadTierLabel}` : ""}`;
   const diasTrabajadosLabel = `de ${summary.diasHabiles} días hábiles`;
   const periodLabel = `01 ${MONTH_NAMES_ES[month - 1]} - ${periodEndIsoUnclamped.slice(8, 10)} ${MONTH_NAMES_ES[month - 1]}`;
-  const scheduleFooterNote = `Tu horario: ${formatScheduleLine(viewerSchedule)}. Tolerancia: ${viewerSchedule.tolerance_minutes} minutos.`;
+  const scheduleFooterNote = `${isViewingSelf ? "Tu horario" : "Horario"}: ${formatScheduleLine(viewerSchedule)}. Tolerancia: ${viewerSchedule.tolerance_minutes} minutos.`;
+  const pageTitle = isViewingSelf ? "Ponchador" : `Ponchador de ${viewedContact.first_name} ${viewedContact.last_name}`;
 
   return (
-    <div className="p-6">
-      <h1 className="mb-4 text-xl font-semibold">Ponchador</h1>
+    <div className="space-y-4 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">{pageTitle}</h1>
+        {scopeTabs}
+      </div>
+      {scope !== "self" && (
+        <PonchadorPersonSelector
+          people={scope === "team" ? team : allPeople}
+          contactId={effectiveContactId}
+          groupByDepartment={scope === "all"}
+        />
+      )}
       <PonchadorDashboard
         year={year}
         month={month}
