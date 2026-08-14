@@ -37,7 +37,9 @@ export function PonchadorDepartmentFilter({
       onValueChange={(value) => value && selectDepartment(value)}
     >
       <SelectTrigger className="w-56">
-        <SelectValue />
+        <SelectValue>
+          {(value: string) => (value === ALL_DEPARTMENTS_VALUE ? "Todos los departamentos" : value)}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL_DEPARTMENTS_VALUE}>Todos los departamentos</SelectItem>
