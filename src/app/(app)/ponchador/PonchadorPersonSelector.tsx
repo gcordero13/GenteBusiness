@@ -37,9 +37,15 @@ export function PonchadorPersonSelector({
 
   if (!groupByDepartment) {
     return (
-      <Select value={contactId ?? undefined} onValueChange={(value) => value && selectPerson(value)}>
+      <Select
+        value={contactId ?? undefined}
+        onValueChange={(value) => value && selectPerson(value)}
+        disabled={people.length === 0}
+      >
         <SelectTrigger className="w-64">
-          <SelectValue placeholder="Selecciona una persona" />
+          <SelectValue placeholder="Selecciona una persona">
+            {(value: string) => people.find((p) => p.id === value)?.name ?? "Selecciona una persona"}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {people.map((p) => (
@@ -61,9 +67,15 @@ export function PonchadorPersonSelector({
   }
 
   return (
-    <Select value={contactId ?? undefined} onValueChange={(value) => value && selectPerson(value)}>
+    <Select
+      value={contactId ?? undefined}
+      onValueChange={(value) => value && selectPerson(value)}
+      disabled={people.length === 0}
+    >
       <SelectTrigger className="w-64">
-        <SelectValue placeholder="Selecciona una persona" />
+        <SelectValue placeholder="Selecciona una persona">
+          {(value: string) => people.find((p) => p.id === value)?.name ?? "Selecciona una persona"}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {Array.from(groups.entries()).map(([department, members]) => (
