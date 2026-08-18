@@ -2,12 +2,13 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-export type PonchadorScope = "self" | "team" | "all";
+export type PonchadorScope = "self" | "team" | "all" | "overview";
 
 const SCOPE_LABELS: Record<PonchadorScope, string> = {
   self: "Mi Ponchador",
   team: "Mi Equipo",
   all: "Todos",
+  overview: "Vista general",
 };
 
 export function PonchadorScopeTabs({
@@ -26,12 +27,15 @@ export function PonchadorScopeTabs({
     "self",
     ...(hasTeam ? (["team"] as const) : []),
     ...(canViewAll ? (["all"] as const) : []),
+    ...(hasTeam || canViewAll ? (["overview"] as const) : []),
   ];
 
   function selectScope(next: PonchadorScope) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", next);
     params.delete("contactId");
+    params.delete("rosterScope");
+    params.delete("department");
     router.push(`/ponchador?${params.toString()}`);
   }
 
