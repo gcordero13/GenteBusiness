@@ -15,6 +15,7 @@ async function insertApprovedVacationRequest(
     first_name: string;
     last_name: string;
     supervisor_app_user_id: string;
+    tipo?: "vacaciones" | "permiso";
   },
 ): Promise<string> {
   const { data: created, error: insertError } = await admin
@@ -30,6 +31,7 @@ async function insertApprovedVacationRequest(
       return_date: "2026-08-13",
       status: "pendiente_supervisor",
       supervisor_app_user_id: fields.supervisor_app_user_id,
+      tipo: fields.tipo ?? "vacaciones",
     })
     .select()
     .single();
@@ -562,5 +564,74 @@ describe("Ponchador team/company visibility", () => {
 
     expect(error).toBeNull();
     expect(data?.some((r: { contact_id: string }) => r.contact_id === anyone!.id)).toBe(true);
+  });
+
+  it("get_ponchador_team_approved_leave returns each request's tipo", async () => {
+    viewer = await createTestUser("Viewer");
+    const admin = createAdminClient();
+
+    const { data: ownContact } = await admin
+      .from("contacts")
+      .insert({ first_name: "Lead", last_name: "Self", email: viewer.email })
+      .select()
+      .single();
+    contactIds.push(ownContact!.id);
+
+    const { data: report } = await admin
+      .from("contacts")
+      .insert({ first_name: "Direct", last_name: "Report", reports_to_id: ownContact!.id })
+      .select()
+      .single();
+    contactIds.push(report!.id);
+
+    const vacacionesRequestId = await insertApprovedVacationRequest(admin, {
+      contact_id: report!.id,
+      requester_app_user_id: viewer.id,
+      first_name: "Direct",
+      last_name: "Report",
+      supervisor_app_user_id: viewer.id,
+      tipo: "vacaciones",
+    });
+    vacationRequestIds.push(vacacionesRequestId);
+
+    const { data, error } = await viewer.client.rpc("get_ponchador_team_approved_leave", {
+      p_period_start: "2026-08-01",
+      p_period_end: "2026-08-31",
+    });
+
+    expect(error).toBeNull();
+    const row = data?.find((r: { contact_id: string }) => r.contact_id === report!.id);
+    expect(row?.tipo).toBe("vacaciones");
+  });
+
+  it("get_ponchador_all_approved_leave returns a permiso request's tipo correctly", async () => {
+    superAdmin = await createTestUser("Super Admin");
+    const admin = createAdminClient();
+
+    const { data: anyone } = await admin
+      .from("contacts")
+      .insert({ first_name: "Anyone", last_name: "Contact" })
+      .select()
+      .single();
+    contactIds.push(anyone!.id);
+
+    const permisoRequestId = await insertApprovedVacationRequest(admin, {
+      contact_id: anyone!.id,
+      requester_app_user_id: superAdmin.id,
+      first_name: "Anyone",
+      last_name: "Contact",
+      supervisor_app_user_id: superAdmin.id,
+      tipo: "permiso",
+    });
+    vacationRequestIds.push(permisoRequestId);
+
+    const { data, error } = await superAdmin.client.rpc("get_ponchador_all_approved_leave", {
+      p_period_start: "2026-08-01",
+      p_period_end: "2026-08-31",
+    });
+
+    expect(error).toBeNull();
+    const row = data?.find((r: { contact_id: string }) => r.contact_id === anyone!.id);
+    expect(row?.tipo).toBe("permiso");
   });
 });
