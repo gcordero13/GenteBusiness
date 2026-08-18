@@ -19,6 +19,9 @@ import {
 import { PonchadorDashboard, type PonchadorRow, type PonchadorSummary } from "./PonchadorDashboard";
 import { PonchadorScopeTabs, type PonchadorScope } from "./PonchadorScopeTabs";
 import { PonchadorPersonSelector, type PonchadorPersonOption } from "./PonchadorPersonSelector";
+import { PonchadorOverviewTable, type PonchadorOverviewRow } from "./PonchadorOverviewTable";
+import { PonchadorDepartmentFilter } from "./PonchadorDepartmentFilter";
+import { PonchadorRosterScopeToggle, type PonchadorRosterScope } from "./PonchadorRosterScopeToggle";
 
 const EARLY_DEPARTURE_THRESHOLD_MINUTES = 15;
 
@@ -35,6 +38,14 @@ const ESTADO_LABELS: Record<PonchadorRow["estado"], string> = {
   permiso: "Permiso",
 };
 
+interface PonchadorRosterPerson {
+  id: string;
+  name: string;
+  departmentName: string | null;
+  scheduleId: string | null;
+  departmentId: string | null;
+}
+
 function lastDayOfMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
@@ -48,7 +59,14 @@ function formatHoursMinutes(totalMinutes: number): string {
 export default async function PonchadorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string; view?: string; contactId?: string }>;
+  searchParams: Promise<{
+    year?: string;
+    month?: string;
+    view?: string;
+    contactId?: string;
+    rosterScope?: string;
+    department?: string;
+  }>;
 }) {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
@@ -63,11 +81,6 @@ export default async function PonchadorPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Independent of each other: the own-contact lookup only needs the
-  // already-resolved user email, and both list_* RPCs derive the caller
-  // from auth.uid() server-side (list_all_ponchador_contacts itself returns
-  // an empty array when the caller lacks can_manage, so it's safe to always
-  // call it here rather than gating the fetch on canViewAll).
   const [{ data: myContactRow }, { data: teamRows }, { data: allRows }] = await Promise.all([
     supabase.from("contacts").select("id, hikvision_employee_no").eq("email", user!.email!).maybeSingle(),
     supabase.rpc("list_my_ponchador_team"),
@@ -103,10 +116,48 @@ export default async function PonchadorPage({
     );
   }
 
+  // Same rows list_my_ponchador_team/list_all_ponchador_contacts already
+  // fetched above, remapped with the schedule_id/department_id fields the
+  // Vista general roster needs - no additional RPC calls required.
+  const teamRoster: PonchadorRosterPerson[] = (teamRows ?? []).map(
+    (r: { id: string; first_name: string; last_name: string; schedule_id: string | null; department_id: string | null }) => ({
+      id: r.id,
+      name: `${r.first_name} ${r.last_name}`.trim(),
+      departmentName: null,
+      scheduleId: r.schedule_id,
+      departmentId: r.department_id,
+    }),
+  );
+
+  const allRoster: PonchadorRosterPerson[] = canViewAll
+    ? (allRows ?? []).map(
+        (r: {
+          id: string;
+          first_name: string;
+          last_name: string;
+          department_name: string | null;
+          schedule_id: string | null;
+          department_id: string | null;
+        }) => ({
+          id: r.id,
+          name: `${r.first_name} ${r.last_name}`.trim(),
+          departmentName: r.department_name,
+          scheduleId: r.schedule_id,
+          departmentId: r.department_id,
+        }),
+      )
+    : [];
+
   const params = await searchParams;
   const requestedScope = params.view;
   const scope: PonchadorScope =
-    requestedScope === "team" && hasTeam ? "team" : requestedScope === "all" && canViewAll ? "all" : "self";
+    requestedScope === "team" && hasTeam
+      ? "team"
+      : requestedScope === "all" && canViewAll
+        ? "all"
+        : requestedScope === "overview" && (hasTeam || canViewAll)
+          ? "overview"
+          : "self";
 
   const targetContactId: string | null = scope === "self" ? myContactId : (params.contactId ?? null);
 
@@ -131,15 +182,133 @@ export default async function PonchadorPage({
   const periodEndIsoUnclamped = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
   const periodEndIso = year === currentYear && month === currentMonth ? todayIso : periodEndIsoUnclamped;
 
+  // Moved up from later in the file: both the "overview" branch below and
+  // the existing single-person branch need these, so they're computed once
+  // here rather than twice.
+  const windowStartIso = new Date(
+    new Date(`${periodStartIso}T00:00:00.000Z`).getTime() - 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const windowEndIso = new Date(
+    new Date(`${periodEndIsoUnclamped}T00:00:00.000Z`).getTime() + 2 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
   const scopeTabs = <PonchadorScopeTabs scope={scope} hasTeam={hasTeam} canViewAll={canViewAll} />;
 
-  // Shared by both the "pick a person" early return below and the final
-  // return, so the title/tabs row isn't duplicated in two JSX literals.
   function pageHeader(title: string) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{title}</h1>
         {scopeTabs}
+      </div>
+    );
+  }
+
+  if (scope === "overview") {
+    const rosterScope: PonchadorRosterScope =
+      params.rosterScope === "all" && canViewAll
+        ? "all"
+        : params.rosterScope === "team" && hasTeam
+          ? "team"
+          : hasTeam
+            ? "team"
+            : "all";
+
+    const roster = rosterScope === "team" ? teamRoster : allRoster;
+
+    const selectedDepartment = rosterScope === "all" ? (params.department ?? null) : null;
+    const departmentNames = Array.from(
+      new Set(allRoster.map((p) => p.departmentName).filter((d): d is string => !!d)),
+    ).sort();
+
+    const filteredRoster =
+      rosterScope === "all" && selectedDepartment
+        ? roster.filter((p) => p.departmentName === selectedDepartment)
+        : roster;
+
+    const [{ schedulesById, defaultSchedule }, { data: departments }, { data: rosterPunchRows }, { data: rosterLeaveRows }] =
+      await Promise.all([
+        getScheduleTemplatesContext(),
+        supabase.from("departments").select("id, default_schedule_id"),
+        rosterScope === "team"
+          ? supabase.rpc("get_ponchador_team_punches", { p_from: windowStartIso, p_to: windowEndIso })
+          : supabase.rpc("get_ponchador_all_punches", { p_from: windowStartIso, p_to: windowEndIso }),
+        rosterScope === "team"
+          ? supabase.rpc("get_ponchador_team_approved_leave", {
+              p_period_start: periodStartIso,
+              p_period_end: periodEndIso,
+            })
+          : supabase.rpc("get_ponchador_all_approved_leave", {
+              p_period_start: periodStartIso,
+              p_period_end: periodEndIso,
+            }),
+      ]);
+
+    const departmentDefaultById = new Map((departments ?? []).map((d) => [d.id, d.default_schedule_id]));
+
+    const punchesByContact = new Map<string, string[]>();
+    for (const p of rosterPunchRows ?? []) {
+      const list = punchesByContact.get(p.contact_id) ?? [];
+      list.push(p.punched_at);
+      punchesByContact.set(p.contact_id, list);
+    }
+
+    const leaveByContact = new Map<string, ApprovedLeaveRange[]>();
+    for (const l of rosterLeaveRows ?? []) {
+      const list = leaveByContact.get(l.contact_id) ?? [];
+      list.push({ dateFrom: l.date_from, dateTo: l.date_to });
+      leaveByContact.set(l.contact_id, list);
+    }
+
+    const overviewRows: PonchadorOverviewRow[] = filteredRoster
+      .map((person) => {
+        const personSchedule = getEffectiveSchedule(
+          person.scheduleId,
+          person.departmentId ? departmentDefaultById.get(person.departmentId) : null,
+          schedulesById,
+          defaultSchedule,
+        );
+        const personArrivalsAndExits = buildDailyAttendanceRows(punchesByContact.get(person.id) ?? []);
+        const personLeave = leaveByContact.get(person.id) ?? [];
+        const personPeriodRows = buildAttendancePeriodRows(
+          periodStartIso,
+          periodEndIso,
+          personSchedule,
+          personArrivalsAndExits,
+          personLeave,
+          EARLY_DEPARTURE_THRESHOLD_MINUTES,
+        );
+        const personSummary = summarizeAttendancePeriod(personPeriodRows);
+        const personPuntualidadTier = classifyPuntualidadLabel(personSummary.puntualidadPercent);
+
+        return {
+          contactId: person.id,
+          name: person.name,
+          departmentName: person.departmentName,
+          averageArrivalLabel:
+            personSummary.promedioEntradaMinutes === null
+              ? null
+              : formatArrivalTime(personSummary.promedioEntradaMinutes),
+          diasTrabajadosLabel: `de ${personSummary.diasHabiles} días hábiles`,
+          puntualidadLabel:
+            personSummary.puntualidadPercent === null
+              ? "Sin datos"
+              : `${personSummary.puntualidadPercent}%${personPuntualidadTier ? ` · ${personPuntualidadTier}` : ""}`,
+          horasTrabajadasLabel: formatHoursMinutes(personSummary.horasTrabajadasMinutes),
+          href: `/ponchador?view=${rosterScope}&contactId=${person.id}&year=${year}&month=${month}`,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return (
+      <div className="space-y-4 p-6">
+        {pageHeader("Ponchador")}
+        <div className="flex flex-wrap items-center gap-3">
+          {hasTeam && canViewAll && <PonchadorRosterScopeToggle rosterScope={rosterScope} />}
+          {rosterScope === "all" && (
+            <PonchadorDepartmentFilter departments={departmentNames} selectedDepartment={selectedDepartment} />
+          )}
+        </div>
+        <PonchadorOverviewTable rows={overviewRows} groupByDepartment={rosterScope === "all"} />
       </div>
     );
   }
@@ -167,33 +336,17 @@ export default async function PonchadorPage({
   let viewedContact = contactSummaryRows?.[0];
 
   if (contactSummaryError || !viewedContact) {
-    // Invalid/tampered contactId, or the caller lost access since a link was
-    // shared (e.g. no longer manages that person) - fall back to their own
-    // contact rather than erroring.
     effectiveContactId = myContactId;
     const fallback = await supabase.rpc("get_ponchador_contact_summary", { p_contact_id: myContactId });
     viewedContact = fallback.data?.[0];
   }
 
   if (!viewedContact) {
-    // Shouldn't be reachable - myContactId was already confirmed to exist
-    // above - but keeps the page from crashing if it somehow is.
     redirect("/ponchador");
   }
 
   const isViewingSelf = effectiveContactId === myContactId;
 
-  const windowStartIso = new Date(
-    new Date(`${periodStartIso}T00:00:00.000Z`).getTime() - 24 * 60 * 60 * 1000,
-  ).toISOString();
-  const windowEndIso = new Date(
-    new Date(`${periodEndIsoUnclamped}T00:00:00.000Z`).getTime() + 2 * 24 * 60 * 60 * 1000,
-  ).toISOString();
-
-  // Independent of each other once effectiveContactId and the period bounds
-  // are known: schedule templates and departments don't depend on the
-  // target contact at all, and the punches/leave RPCs only need
-  // effectiveContactId plus the already-computed period bounds.
   const [
     { schedulesById, defaultSchedule },
     { data: departments },
