@@ -686,4 +686,24 @@ describe("buildAttendanceGridDays", () => {
     const result = buildAttendanceGridDays("2026-01-09", "2026-01-12", "2026-01-01", schedule, [], [], []);
     expect(result.map((d) => d.dateIso)).toEqual(["2026-01-09", "2026-01-10", "2026-01-11", "2026-01-12"]);
   });
+
+  it("marks today itself (with no punch yet) as ausente when it's a scheduled workday", () => {
+    // 2026-01-12 is a Monday; todayIso equals the day being checked
+    const result = buildAttendanceGridDays("2026-01-12", "2026-01-12", "2026-01-12", schedule, [], [], []);
+    expect(result[0].status).toBe("ausente");
+  });
+
+  it("marks a weekend day covered by an approved vacaciones range as vacaciones, not weekend", () => {
+    // 2026-01-10 is a Saturday, inside a multi-day vacation range spanning the weekend
+    const result = buildAttendanceGridDays(
+      "2026-01-10",
+      "2026-01-10",
+      "2026-01-31",
+      schedule,
+      [],
+      [{ dateFrom: "2026-01-09", dateTo: "2026-01-12" }],
+      [],
+    );
+    expect(result[0].status).toBe("vacaciones");
+  });
 });
