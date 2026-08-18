@@ -566,7 +566,7 @@ describe("Ponchador team/company visibility", () => {
     expect(data?.some((r: { contact_id: string }) => r.contact_id === anyone!.id)).toBe(true);
   });
 
-  it("get_ponchador_team_approved_leave returns each request's tipo", async () => {
+  it("get_ponchador_team_approved_leave returns a vacaciones request's tipo correctly", async () => {
     viewer = await createTestUser("Viewer");
     const admin = createAdminClient();
 
@@ -601,6 +601,7 @@ describe("Ponchador team/company visibility", () => {
 
     expect(error).toBeNull();
     const row = data?.find((r: { contact_id: string }) => r.contact_id === report!.id);
+    expect(row).toBeDefined();
     expect(row?.tipo).toBe("vacaciones");
   });
 
@@ -632,6 +633,7 @@ describe("Ponchador team/company visibility", () => {
 
     expect(error).toBeNull();
     const row = data?.find((r: { contact_id: string }) => r.contact_id === anyone!.id);
+    expect(row).toBeDefined();
     expect(row?.tipo).toBe("permiso");
   });
 });
