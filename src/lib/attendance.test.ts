@@ -14,6 +14,7 @@ import {
   buildAttendancePeriodRows,
   summarizeAttendancePeriod,
   classifyPuntualidadLabel,
+  buildAttendanceGridDays,
 } from "./attendance";
 
 describe("toBusinessTimeParts", () => {
@@ -573,5 +574,116 @@ describe("classifyPuntualidadLabel", () => {
 
   it("returns null for null input", () => {
     expect(classifyPuntualidadLabel(null)).toBeNull();
+  });
+});
+
+describe("buildAttendanceGridDays", () => {
+  // Monday-Friday 8:00 am - 5:00 pm, zero tolerance.
+  const schedule = {
+    id: "s1",
+    name: "General",
+    tolerance_minutes: 0,
+    days: [1, 2, 3, 4, 5].map((day_of_week) => ({
+      day_of_week,
+      start_time: "08:00:00",
+      end_time: "17:00:00",
+    })),
+  };
+
+  it("marks a day covered by an approved vacaciones range as vacaciones", () => {
+    // 2026-01-12 is a Monday
+    const result = buildAttendanceGridDays(
+      "2026-01-12",
+      "2026-01-12",
+      "2026-01-31",
+      schedule,
+      [],
+      [{ dateFrom: "2026-01-12", dateTo: "2026-01-12" }],
+      [],
+    );
+    expect(result).toEqual([
+      { dateIso: "2026-01-12", dayNumber: 12, arrivalLabel: null, exitLabel: null, status: "vacaciones" },
+    ]);
+  });
+
+  it("marks a day covered by an approved permiso range as permiso", () => {
+    const result = buildAttendanceGridDays("2026-01-12", "2026-01-12", "2026-01-31", schedule, [], [], [
+      { dateFrom: "2026-01-12", dateTo: "2026-01-12" },
+    ]);
+    expect(result[0].status).toBe("permiso");
+  });
+
+  it("prioritizes vacaciones over permiso when both cover the same day", () => {
+    const result = buildAttendanceGridDays(
+      "2026-01-12",
+      "2026-01-12",
+      "2026-01-31",
+      schedule,
+      [],
+      [{ dateFrom: "2026-01-12", dateTo: "2026-01-12" }],
+      [{ dateFrom: "2026-01-12", dateTo: "2026-01-12" }],
+    );
+    expect(result[0].status).toBe("vacaciones");
+  });
+
+  it("marks a scheduled workday with no punch, on or before today, as ausente", () => {
+    const result = buildAttendanceGridDays("2026-01-12", "2026-01-12", "2026-01-31", schedule, [], [], []);
+    expect(result[0].status).toBe("ausente");
+  });
+
+  it("does not mark a future scheduled workday as ausente", () => {
+    const result = buildAttendanceGridDays("2026-01-12", "2026-01-12", "2026-01-01", schedule, [], [], []);
+    expect(result[0].status).toBe("normal");
+  });
+
+  it("marks a non-scheduled day (weekend) with no punch as weekend, not ausente", () => {
+    // 2026-01-11 is a Sunday
+    const result = buildAttendanceGridDays("2026-01-11", "2026-01-11", "2026-01-31", schedule, [], [], []);
+    expect(result[0].status).toBe("weekend");
+  });
+
+  it("shows real arrival/exit times on a normal punched day, with normal status", () => {
+    const result = buildAttendanceGridDays(
+      "2026-01-12",
+      "2026-01-12",
+      "2026-01-31",
+      schedule,
+      [{ dateIso: "2026-01-12", arrivalMinutes: 8 * 60, exitMinutes: 17 * 60 }],
+      [],
+      [],
+    );
+    expect(result[0]).toEqual({
+      dateIso: "2026-01-12",
+      dayNumber: 12,
+      arrivalLabel: "8:00 am",
+      exitLabel: "5:00 pm",
+      status: "normal",
+    });
+  });
+
+  it("shows real punch times on a weekend day (e.g. approved overtime) while keeping weekend status", () => {
+    // 2026-01-10 is a Saturday
+    const result = buildAttendanceGridDays(
+      "2026-01-10",
+      "2026-01-10",
+      "2026-01-31",
+      schedule,
+      [{ dateIso: "2026-01-10", arrivalMinutes: 9 * 60, exitMinutes: 12 * 60 }],
+      [],
+      [],
+    );
+    expect(result[0]).toEqual({
+      dateIso: "2026-01-10",
+      dayNumber: 10,
+      arrivalLabel: "9:00 am",
+      exitLabel: "12:00 pm",
+      status: "weekend",
+    });
+  });
+
+  it("enumerates every calendar day across a multi-day range, including weekends", () => {
+    // Fri 2026-01-09 through Mon 2026-01-12 - 4 calendar days, not just the 2 workdays
+    const result = buildAttendanceGridDays("2026-01-09", "2026-01-12", "2026-01-01", schedule, [], [], []);
+    expect(result.map((d) => d.dateIso)).toEqual(["2026-01-09", "2026-01-10", "2026-01-11", "2026-01-12"]);
   });
 });

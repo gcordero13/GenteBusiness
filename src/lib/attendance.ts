@@ -397,3 +397,62 @@ export function classifyPuntualidadLabel(puntualidadPercent: number | null): "Ex
   if (puntualidadPercent >= 85) return "Buena";
   return "A mejorar";
 }
+
+export type GridDayStatus = "vacaciones" | "permiso" | "ausente" | "weekend" | "normal";
+
+export interface AttendanceGridDay {
+  dateIso: string;
+  dayNumber: number;
+  arrivalLabel: string | null;
+  exitLabel: string | null;
+  status: GridDayStatus;
+}
+
+// Builds one cell-pair per CALENDAR day in the period (including weekends -
+// unlike buildAttendancePeriodRows, which only enumerates scheduled
+// workdays), for the Vista general grid. Distinguishes vacaciones from
+// permiso - buildAttendancePeriodRows deliberately keeps merging both into a
+// single "permiso" Estado for the single-person dashboard, so this is a
+// separate, additive function rather than a change to that one.
+export function buildAttendanceGridDays(
+  periodStartIso: string,
+  periodEndIso: string,
+  todayIso: string,
+  schedule: ScheduleTemplate,
+  arrivalsAndExits: DailyAttendanceRow[],
+  vacacionesRanges: ApprovedLeaveRange[],
+  permisoRanges: ApprovedLeaveRange[],
+): AttendanceGridDay[] {
+  const scheduledDayOfWeeks = new Map(schedule.days.map((d) => [d.day_of_week, d]));
+  const rowsByDate = new Map(arrivalsAndExits.map((r) => [r.dateIso, r]));
+
+  const days: AttendanceGridDay[] = [];
+  for (const dateIso of enumerateDateRange(periodStartIso, periodEndIso)) {
+    const dayNumber = Number(dateIso.slice(8, 10));
+    const attendance = rowsByDate.get(dateIso);
+    const arrivalMinutes = attendance?.arrivalMinutes ?? null;
+    const exitMinutes = attendance?.exitMinutes ?? null;
+    const arrivalLabel = arrivalMinutes === null ? null : formatArrivalTime(arrivalMinutes);
+    const exitLabel = exitMinutes === null ? null : formatArrivalTime(exitMinutes);
+
+    const onVacaciones = vacacionesRanges.some((r) => isDateInRange(dateIso, r.dateFrom, r.dateTo));
+    const onPermiso = permisoRanges.some((r) => isDateInRange(dateIso, r.dateFrom, r.dateTo));
+    const isScheduledWorkday = scheduledDayOfWeeks.has(businessDayOfWeek(dateIso));
+
+    let status: GridDayStatus;
+    if (onVacaciones) {
+      status = "vacaciones";
+    } else if (onPermiso) {
+      status = "permiso";
+    } else if (isScheduledWorkday && arrivalMinutes === null && dateIso <= todayIso) {
+      status = "ausente";
+    } else if (!isScheduledWorkday) {
+      status = "weekend";
+    } else {
+      status = "normal";
+    }
+
+    days.push({ dateIso, dayNumber, arrivalLabel, exitLabel, status });
+  }
+  return days;
+}
