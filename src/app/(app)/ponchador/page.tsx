@@ -22,6 +22,7 @@ import { PonchadorPersonSelector, type PonchadorPersonOption } from "./Ponchador
 import { PonchadorOverviewTable, type PonchadorOverviewRow } from "./PonchadorOverviewTable";
 import { PonchadorDepartmentFilter } from "./PonchadorDepartmentFilter";
 import { PonchadorRosterScopeToggle, type PonchadorRosterScope } from "./PonchadorRosterScopeToggle";
+import { PeriodFilter } from "./PeriodFilter";
 
 const EARLY_DEPARTURE_THRESHOLD_MINUTES = 15;
 
@@ -81,6 +82,11 @@ export default async function PonchadorPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Independent of each other: the own-contact lookup only needs the
+  // already-resolved user email, and both list_* RPCs derive the caller
+  // from auth.uid() server-side (list_all_ponchador_contacts itself returns
+  // an empty array when the caller lacks can_manage, so it's safe to always
+  // call it here rather than gating the fetch on canViewAll).
   const [{ data: myContactRow }, { data: teamRows }, { data: allRows }] = await Promise.all([
     supabase.from("contacts").select("id, hikvision_employee_no").eq("email", user!.email!).maybeSingle(),
     supabase.rpc("list_my_ponchador_team"),
@@ -302,11 +308,14 @@ export default async function PonchadorPage({
     return (
       <div className="space-y-4 p-6">
         {pageHeader("Ponchador")}
-        <div className="flex flex-wrap items-center gap-3">
-          {hasTeam && canViewAll && <PonchadorRosterScopeToggle rosterScope={rosterScope} />}
-          {rosterScope === "all" && (
-            <PonchadorDepartmentFilter departments={departmentNames} selectedDepartment={selectedDepartment} />
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {hasTeam && canViewAll && <PonchadorRosterScopeToggle rosterScope={rosterScope} />}
+            {rosterScope === "all" && (
+              <PonchadorDepartmentFilter departments={departmentNames} selectedDepartment={selectedDepartment} />
+            )}
+          </div>
+          <PeriodFilter year={year} month={month} currentYear={currentYear} currentMonth={currentMonth} />
         </div>
         <PonchadorOverviewTable rows={overviewRows} groupByDepartment={rosterScope === "all"} />
       </div>
@@ -336,12 +345,17 @@ export default async function PonchadorPage({
   let viewedContact = contactSummaryRows?.[0];
 
   if (contactSummaryError || !viewedContact) {
+    // Invalid/tampered contactId, or the caller lost access since a link was
+    // shared (e.g. no longer manages that person) - fall back to their own
+    // contact rather than erroring.
     effectiveContactId = myContactId;
     const fallback = await supabase.rpc("get_ponchador_contact_summary", { p_contact_id: myContactId });
     viewedContact = fallback.data?.[0];
   }
 
   if (!viewedContact) {
+    // Shouldn't be reachable - myContactId was already confirmed to exist
+    // above - but keeps the page from crashing if it somehow is.
     redirect("/ponchador");
   }
 
