@@ -13,13 +13,14 @@ import {
   classifyArrivalTier,
   pickMotivationalPhrase,
   formatArrivalTime,
+  buildAttendanceGridDays,
   type DailyArrival,
   type ApprovedLeaveRange,
 } from "@/lib/attendance";
 import { PonchadorDashboard, type PonchadorRow, type PonchadorSummary } from "./PonchadorDashboard";
 import { PonchadorScopeTabs, type PonchadorScope } from "./PonchadorScopeTabs";
 import { PonchadorPersonSelector, type PonchadorPersonOption } from "./PonchadorPersonSelector";
-import { PonchadorOverviewTable, type PonchadorOverviewRow } from "./PonchadorOverviewTable";
+import { PonchadorOverviewTable, type PonchadorGridPersonRow } from "./PonchadorOverviewTable";
 import { PonchadorDepartmentFilter } from "./PonchadorDepartmentFilter";
 import { PonchadorRosterScopeToggle, type PonchadorRosterScope } from "./PonchadorRosterScopeToggle";
 import { PeriodFilter } from "./PeriodFilter";
@@ -258,14 +259,19 @@ export default async function PonchadorPage({
       punchesByContact.set(p.contact_id, list);
     }
 
-    const leaveByContact = new Map<string, ApprovedLeaveRange[]>();
+    const leaveByContact = new Map<string, { vacaciones: ApprovedLeaveRange[]; permiso: ApprovedLeaveRange[] }>();
     for (const l of rosterLeaveRows ?? []) {
-      const list = leaveByContact.get(l.contact_id) ?? [];
-      list.push({ dateFrom: l.date_from, dateTo: l.date_to });
-      leaveByContact.set(l.contact_id, list);
+      const entry = leaveByContact.get(l.contact_id) ?? { vacaciones: [], permiso: [] };
+      const range: ApprovedLeaveRange = { dateFrom: l.date_from, dateTo: l.date_to };
+      if (l.tipo === "permiso") {
+        entry.permiso.push(range);
+      } else {
+        entry.vacaciones.push(range);
+      }
+      leaveByContact.set(l.contact_id, entry);
     }
 
-    const overviewRows: PonchadorOverviewRow[] = filteredRoster
+    const gridRows: PonchadorGridPersonRow[] = filteredRoster
       .map((person) => {
         const personSchedule = getEffectiveSchedule(
           person.scheduleId,
@@ -274,13 +280,24 @@ export default async function PonchadorPage({
           defaultSchedule,
         );
         const personArrivalsAndExits = buildDailyAttendanceRows(punchesByContact.get(person.id) ?? []);
-        const personLeave = leaveByContact.get(person.id) ?? [];
+        const personLeave = leaveByContact.get(person.id) ?? { vacaciones: [], permiso: [] };
+
+        const gridDays = buildAttendanceGridDays(
+          periodStartIso,
+          periodEndIsoUnclamped,
+          todayIso,
+          personSchedule,
+          personArrivalsAndExits,
+          personLeave.vacaciones,
+          personLeave.permiso,
+        );
+
         const personPeriodRows = buildAttendancePeriodRows(
           periodStartIso,
           periodEndIso,
           personSchedule,
           personArrivalsAndExits,
-          personLeave,
+          [...personLeave.vacaciones, ...personLeave.permiso],
           EARLY_DEPARTURE_THRESHOLD_MINUTES,
         );
         const personSummary = summarizeAttendancePeriod(personPeriodRows);
@@ -289,21 +306,22 @@ export default async function PonchadorPage({
         return {
           contactId: person.id,
           name: person.name,
-          departmentName: person.departmentName,
-          averageArrivalLabel:
-            personSummary.promedioEntradaMinutes === null
-              ? null
-              : formatArrivalTime(personSummary.promedioEntradaMinutes),
-          diasTrabajadosLabel: `de ${personSummary.diasHabiles} días hábiles`,
           puntualidadLabel:
             personSummary.puntualidadPercent === null
               ? "Sin datos"
               : `${personSummary.puntualidadPercent}%${personPuntualidadTier ? ` · ${personPuntualidadTier}` : ""}`,
-          horasTrabajadasLabel: formatHoursMinutes(personSummary.horasTrabajadasMinutes),
           href: `/ponchador?view=${rosterScope}&contactId=${person.id}&year=${year}&month=${month}`,
+          days: gridDays.map((d) => ({
+            dayNumber: d.dayNumber,
+            arrivalLabel: d.arrivalLabel,
+            exitLabel: d.exitLabel,
+            status: d.status,
+          })),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    const dayNumbers = Array.from({ length: lastDayOfMonth(year, month) }, (_, i) => i + 1);
 
     return (
       <div className="space-y-4 p-6">
@@ -317,7 +335,7 @@ export default async function PonchadorPage({
           </div>
           <PeriodFilter year={year} month={month} currentYear={currentYear} currentMonth={currentMonth} />
         </div>
-        <PonchadorOverviewTable rows={overviewRows} groupByDepartment={rosterScope === "all"} />
+        <PonchadorOverviewTable rows={gridRows} dayNumbers={dayNumbers} />
       </div>
     );
   }
