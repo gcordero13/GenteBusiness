@@ -18,6 +18,7 @@ import { sendVacationRequestSubmittedEmail, sendVacationRequestSupervisorDecisio
 import { createVacationRequest, respondAsRrhh, respondAsSupervisor } from "./actions";
 
 const VALID_INPUT = {
+  tipo: "vacaciones" as const,
   period: "2026",
   daysRequested: 2,
   dateFrom: "2026-11-13",
@@ -147,6 +148,32 @@ describe("createVacationRequest", () => {
       }),
     );
     expect(sendVacationRequestSubmittedEmail).toHaveBeenCalled();
+  });
+
+  it("stores tipo = 'permiso' when explicitly requested", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(resolveVacationSupervisor).mockResolvedValue({
+      ok: true,
+      data: {
+        contactId: "contact-1",
+        firstName: "Ana",
+        lastName: "García",
+        position: "Analista",
+        companyName: "Sanchez Business Corp",
+        departmentName: "TI",
+        supervisorAppUserId: "sup-1",
+      },
+    });
+
+    const result = await createVacationRequest({ ...VALID_INPUT, tipo: "permiso" });
+
+    expect(result.error).toBeUndefined();
+    expect(supabase._mocks.insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo: "permiso",
+      }),
+    );
   });
 
   it("still succeeds when the notification email fails to send", async () => {

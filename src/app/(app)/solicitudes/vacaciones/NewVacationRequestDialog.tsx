@@ -16,6 +16,7 @@ import { createVacationRequest } from "./actions";
 
 export function NewVacationRequestDialog() {
   const [open, setOpen] = useState(false);
+  const [tipo, setTipo] = useState<"vacaciones" | "permiso">("vacaciones");
   const [period, setPeriod] = useState("");
   const [daysRequested, setDaysRequested] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -33,6 +34,7 @@ export function NewVacationRequestDialog() {
     }
     startTransition(async () => {
       const result = await createVacationRequest({
+        tipo,
         period,
         daysRequested: Number(daysRequested),
         dateFrom,
@@ -46,6 +48,7 @@ export function NewVacationRequestDialog() {
         return;
       }
       setOpen(false);
+      setTipo("vacaciones");
       setPeriod("");
       setDaysRequested("");
       setDateFrom("");
@@ -71,6 +74,23 @@ export function NewVacationRequestDialog() {
         </DialogHeader>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Tipo</Label>
+            <div className="inline-flex rounded-lg border p-1">
+              {(["vacaciones", "permiso"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTipo(t)}
+                  className={`rounded-md px-3 py-1.5 text-sm capitalize ${
+                    tipo === t ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="space-y-1">
             <Label>Período correspondiente</Label>
             <Input placeholder="2026" value={period} onChange={(e) => setPeriod(e.target.value)} />

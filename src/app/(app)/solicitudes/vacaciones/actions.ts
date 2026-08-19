@@ -16,6 +16,7 @@ interface ActionResult {
 }
 
 export interface CreateVacationRequestInput {
+  tipo: "vacaciones" | "permiso";
   period: string;
   daysRequested: number;
   dateFrom: string;
@@ -44,6 +45,7 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
     .from("vacation_requests")
     .insert({
       contact_id: resolved.data.contactId,
+      tipo: input.tipo,
       requester_app_user_id: user.id,
       first_name: resolved.data.firstName,
       last_name: resolved.data.lastName,
