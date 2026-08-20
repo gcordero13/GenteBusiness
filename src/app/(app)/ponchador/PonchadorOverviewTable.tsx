@@ -37,9 +37,11 @@ const CELL_STATUS_CLASSNAMES: Record<PonchadorGridCellStatus, string> = {
 export function PonchadorOverviewTable({
   rows,
   dayNumbers,
+  weekdayInitials,
 }: {
   rows: PonchadorGridPersonRow[];
   dayNumbers: number[];
+  weekdayInitials: string[];
 }) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">No hay personas para mostrar en este período.</p>;
@@ -52,9 +54,12 @@ export function PonchadorOverviewTable({
           <TableRow>
             <TableHead className="sticky left-0 bg-background">Nombre</TableHead>
             <TableHead>E/S</TableHead>
-            {dayNumbers.map((day) => (
+            {dayNumbers.map((day, index) => (
               <TableHead key={day} className="text-center">
-                {day}
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="text-[10px] font-normal text-muted-foreground">{weekdayInitials[index]}</span>
+                  <span>{day}</span>
+                </div>
               </TableHead>
             ))}
             <TableHead>%</TableHead>

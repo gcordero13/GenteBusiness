@@ -32,6 +32,9 @@ const MONTH_NAMES_ES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
+// Indexed by Date.getUTCDay(): 0=domingo..6=sábado.
+const WEEKDAY_INITIALS_ES = ["D", "L", "M", "M", "J", "V", "S"];
+
 const ESTADO_LABELS: Record<PonchadorRow["estado"], string> = {
   puntual: "Puntual",
   llegada_tarde: "Llegada tarde",
@@ -322,6 +325,12 @@ export default async function PonchadorPage({
       .sort((a, b) => a.name.localeCompare(b.name));
 
     const dayNumbers = Array.from({ length: lastDayOfMonth(year, month) }, (_, i) => i + 1);
+    // getUTCDay(): 0=domingo..6=sábado - matches the standard L M M J V S D
+    // reading order Spanish calendars use, despite Monday/Wednesday both
+    // starting with "M".
+    const weekdayInitials = dayNumbers.map(
+      (day) => WEEKDAY_INITIALS_ES[new Date(Date.UTC(year, month - 1, day)).getUTCDay()],
+    );
 
     return (
       <div className="space-y-4 p-6">
@@ -335,7 +344,7 @@ export default async function PonchadorPage({
           </div>
           <PeriodFilter year={year} month={month} currentYear={currentYear} currentMonth={currentMonth} />
         </div>
-        <PonchadorOverviewTable rows={gridRows} dayNumbers={dayNumbers} />
+        <PonchadorOverviewTable rows={gridRows} dayNumbers={dayNumbers} weekdayInitials={weekdayInitials} />
       </div>
     );
   }
