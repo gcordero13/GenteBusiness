@@ -144,6 +144,39 @@ describe("Complaints module", () => {
     expect(error).not.toBeNull();
   });
 
+  it("direct update/delete against complaints is rejected for everyone - only submit_complaint may write", async () => {
+    viewer = await createTestUser("Viewer");
+
+    const { data: id, error: submitError } = await viewer.client.rpc("submit_complaint", {
+      p_category: "otro",
+      p_message: "Prueba para bypass directo",
+      p_is_anonymous: true,
+    });
+    expect(submitError).toBeNull();
+    complaintIds.push(id as string);
+
+    // RLS defines no update/delete policy at all for `complaints`, so a
+    // direct mutation simply matches zero (invisible) rows rather than
+    // raising an error on its own. Chaining .select().single() forces
+    // PostgREST to demand exactly one affected row back, which surfaces
+    // that "no rows matched" as an actual error we can assert on.
+    const { error: updateError } = await viewer.client
+      .from("complaints")
+      .update({ message: "Intento de edición directa" })
+      .eq("id", id)
+      .select()
+      .single();
+    expect(updateError).not.toBeNull();
+
+    const { error: deleteError } = await viewer.client
+      .from("complaints")
+      .delete()
+      .eq("id", id)
+      .select()
+      .single();
+    expect(deleteError).not.toBeNull();
+  });
+
   it("a can_manage (Super Admin) user can add complaint viewers; a Viewer cannot", async () => {
     superAdmin = await createTestUser("Super Admin");
     viewer = await createTestUser("Viewer");
@@ -169,5 +202,50 @@ describe("Complaints module", () => {
     expect(viewerAddError).not.toBeNull();
 
     await admin.auth.admin.deleteUser(outsider!.user!.id);
+  });
+
+  it("a can_manage (Super Admin) user can remove complaint viewers; a Viewer cannot", async () => {
+    superAdmin = await createTestUser("Super Admin");
+    viewer = await createTestUser("Viewer");
+    const admin = createAdminClient();
+
+    const { data: removableRow } = await admin
+      .from("complaint_viewers")
+      .insert({ app_user_id: viewer.id })
+      .select()
+      .single();
+    viewerRowIds.push(removableRow!.id);
+
+    const { error: removeError } = await superAdmin.client
+      .from("complaint_viewers")
+      .delete()
+      .eq("id", removableRow!.id);
+    expect(removeError).toBeNull();
+
+    const { data: afterRemoval } = await admin
+      .from("complaint_viewers")
+      .select("id")
+      .eq("id", removableRow!.id);
+    expect(afterRemoval).toEqual([]);
+
+    // Row belongs to a different app_user (superAdmin) than the one attempting
+    // the delete, so this covers "removing someone else's viewer grant".
+    const { data: someoneElsesRow } = await admin
+      .from("complaint_viewers")
+      .insert({ app_user_id: superAdmin.id })
+      .select()
+      .single();
+    viewerRowIds.push(someoneElsesRow!.id);
+
+    // As above, a filtered (not can_manage) delete matches zero rows rather
+    // than erroring on its own - .select().single() forces that "no rows
+    // matched" into a visible error.
+    const { error: viewerRemoveError } = await viewer.client
+      .from("complaint_viewers")
+      .delete()
+      .eq("id", someoneElsesRow!.id)
+      .select()
+      .single();
+    expect(viewerRemoveError).not.toBeNull();
   });
 });
