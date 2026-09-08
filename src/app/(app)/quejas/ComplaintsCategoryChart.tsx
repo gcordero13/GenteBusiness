@@ -11,13 +11,14 @@ export function ComplaintsCategoryChart({ counts }: { counts: CategoryCount[] })
   const chartHeight = counts.length * (barHeight + gap);
   const labelWidth = 140;
   const chartWidth = 320;
+  const countLabelWidth = 40;
 
   return (
     <div className="rounded-2xl border p-5">
       <p className="mb-3 text-sm font-semibold">Quejas por categoría</p>
       <svg
         width="100%"
-        viewBox={`0 0 ${labelWidth + chartWidth} ${chartHeight}`}
+        viewBox={`0 0 ${labelWidth + chartWidth + countLabelWidth} ${chartHeight}`}
         role="img"
         aria-label="Quejas por categoría"
       >

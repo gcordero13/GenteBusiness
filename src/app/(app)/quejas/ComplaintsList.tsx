@@ -32,27 +32,38 @@ export function ComplaintsList({ rows }: { rows: ComplaintRow[] }) {
         <TableRow>
           <TableHead>Fecha</TableHead>
           <TableHead>Categoría</TableHead>
-          <TableHead>Quién envía</TableHead>
           <TableHead>Mensaje</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((row) => {
           const expanded = expandedId === row.id;
+          const toggle = () => setExpandedId(expanded ? null : row.id);
           return (
             <TableRow
               key={row.id}
               className="cursor-pointer"
-              onClick={() => setExpandedId(expanded ? null : row.id)}
+              onClick={toggle}
+              aria-expanded={expanded}
+              tabIndex={0}
+              role="button"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  if (e.key === " ") e.preventDefault();
+                  toggle();
+                }
+              }}
             >
               <TableCell className="align-top">{row.createdAtLabel}</TableCell>
               <TableCell className="align-top">
                 <Badge variant="outline">{row.categoryLabel}</Badge>
               </TableCell>
-              <TableCell className="align-top">
-                {row.submitterName ?? <span className="text-muted-foreground">Anónima</span>}
-              </TableCell>
               <TableCell className="max-w-md">
+                {expanded && (
+                  <p className="mb-1 text-xs text-muted-foreground">
+                    {row.submitterName ?? <span>Anónima</span>}
+                  </p>
+                )}
                 <p className={expanded ? "whitespace-pre-wrap" : "truncate"}>{row.message}</p>
               </TableCell>
             </TableRow>
