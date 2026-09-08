@@ -180,7 +180,6 @@ describe("Complaints module", () => {
   it("a can_manage (Super Admin) user can add complaint viewers; a Viewer cannot", async () => {
     superAdmin = await createTestUser("Super Admin");
     viewer = await createTestUser("Viewer");
-    const admin = createAdminClient();
 
     const { data: added, error: addError } = await superAdmin.client
       .from("complaint_viewers")
@@ -190,18 +189,18 @@ describe("Complaints module", () => {
     expect(addError).toBeNull();
     viewerRowIds.push(added!.id);
 
-    const { data: outsider } = await admin.auth.admin.createUser({
-      email: `test-outsider-${viewer.id}@example.com`,
-      password: "irrelevant-password",
-      email_confirm: true,
-    });
-
-    const { error: viewerAddError } = await viewer.client
+    // Reuse superAdmin.id as the insert target - the Viewer client only needs
+    // *some* valid app_users.id to attempt this insert against, it doesn't
+    // need a genuinely distinct third identity.
+    const { data: viewerAdded, error: viewerAddError } = await viewer.client
       .from("complaint_viewers")
-      .insert({ app_user_id: outsider!.user!.id });
+      .insert({ app_user_id: superAdmin.id })
+      .select()
+      .single();
     expect(viewerAddError).not.toBeNull();
-
-    await admin.auth.admin.deleteUser(outsider!.user!.id);
+    // If the insert unexpectedly succeeded (i.e. the RLS bug this test
+    // guards against is real), make sure the row still gets cleaned up.
+    if (viewerAdded) viewerRowIds.push(viewerAdded.id);
   });
 
   it("a can_manage (Super Admin) user can remove complaint viewers; a Viewer cannot", async () => {
