@@ -274,6 +274,24 @@ export default async function PonchadorPage({
       leaveByContact.set(l.contact_id, entry);
     }
 
+    // Only show a day-of-week column at all if at least one visible person's
+    // effective schedule actually includes it - keeps the shared table from
+    // wasting columns on e.g. weekends when everyone visible works Mon-Fri,
+    // while still surfacing a day (blank for people who don't work it) if
+    // even one visible person's schedule covers it.
+    const workedWeekdays = new Set<number>();
+    for (const person of filteredRoster) {
+      const personSchedule = getEffectiveSchedule(
+        person.scheduleId,
+        person.departmentId ? departmentDefaultById.get(person.departmentId) : null,
+        schedulesById,
+        defaultSchedule,
+      );
+      for (const scheduledDay of personSchedule.days) {
+        workedWeekdays.add(scheduledDay.day_of_week);
+      }
+    }
+
     const gridRows: PonchadorGridPersonRow[] = filteredRoster
       .map((person) => {
         const personSchedule = getEffectiveSchedule(
@@ -324,10 +342,12 @@ export default async function PonchadorPage({
       })
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const dayNumbers = Array.from({ length: lastDayOfMonth(year, month) }, (_, i) => i + 1);
     // getUTCDay(): 0=domingo..6=sábado - matches the standard L M M J V S D
     // reading order Spanish calendars use, despite Monday/Wednesday both
     // starting with "M".
+    const dayNumbers = Array.from({ length: lastDayOfMonth(year, month) }, (_, i) => i + 1).filter((day) =>
+      workedWeekdays.has(new Date(Date.UTC(year, month - 1, day)).getUTCDay()),
+    );
     const weekdayInitials = dayNumbers.map(
       (day) => WEEKDAY_INITIALS_ES[new Date(Date.UTC(year, month - 1, day)).getUTCDay()],
     );
