@@ -61,7 +61,11 @@ export default async function ComplaintsPage({
       }),
       categoryLabel: CATEGORY_LABELS[c.category] ?? c.category,
       message: c.message,
-      submitterName: c.is_anonymous || !contact ? null : `${contact.first_name} ${contact.last_name}`,
+      submitterName: c.is_anonymous
+        ? null
+        : contact
+          ? `${contact.first_name} ${contact.last_name}`
+          : "Nombre no disponible",
     };
   });
 

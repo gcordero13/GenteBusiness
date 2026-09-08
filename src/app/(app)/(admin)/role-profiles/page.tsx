@@ -45,7 +45,8 @@ export default async function RoleProfilesPage() {
 
   const { data: complaintViewersRows } = await supabase
     .from("complaint_viewers")
-    .select("id, app_user_id, app_users(email, full_name)");
+    .select("id, app_user_id, app_users(email, full_name)")
+    .order("created_at");
 
   const complaintViewerUsers: ComplaintViewerAppUserOption[] = (allAppUsers ?? []).map((u) => ({
     id: u.id,
