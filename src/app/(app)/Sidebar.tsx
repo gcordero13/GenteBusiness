@@ -9,7 +9,9 @@ import {
   Clock,
   FileSignature,
   Fingerprint,
+  Inbox,
   LogOut,
+  MessageSquareWarning,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
@@ -44,6 +46,7 @@ export function Sidebar({
   canViewSolicitudesVacaciones,
   canManageAttendanceDevices,
   canManageSchedules,
+  canViewComplaints,
   onLogout,
   onNavigate,
 }: {
@@ -61,6 +64,7 @@ export function Sidebar({
   canViewSolicitudesVacaciones: boolean;
   canManageAttendanceDevices: boolean;
   canManageSchedules: boolean;
+  canViewComplaints: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -86,6 +90,8 @@ export function Sidebar({
 
   const mainLinks: NavLink[] = [
     { href: "/my-profile", label: "Mi perfil", icon: UserCircle },
+    { href: "/quejas/nueva", label: "Enviar queja", icon: MessageSquareWarning },
+    ...(canViewComplaints ? [{ href: "/quejas", label: "Quejas", icon: Inbox }] : []),
     ...(canViewPonchador ? [{ href: "/ponchador", label: "Ponchador", icon: CalendarClock }] : []),
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
     ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),

@@ -26,6 +26,7 @@ export default async function AppLayout({
   const permissions = new Map<string, ModulePermissionRow>(
     (permissionRows ?? []).map((p: ModulePermissionRow) => [p.module_key, p]),
   );
+  const { data: canViewComplaints } = await supabase.rpc("can_view_complaints");
 
   return (
     <AppShell
@@ -43,6 +44,7 @@ export default async function AppLayout({
       canViewSolicitudesVacaciones={Boolean(permissions.get("solicitudes_vacaciones")?.can_view)}
       canManageAttendanceDevices={Boolean(permissions.get("attendance_devices")?.can_manage)}
       canManageSchedules={Boolean(permissions.get("schedules")?.can_manage)}
+      canViewComplaints={Boolean(canViewComplaints)}
       onLogout={logout}
     >
       {children}
