@@ -57,3 +57,27 @@ export async function deleteRoleProfile(id: string) {
   revalidatePath("/role-profiles");
   return {};
 }
+
+export async function addComplaintViewer(appUserId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("complaint_viewers").insert({ app_user_id: appUserId });
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/role-profiles");
+  return {};
+}
+
+export async function removeComplaintViewer(id: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("complaint_viewers").delete().eq("id", id);
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/role-profiles");
+  return {};
+}
