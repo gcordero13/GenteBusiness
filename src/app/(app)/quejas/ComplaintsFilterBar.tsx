@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +31,10 @@ export function ComplaintsFilterBar({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchValue, setSearchValue] = useState(search);
+
+  useEffect(() => {
+    setSearchValue(search);
+  }, [search]);
 
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
