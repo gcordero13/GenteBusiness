@@ -4,7 +4,7 @@ create table public.complaints (
   category text not null check (category in ('acoso', 'seguridad', 'etica', 'recursos_humanos', 'otro')),
   message text not null,
   is_anonymous boolean not null,
-  contact_id uuid references public.contacts(id),
+  contact_id uuid references public.contacts (id) on delete set null,
   check ((is_anonymous and contact_id is null) or (not is_anonymous))
 );
 
@@ -18,7 +18,7 @@ alter table public.complaints enable row level security;
 
 create table public.complaint_viewers (
   id uuid primary key default gen_random_uuid(),
-  app_user_id uuid not null references public.app_users(id) on delete cascade,
+  app_user_id uuid not null references public.app_users (id) on delete cascade,
   created_at timestamptz not null default now(),
   unique (app_user_id)
 );
@@ -76,6 +76,10 @@ begin
     select c.id into v_contact_id
     from public.contacts c
     where c.email = (select au.email from public.app_users au where au.id = auth.uid());
+  end if;
+
+  if not p_is_anonymous and v_contact_id is null then
+    raise exception 'could not resolve your contact record for a non-anonymous submission';
   end if;
 
   insert into public.complaints (category, message, is_anonymous, contact_id)
