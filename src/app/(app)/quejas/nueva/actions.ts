@@ -8,6 +8,7 @@ import { sendComplaintNotificationEmail } from "@/lib/sendComplaintNotificationE
 
 export interface SubmitComplaintInput {
   category: string;
+  subject: string;
   message: string;
   isAnonymous: boolean;
   photo?: File | null;
@@ -24,6 +25,7 @@ export interface MyComplaintRow {
   complaintNumber: number;
   createdAtLabel: string;
   categoryLabel: string;
+  subject: string;
   message: string;
   isAnonymous: boolean;
   status: string;
@@ -61,6 +63,7 @@ export async function submitComplaint(input: SubmitComplaintInput): Promise<Subm
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autorizado" };
 
+  if (!input.subject.trim()) return { error: "El asunto no puede estar vacío" };
   if (!input.message.trim()) return { error: "El mensaje no puede estar vacío" };
 
   let photoPath: string | null = null;
@@ -86,6 +89,7 @@ export async function submitComplaint(input: SubmitComplaintInput): Promise<Subm
 
   const { data: newId, error } = await supabase.rpc("submit_complaint", {
     p_category: input.category,
+    p_subject: input.subject,
     p_message: input.message,
     p_is_anonymous: input.isAnonymous,
     p_photo_path: photoPath,
@@ -148,11 +152,12 @@ export async function listMyComplaints(anonymousIds: string[]): Promise<MyCompla
   const { data, error } = await supabase.rpc("list_my_complaints", { p_anonymous_ids: anonymousIds });
   if (error || !data) return [];
 
-  return data.map((c: { id: string; complaint_number: number; created_at: string; category: string; message: string; is_anonymous: boolean; status: string }) => ({
+  return data.map((c: { id: string; complaint_number: number; created_at: string; category: string; subject: string; message: string; is_anonymous: boolean; status: string }) => ({
     id: c.id,
     complaintNumber: c.complaint_number,
     createdAtLabel: new Date(c.created_at).toLocaleDateString("es-DO", { year: "numeric", month: "short", day: "numeric" }),
     categoryLabel: CATEGORY_LABELS[c.category] ?? c.category,
+    subject: c.subject,
     message: c.message,
     isAnonymous: c.is_anonymous,
     status: c.status,
