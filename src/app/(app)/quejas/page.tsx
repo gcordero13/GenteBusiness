@@ -34,7 +34,7 @@ export default async function ComplaintsPage({
   const { data: complaintsRows } = await supabase
     .from("complaints")
     .select(
-      "id, created_at, category, message, is_anonymous, contact_id, contacts(first_name, last_name), complaint_number, status, reviewer_comment, photo_path",
+      "id, created_at, category, subject, message, is_anonymous, contact_id, contacts(first_name, last_name), complaint_number, status, reviewer_comment, photo_path",
     )
     .order("created_at", { ascending: false });
 
@@ -70,6 +70,7 @@ export default async function ComplaintsPage({
         day: "numeric",
       }),
       categoryLabel: CATEGORY_LABELS[c.category] ?? c.category,
+      subject: c.subject,
       message: c.message,
       submitterName: c.is_anonymous
         ? null

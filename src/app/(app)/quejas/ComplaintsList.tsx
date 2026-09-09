@@ -17,6 +17,7 @@ export interface ComplaintRow {
   complaintNumber: number;
   createdAtLabel: string;
   categoryLabel: string;
+  subject: string;
   message: string;
   submitterName: string | null;
   status: string;
@@ -46,6 +47,7 @@ export function ComplaintsList({ rows }: { rows: ComplaintRow[] }) {
         complaintNumber: selected.complaintNumber,
         createdAtLabel: selected.createdAtLabel,
         categoryLabel: selected.categoryLabel,
+        subject: selected.subject,
         message: selected.message,
         submitterName: selected.submitterName,
         status: selected.status,
@@ -62,6 +64,7 @@ export function ComplaintsList({ rows }: { rows: ComplaintRow[] }) {
             <TableHead>#</TableHead>
             <TableHead>Fecha</TableHead>
             <TableHead>Categoría</TableHead>
+            <TableHead>Asunto</TableHead>
             <TableHead>Mensaje</TableHead>
             <TableHead>Estado</TableHead>
           </TableRow>
@@ -90,6 +93,7 @@ export function ComplaintsList({ rows }: { rows: ComplaintRow[] }) {
               <TableCell className="align-top">
                 <Badge variant="outline">{row.categoryLabel}</Badge>
               </TableCell>
+              <TableCell className="align-top">{row.subject}</TableCell>
               <TableCell className="max-w-md">
                 <p className="truncate">{row.message}</p>
               </TableCell>

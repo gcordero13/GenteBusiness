@@ -30,6 +30,7 @@ export interface ComplaintDetail {
   complaintNumber: number;
   createdAtLabel: string;
   categoryLabel: string;
+  subject: string;
   message: string;
   submitterName: string | null;
   status: string;
@@ -78,7 +79,9 @@ export function ComplaintDetailDialog({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Queja #{complaint.complaintNumber}</DialogTitle>
+          <DialogTitle>
+            Queja #{complaint.complaintNumber} — {complaint.subject}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
