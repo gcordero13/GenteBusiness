@@ -17,12 +17,13 @@ const STATUS_LABELS: Record<string, string> = {
   nuevo: "Nuevo",
   en_proceso: "En proceso",
   resuelto: "Resuelto",
+  declinada: "Declinada",
 };
 
 export default async function ComplaintsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; search?: string }>;
+  searchParams: Promise<{ category?: string; search?: string; status?: string }>;
 }) {
   const supabase = await createClient();
   const { data: canView } = await supabase.rpc("can_view_complaints");
@@ -54,6 +55,7 @@ export default async function ComplaintsPage({
   const params = await searchParams;
   const filtered = allComplaints.filter((c) => {
     if (params.category && c.category !== params.category) return false;
+    if (params.status && c.status !== params.status) return false;
     if (params.search && !c.message.toLowerCase().includes(params.search.toLowerCase())) return false;
     return true;
   });
@@ -90,7 +92,11 @@ export default async function ComplaintsPage({
       </div>
       <ComplaintsSummaryCards summary={summary} />
       <ComplaintsCategoryChart counts={categoryCounts} />
-      <ComplaintsFilterBar category={params.category ?? null} search={params.search ?? ""} />
+      <ComplaintsFilterBar
+        category={params.category ?? null}
+        status={params.status ?? null}
+        search={params.search ?? ""}
+      />
       <ComplaintsList rows={rows} />
     </div>
   );

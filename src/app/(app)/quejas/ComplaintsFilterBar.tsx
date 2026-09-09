@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 
 const ALL_CATEGORIES_VALUE = "__all__";
+const ALL_STATUSES_VALUE = "__all__";
 
 const CATEGORY_OPTIONS = [
   { value: "acoso", label: "Acoso" },
@@ -21,11 +22,20 @@ const CATEGORY_OPTIONS = [
   { value: "otro", label: "Otro" },
 ];
 
+const STATUS_OPTIONS = [
+  { value: "nuevo", label: "Nuevo" },
+  { value: "en_proceso", label: "En proceso" },
+  { value: "resuelto", label: "Resuelto" },
+  { value: "declinada", label: "Declinada" },
+];
+
 export function ComplaintsFilterBar({
   category,
+  status,
   search,
 }: {
   category: string | null;
+  status: string | null;
   search: string;
 }) {
   const router = useRouter();
@@ -38,7 +48,7 @@ export function ComplaintsFilterBar({
 
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (!value || value === ALL_CATEGORIES_VALUE) {
+    if (!value || value === ALL_CATEGORIES_VALUE || value === ALL_STATUSES_VALUE) {
       params.delete(key);
     } else {
       params.set(key, value);
@@ -70,6 +80,28 @@ export function ComplaintsFilterBar({
           {CATEGORY_OPTIONS.map((c) => (
             <SelectItem key={c.value} value={c.value}>
               {c.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={status ?? ALL_STATUSES_VALUE}
+        onValueChange={(value) => value && updateParam("status", value)}
+      >
+        <SelectTrigger className="w-56">
+          <SelectValue>
+            {(value: string) =>
+              value === ALL_STATUSES_VALUE
+                ? "Todos los estados"
+                : (STATUS_OPTIONS.find((s) => s.value === value)?.label ?? value)
+            }
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL_STATUSES_VALUE}>Todos los estados</SelectItem>
+          {STATUS_OPTIONS.map((s) => (
+            <SelectItem key={s.value} value={s.value}>
+              {s.label}
             </SelectItem>
           ))}
         </SelectContent>

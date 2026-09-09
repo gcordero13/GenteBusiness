@@ -29,6 +29,7 @@ const STATUS_BADGE_CLASSNAME: Record<string, string> = {
   nuevo: "",
   en_proceso: "bg-amber-100 text-amber-900 border-amber-200",
   resuelto: "bg-emerald-100 text-emerald-900 border-emerald-200",
+  declinada: "bg-red-100 text-red-900 border-red-200",
 };
 
 export function ComplaintsList({ rows }: { rows: ComplaintRow[] }) {
