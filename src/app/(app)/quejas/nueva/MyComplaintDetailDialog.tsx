@@ -34,6 +34,13 @@ export function MyComplaintDetailDialog({
             {complaint.isAnonymous && <Badge variant="outline">Anónima</Badge>}
           </div>
           <p className="whitespace-pre-wrap">{complaint.message}</p>
+          {complaint.hasPhoto && (
+            <img
+              src={`/quejas/photo/${complaint.id}`}
+              alt="Foto adjunta"
+              className="max-h-64 rounded-md border object-contain"
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>
