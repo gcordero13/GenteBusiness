@@ -18,6 +18,7 @@ export function NewComplaintForm() {
   const router = useRouter();
   const [category, setCategory] = useState("otro");
   const [message, setMessage] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -30,7 +31,7 @@ export function NewComplaintForm() {
     }
     setError(null);
     startTransition(async () => {
-      const result = await submitComplaint({ category, message, isAnonymous });
+      const result = await submitComplaint({ category, message, isAnonymous, photo });
       if (result.error) {
         setError(result.error);
         return;
@@ -38,6 +39,7 @@ export function NewComplaintForm() {
       setSuccess(true);
       setMessage("");
       setCategory("otro");
+      setPhoto(null);
       setIsAnonymous(true);
       router.refresh();
     });
@@ -56,7 +58,7 @@ export function NewComplaintForm() {
   }
 
   return (
-    <div className="max-w-xl space-y-4">
+    <div className="max-w-3xl space-y-4">
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="space-y-1">
         <Label>Categoría</Label>
@@ -66,7 +68,7 @@ export function NewComplaintForm() {
               key={c.value}
               type="button"
               onClick={() => setCategory(c.value)}
-              className={`rounded-lg border px-3 py-1.5 text-sm ${
+              className={`rounded-lg border px-4 py-2 text-base ${
                 category === c.value ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"
               }`}
             >
@@ -78,12 +80,22 @@ export function NewComplaintForm() {
       <div className="space-y-1">
         <Label>Mensaje</Label>
         <textarea
-          className="w-full rounded-md border p-2 text-sm"
-          rows={6}
+          className="w-full rounded-md border p-2 text-base"
+          rows={10}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Describe lo que quieres reportar..."
         />
+      </div>
+      <div className="space-y-1">
+        <Label>Foto (opcional)</Label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-sm"
+        />
+        {photo && <p className="text-xs text-muted-foreground">Seleccionado: {photo.name}</p>}
       </div>
       <div className="space-y-1">
         <Label>¿Cómo quieres enviarla?</Label>
@@ -107,7 +119,7 @@ export function NewComplaintForm() {
           ))}
         </div>
       </div>
-      <Button onClick={submit} disabled={isPending}>
+      <Button size="lg" onClick={submit} disabled={isPending}>
         Enviar queja
       </Button>
     </div>
