@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { listMyComplaints, type MyComplaintRow } from "./actions";
+import { MyComplaintDetailDialog } from "./MyComplaintDetailDialog";
 
 const STORAGE_KEY = "quejas.myAnonymousComplaintIds";
 
@@ -28,7 +37,8 @@ export function rememberAnonymousComplaintId(id: string) {
 
 export function MyComplaintsList({ refreshKey }: { refreshKey: number }) {
   const [rows, setRows] = useState<MyComplaintRow[] | null>(null);
-  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<MyComplaintRow | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     const anonymousIds = getStoredAnonymousComplaintIds();
@@ -40,44 +50,59 @@ export function MyComplaintsList({ refreshKey }: { refreshKey: number }) {
   if (rows === null) return null;
   if (rows.length === 0) return null;
 
-  function toggle(id: string) {
-    setRevealedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   return (
     <div className="mt-8 space-y-2">
       <p className="text-sm font-semibold">Mis quejas</p>
-      <ul className="space-y-2">
-        {rows.map((row) => {
-          const revealed = !row.isAnonymous || revealedIds.has(row.id);
-          return (
-            <li key={row.id} className="rounded-md border p-3 text-sm">
-              <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                <span>#{row.complaintNumber}</span>
-                <span>{row.createdAtLabel}</span>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>#</TableHead>
+            <TableHead>Fecha</TableHead>
+            <TableHead>Categoría</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow
+              key={row.id}
+              className="cursor-pointer"
+              onClick={() => {
+                setSelected(row);
+                setDialogOpen(true);
+              }}
+              tabIndex={0}
+              role="button"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  if (e.key === " ") e.preventDefault();
+                  setSelected(row);
+                  setDialogOpen(true);
+                }
+              }}
+            >
+              <TableCell className="text-muted-foreground">#{row.complaintNumber}</TableCell>
+              <TableCell>{row.createdAtLabel}</TableCell>
+              <TableCell>
                 <Badge variant="outline">{row.categoryLabel}</Badge>
+              </TableCell>
+              <TableCell>
                 <Badge variant="outline">{row.statusLabel}</Badge>
-              </div>
-              {revealed ? (
-                <p className="mt-1 whitespace-pre-wrap">{row.message}</p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => toggle(row.id)}
-                  className="mt-1 text-sm text-muted-foreground underline underline-offset-2"
-                >
-                  Anónima — clic para ver solicitud
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+              </TableCell>
+              <TableCell className="text-right">
+                {row.isAnonymous && <Badge variant="outline">Anónima</Badge>}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <MyComplaintDetailDialog
+        key={selected?.id ?? "none"}
+        complaint={selected}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }
