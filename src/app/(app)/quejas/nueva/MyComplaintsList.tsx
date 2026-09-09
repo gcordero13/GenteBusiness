@@ -32,7 +32,9 @@ export function MyComplaintsList({ refreshKey }: { refreshKey: number }) {
 
   useEffect(() => {
     const anonymousIds = getStoredAnonymousComplaintIds();
-    listMyComplaints(anonymousIds).then(setRows);
+    listMyComplaints(anonymousIds)
+      .then(setRows)
+      .catch(() => setRows([]));
   }, [refreshKey]);
 
   if (rows === null) return null;
