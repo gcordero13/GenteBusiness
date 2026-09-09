@@ -3,6 +3,8 @@
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSiteUrl } from "@/lib/siteUrl";
+import { sendComplaintNotificationEmail } from "@/lib/sendComplaintNotificationEmail";
 
 export interface SubmitComplaintInput {
   category: string;
@@ -89,6 +91,54 @@ export async function submitComplaint(input: SubmitComplaintInput): Promise<Subm
     p_photo_path: photoPath,
   });
   if (error) return { error: error.message };
+
+  // Notify everyone currently listed in complaint_viewers. The complaint row
+  // is already committed at this point, so a mail failure (bad SMTP config,
+  // network issue, etc.) must never block or fail the submission response -
+  // same reasoning as the vacation-request notification precedent
+  // (solicitudes/vacaciones/actions.ts).
+  try {
+    // The regular session client can't be used for either lookup below: a
+    // submitter has no complaint_viewers SELECT access (that policy is
+    // manager-only), and an anonymous or non-viewer submitter has no
+    // complaints SELECT access either (gated by can_view_complaints()). Both
+    // reads need the admin client to bypass RLS.
+    const admin = createAdminClient();
+
+    const { data: viewerRows } = await admin.from("complaint_viewers").select("app_users(email)");
+    const viewerEmails = (viewerRows ?? [])
+      .map((v) => (v.app_users as unknown as { email: string } | null)?.email)
+      .filter((email): email is string => Boolean(email));
+
+    if (viewerEmails.length > 0) {
+      const { data: newComplaint } = await admin
+        .from("complaints")
+        .select("complaint_number, contact_id, contacts(first_name, last_name)")
+        .eq("id", newId as string)
+        .single();
+
+      if (newComplaint) {
+        let submitterName: string | null = null;
+        if (!input.isAnonymous) {
+          const contact = newComplaint.contacts as unknown as { first_name: string; last_name: string } | null;
+          submitterName = contact ? `${contact.first_name} ${contact.last_name}` : null;
+        }
+
+        const siteUrl = await getSiteUrl();
+        await sendComplaintNotificationEmail({
+          viewerEmails,
+          complaintNumber: newComplaint.complaint_number,
+          categoryLabel: CATEGORY_LABELS[input.category] ?? input.category,
+          message: input.message,
+          isAnonymous: input.isAnonymous,
+          submitterName,
+          complaintsUrl: `${siteUrl}/quejas`,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to send complaint notification email:", err);
+  }
 
   return { id: newId as string, isAnonymous: input.isAnonymous };
 }
