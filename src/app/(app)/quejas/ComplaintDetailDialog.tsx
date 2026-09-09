@@ -55,7 +55,11 @@ export function ComplaintDetailDialog({
     setError(null);
     startTransition(async () => {
       const result = await updateComplaintStatus(complaint!.id, status, comment);
-      if (result.error) setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      onOpenChange(false);
     });
   }
 

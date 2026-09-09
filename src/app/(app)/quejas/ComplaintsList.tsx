@@ -101,7 +101,12 @@ export function ComplaintsList({ rows }: { rows: ComplaintRow[] }) {
           ))}
         </TableBody>
       </Table>
-      <ComplaintDetailDialog complaint={detail} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <ComplaintDetailDialog
+        key={selected?.id ?? "none"}
+        complaint={detail}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </>
   );
 }
