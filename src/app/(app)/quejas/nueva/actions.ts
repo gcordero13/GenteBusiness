@@ -30,6 +30,7 @@ export interface MyComplaintRow {
   isAnonymous: boolean;
   status: string;
   statusLabel: string;
+  hasPhoto: boolean;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -64,6 +65,7 @@ export async function submitComplaint(input: SubmitComplaintInput): Promise<Subm
   if (!user) return { error: "No autorizado" };
 
   if (!input.subject.trim()) return { error: "El asunto no puede estar vacío" };
+  if (input.subject.length > 150) return { error: "El asunto no puede tener más de 150 caracteres" };
   if (!input.message.trim()) return { error: "El mensaje no puede estar vacío" };
 
   let photoPath: string | null = null;
@@ -152,7 +154,7 @@ export async function listMyComplaints(anonymousIds: string[]): Promise<MyCompla
   const { data, error } = await supabase.rpc("list_my_complaints", { p_anonymous_ids: anonymousIds });
   if (error || !data) return [];
 
-  return data.map((c: { id: string; complaint_number: number; created_at: string; category: string; subject: string; message: string; is_anonymous: boolean; status: string }) => ({
+  return data.map((c: { id: string; complaint_number: number; created_at: string; category: string; subject: string; message: string; is_anonymous: boolean; status: string; photo_path: string | null }) => ({
     id: c.id,
     complaintNumber: c.complaint_number,
     createdAtLabel: new Date(c.created_at).toLocaleDateString("es-DO", { year: "numeric", month: "short", day: "numeric" }),
@@ -162,5 +164,6 @@ export async function listMyComplaints(anonymousIds: string[]): Promise<MyCompla
     isAnonymous: c.is_anonymous,
     status: c.status,
     statusLabel: STATUS_LABELS[c.status] ?? c.status,
+    hasPhoto: Boolean(c.photo_path),
   }));
 }

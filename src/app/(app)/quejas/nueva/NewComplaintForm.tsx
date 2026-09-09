@@ -33,6 +33,7 @@ export function NewComplaintForm() {
   const [photoInputKey, setPhotoInputKey] = useState(0);
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [justSubmitted, setJustSubmitted] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isPending, startTransition] = useTransition();
 
@@ -63,13 +64,20 @@ export function NewComplaintForm() {
       setIsAnonymous(true);
       setRefreshKey((k) => k + 1);
       setOpen(false);
+      setJustSubmitted(true);
       router.refresh();
     });
   }
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (nextOpen) setJustSubmitted(false);
+        }}
+      >
         <DialogTrigger render={<Button size="lg">Crear Queja o Reporte</Button>} />
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -79,7 +87,12 @@ export function NewComplaintForm() {
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="space-y-1">
               <Label>Asunto</Label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Un resumen breve..." />
+              <Input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Un resumen breve..."
+                maxLength={150}
+              />
             </div>
             <div className="space-y-1">
               <Label>Categoría</Label>
@@ -157,6 +170,9 @@ export function NewComplaintForm() {
           </div>
         </DialogContent>
       </Dialog>
+      {justSubmitted && (
+        <p className="mt-2 text-sm text-[#04B1AF]">✓ Tu queja fue enviada. Gracias por reportarlo.</p>
+      )}
       <MyComplaintsList refreshKey={refreshKey} />
     </>
   );

@@ -60,7 +60,9 @@ export function MyComplaintsList({ refreshKey }: { refreshKey: number }) {
             <TableHead>Fecha</TableHead>
             <TableHead>Categoría</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead />
+            <TableHead>
+              <span className="sr-only">Anónima</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
