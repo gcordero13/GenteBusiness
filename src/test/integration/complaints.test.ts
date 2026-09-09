@@ -399,4 +399,21 @@ describe("Complaints module", () => {
     const { data: withProof } = await viewer.client.rpc("list_my_complaints", { p_anonymous_ids: [myAnonId] });
     expect(withProof?.map((r: { id: string }) => r.id)).toContain(myAnonId);
   });
+
+  it("submit_complaint stores the provided subject, and list_my_complaints returns it", async () => {
+    viewer = await createTestUser("Viewer");
+
+    const { data: id, error } = await viewer.client.rpc("submit_complaint", {
+      p_category: "otro",
+      p_message: "Mensaje de prueba",
+      p_is_anonymous: true,
+      p_subject: "Asunto de prueba",
+    });
+    expect(error).toBeNull();
+    complaintIds.push(id as string);
+
+    const { data: rows } = await viewer.client.rpc("list_my_complaints", { p_anonymous_ids: [id] });
+    const row = rows?.find((r: { id: string }) => r.id === id);
+    expect(row?.subject).toBe("Asunto de prueba");
+  });
 });
