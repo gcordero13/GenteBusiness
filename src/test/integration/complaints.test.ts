@@ -247,4 +247,156 @@ describe("Complaints module", () => {
       .single();
     expect(viewerRemoveError).not.toBeNull();
   });
+
+  it("update_complaint_status lets a viewer update status/comment; a non-viewer cannot", async () => {
+    viewer = await createTestUser("Viewer");
+    superAdmin = await createTestUser("Super Admin");
+    const admin = createAdminClient();
+
+    const { data: id } = await superAdmin.client.rpc("submit_complaint", {
+      p_category: "otro",
+      p_message: "Para actualizar estado",
+      p_is_anonymous: true,
+    });
+    complaintIds.push(id as string);
+
+    const { data: viewerRow } = await admin
+      .from("complaint_viewers")
+      .insert({ app_user_id: viewer.id })
+      .select()
+      .single();
+    viewerRowIds.push(viewerRow!.id);
+
+    const { error: nonViewerError } = await superAdmin.client.rpc("update_complaint_status", {
+      p_id: id,
+      p_status: "en_proceso",
+      p_comment: "no debería aplicar",
+    });
+    // superAdmin here has can_manage on role_profiles but is NOT a complaint_viewers
+    // row (only "viewer" was added above), so this must be rejected too - viewing
+    // access, not role-profile management, is what update_complaint_status checks.
+    expect(nonViewerError).not.toBeNull();
+
+    const { error: viewerError } = await viewer.client.rpc("update_complaint_status", {
+      p_id: id,
+      p_status: "en_proceso",
+      p_comment: "revisando",
+    });
+    expect(viewerError).toBeNull();
+
+    const { data: row } = await admin.from("complaints").select("status, reviewer_comment").eq("id", id).single();
+    expect(row?.status).toBe("en_proceso");
+    expect(row?.reviewer_comment).toBe("revisando");
+  });
+
+  it("submit_complaint stores an optional photo_path identically for anonymous and named submissions", async () => {
+    viewer = await createTestUser("Viewer");
+    const admin = createAdminClient();
+
+    const { data: anonId, error: anonError } = await viewer.client.rpc("submit_complaint", {
+      p_category: "otro",
+      p_message: "Con foto anónima",
+      p_is_anonymous: true,
+      p_photo_path: "test/anon-photo.png",
+    });
+    expect(anonError).toBeNull();
+    complaintIds.push(anonId as string);
+
+    const { data: anonRow } = await admin.from("complaints").select("photo_path, contact_id").eq("id", anonId).single();
+    expect(anonRow?.photo_path).toBe("test/anon-photo.png");
+    expect(anonRow?.contact_id).toBeNull();
+  });
+
+  it("complaint_number is assigned automatically and increases with each submission", async () => {
+    viewer = await createTestUser("Viewer");
+    const admin = createAdminClient();
+
+    const { data: firstId } = await viewer.client.rpc("submit_complaint", {
+      p_category: "otro",
+      p_message: "Primera",
+      p_is_anonymous: true,
+    });
+    complaintIds.push(firstId as string);
+    const { data: secondId } = await viewer.client.rpc("submit_complaint", {
+      p_category: "otro",
+      p_message: "Segunda",
+      p_is_anonymous: true,
+    });
+    complaintIds.push(secondId as string);
+
+    const { data: rows } = await admin
+      .from("complaints")
+      .select("id, complaint_number")
+      .in("id", [firstId, secondId]);
+    const first = rows!.find((r: { id: string }) => r.id === firstId)!;
+    const second = rows!.find((r: { id: string }) => r.id === secondId)!;
+    expect(second.complaint_number).toBeGreaterThan(first.complaint_number);
+  });
+
+  it("direct update on complaints for status/reviewer_comment is still rejected - only update_complaint_status may write", async () => {
+    viewer = await createTestUser("Viewer");
+    const admin = createAdminClient();
+
+    const { data: viewerRow } = await admin
+      .from("complaint_viewers")
+      .insert({ app_user_id: viewer.id })
+      .select()
+      .single();
+    viewerRowIds.push(viewerRow!.id);
+
+    const { data: id } = await viewer.client.rpc("submit_complaint", {
+      p_category: "otro",
+      p_message: "Intento de update directo",
+      p_is_anonymous: true,
+    });
+    complaintIds.push(id as string);
+
+    const { error } = await viewer.client
+      .from("complaints")
+      .update({ status: "resuelto" })
+      .eq("id", id)
+      .select()
+      .single();
+    expect(error).not.toBeNull();
+  });
+
+  it("list_my_complaints returns a submitter's own named complaints", async () => {
+    viewer = await createTestUser("Viewer");
+    const admin = createAdminClient();
+
+    const { data: ownContact } = await admin
+      .from("contacts")
+      .insert({ first_name: "Test", last_name: "User", email: viewer.email })
+      .select()
+      .single();
+    contactIds.push(ownContact!.id);
+
+    const { data: id } = await viewer.client.rpc("submit_complaint", {
+      p_category: "otro",
+      p_message: "Mi propia queja con nombre",
+      p_is_anonymous: false,
+    });
+    complaintIds.push(id as string);
+
+    const { data: rows, error } = await viewer.client.rpc("list_my_complaints", { p_anonymous_ids: [] });
+    expect(error).toBeNull();
+    expect(rows?.map((r: { id: string }) => r.id)).toContain(id);
+  });
+
+  it("list_my_complaints returns an anonymous complaint only when its exact id is supplied, and returns nothing without it", async () => {
+    viewer = await createTestUser("Viewer");
+
+    const { data: myAnonId } = await viewer.client.rpc("submit_complaint", {
+      p_category: "otro",
+      p_message: "Mi queja anónima",
+      p_is_anonymous: true,
+    });
+    complaintIds.push(myAnonId as string);
+
+    const { data: withoutProof } = await viewer.client.rpc("list_my_complaints", { p_anonymous_ids: [] });
+    expect(withoutProof?.map((r: { id: string }) => r.id)).not.toContain(myAnonId);
+
+    const { data: withProof } = await viewer.client.rpc("list_my_complaints", { p_anonymous_ids: [myAnonId] });
+    expect(withProof?.map((r: { id: string }) => r.id)).toContain(myAnonId);
+  });
 });
