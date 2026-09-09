@@ -121,7 +121,7 @@ export async function submitComplaint(input: SubmitComplaintInput): Promise<Subm
         let submitterName: string | null = null;
         if (!input.isAnonymous) {
           const contact = newComplaint.contacts as unknown as { first_name: string; last_name: string } | null;
-          submitterName = contact ? `${contact.first_name} ${contact.last_name}` : null;
+          submitterName = contact ? `${contact.first_name} ${contact.last_name}` : "Nombre no disponible";
         }
 
         const siteUrl = await getSiteUrl();

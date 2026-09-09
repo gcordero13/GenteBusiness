@@ -94,7 +94,7 @@ export async function sendComplaintNotificationEmail(input: {
   const settings = await getEmailSettings();
   const [transport, logoUrl] = await Promise.all([buildTransport(settings), fetchPlatformLogoUrl()]);
 
-  const submitterLine = input.isAnonymous ? "Anónima" : (input.submitterName ?? "Anónima");
+  const submitterLine = input.isAnonymous ? "Anónima" : (input.submitterName ?? "Nombre no disponible");
   const html = buildBrandedEmailHtml({
     title: `Nueva queja #${input.complaintNumber}`,
     bodyHtml: `
