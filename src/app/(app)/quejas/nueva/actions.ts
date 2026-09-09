@@ -17,6 +17,13 @@ interface SubmitComplaintResult {
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
+const ALLOWED_PHOTO_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
 export async function submitComplaint(input: SubmitComplaintInput): Promise<SubmitComplaintResult> {
   const supabase = await createClient();
   const {
@@ -28,7 +35,8 @@ export async function submitComplaint(input: SubmitComplaintInput): Promise<Subm
 
   let photoPath: string | null = null;
   if (input.photo && input.photo.size > 0) {
-    if (!input.photo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen" };
+    const extension = ALLOWED_PHOTO_TYPES[input.photo.type];
+    if (!extension) return { error: "La imagen debe ser JPG, PNG, WEBP o GIF" };
     if (input.photo.size > MAX_PHOTO_BYTES) return { error: "La imagen no puede pesar más de 5 MB" };
 
     // Uploaded via the service-role admin client, regardless of whether this
@@ -37,9 +45,8 @@ export async function submitComplaint(input: SubmitComplaintInput): Promise<Subm
     // identity for an anonymous submission. The path itself is a random key,
     // never derived from the uploader's id/email.
     const admin = createAdminClient();
-    const extension = input.photo.type.split("/")[1] ?? "jpg";
     const path = `${randomUUID()}.${extension}`;
-    const bytes = new Uint8Array(await input.photo.arrayBuffer());
+    const bytes = await input.photo.arrayBuffer();
     const { error: uploadError } = await admin.storage
       .from("complaint-photos")
       .upload(path, bytes, { contentType: input.photo.type });

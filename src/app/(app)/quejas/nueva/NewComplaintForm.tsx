@@ -19,6 +19,7 @@ export function NewComplaintForm() {
   const [category, setCategory] = useState("otro");
   const [message, setMessage] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoInputKey, setPhotoInputKey] = useState(0);
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -40,6 +41,7 @@ export function NewComplaintForm() {
       setMessage("");
       setCategory("otro");
       setPhoto(null);
+      setPhotoInputKey((k) => k + 1);
       setIsAnonymous(true);
       router.refresh();
     });
@@ -90,9 +92,20 @@ export function NewComplaintForm() {
       <div className="space-y-1">
         <Label>Foto (opcional)</Label>
         <input
+          key={photoInputKey}
           type="file"
           accept="image/*"
-          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            const file = e.target.files?.[0] ?? null;
+            if (file && file.size > 5 * 1024 * 1024) {
+              setError("La imagen no puede pesar más de 5 MB");
+              setPhoto(null);
+              e.target.value = "";
+              return;
+            }
+            setError(null);
+            setPhoto(file);
+          }}
           className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-sm"
         />
         {photo && <p className="text-xs text-muted-foreground">Seleccionado: {photo.name}</p>}
@@ -110,7 +123,7 @@ export function NewComplaintForm() {
               key={String(option.value)}
               type="button"
               onClick={() => setIsAnonymous(option.value)}
-              className={`rounded-md px-3 py-1.5 text-sm ${
+              className={`rounded-md px-4 py-2 text-base ${
                 isAnonymous === option.value ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"
               }`}
             >
