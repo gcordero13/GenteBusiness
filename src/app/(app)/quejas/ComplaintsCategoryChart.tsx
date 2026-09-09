@@ -4,12 +4,18 @@ export interface CategoryCount {
   count: number;
 }
 
-export function ComplaintsCategoryChart({ counts }: { counts: CategoryCount[] }) {
+export function ComplaintsCategoryChart({
+  counts,
+  title = "Quejas por categoría",
+}: {
+  counts: CategoryCount[];
+  title?: string;
+}) {
   const max = Math.max(1, ...counts.map((c) => c.count));
 
   return (
     <div className="rounded-2xl border p-5">
-      <p className="mb-3 text-sm font-semibold">Quejas por categoría</p>
+      <p className="mb-3 text-sm font-semibold">{title}</p>
       <div className="space-y-2">
         {counts.map((c) => (
           <div key={c.category} className="flex items-center gap-3">

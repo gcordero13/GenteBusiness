@@ -20,6 +20,8 @@ const STATUS_LABELS: Record<string, string> = {
   declinada: "Declinada",
 };
 
+const STATUS_ORDER = ["nuevo", "en_proceso", "resuelto", "declinada"];
+
 export default async function ComplaintsPage({
   searchParams,
 }: {
@@ -50,6 +52,12 @@ export default async function ComplaintsPage({
     category: value,
     label,
     count: allComplaints.filter((c) => c.category === value).length,
+  }));
+
+  const statusCounts = STATUS_ORDER.map((value) => ({
+    category: value,
+    label: STATUS_LABELS[value] ?? value,
+    count: allComplaints.filter((c) => c.status === value).length,
   }));
 
   const params = await searchParams;
@@ -91,8 +99,11 @@ export default async function ComplaintsPage({
         <h1 className="text-xl font-semibold">Quejas y reportes</h1>
         <p className="text-sm text-muted-foreground">Solo tú puedes ver esta información.</p>
       </div>
-      <ComplaintsSummaryCards summary={summary} />
-      <ComplaintsCategoryChart counts={categoryCounts} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <ComplaintsSummaryCards summary={summary} />
+        <ComplaintsCategoryChart counts={categoryCounts} title="Quejas por categoría" />
+        <ComplaintsCategoryChart counts={statusCounts} title="Quejas por estado" />
+      </div>
       <ComplaintsFilterBar
         category={params.category ?? null}
         status={params.status ?? null}

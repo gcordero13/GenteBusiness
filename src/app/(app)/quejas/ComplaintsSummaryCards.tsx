@@ -8,7 +8,7 @@ export interface ComplaintsSummary {
 
 export function ComplaintsSummaryCards({ summary }: { summary: ComplaintsSummary }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4">
       <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           <Inbox className="size-4 text-[#04B1AF]" />
