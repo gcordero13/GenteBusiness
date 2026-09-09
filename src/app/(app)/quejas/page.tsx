@@ -13,6 +13,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   otro: "Otro",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  nuevo: "Nuevo",
+  en_proceso: "En proceso",
+  resuelto: "Resuelto",
+};
+
 export default async function ComplaintsPage({
   searchParams,
 }: {
@@ -26,7 +32,9 @@ export default async function ComplaintsPage({
 
   const { data: complaintsRows } = await supabase
     .from("complaints")
-    .select("id, created_at, category, message, is_anonymous, contact_id, contacts(first_name, last_name)")
+    .select(
+      "id, created_at, category, message, is_anonymous, contact_id, contacts(first_name, last_name), complaint_number, status, reviewer_comment, photo_path",
+    )
     .order("created_at", { ascending: false });
 
   const allComplaints = complaintsRows ?? [];
@@ -66,6 +74,11 @@ export default async function ComplaintsPage({
         : contact
           ? `${contact.first_name} ${contact.last_name}`
           : "Nombre no disponible",
+      complaintNumber: c.complaint_number,
+      status: c.status,
+      statusLabel: STATUS_LABELS[c.status] ?? c.status,
+      reviewerComment: c.reviewer_comment,
+      hasPhoto: Boolean(c.photo_path),
     };
   });
 
