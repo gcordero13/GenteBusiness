@@ -6,38 +6,24 @@ export interface CategoryCount {
 
 export function ComplaintsCategoryChart({ counts }: { counts: CategoryCount[] }) {
   const max = Math.max(1, ...counts.map((c) => c.count));
-  const barHeight = 24;
-  const gap = 12;
-  const chartHeight = counts.length * (barHeight + gap);
-  const labelWidth = 140;
-  const chartWidth = 320;
-  const countLabelWidth = 40;
 
   return (
     <div className="rounded-2xl border p-5">
       <p className="mb-3 text-sm font-semibold">Quejas por categoría</p>
-      <svg
-        width="100%"
-        viewBox={`0 0 ${labelWidth + chartWidth + countLabelWidth} ${chartHeight}`}
-        role="img"
-        aria-label="Quejas por categoría"
-      >
-        {counts.map((c, i) => {
-          const y = i * (barHeight + gap);
-          const width = (c.count / max) * chartWidth;
-          return (
-            <g key={c.category}>
-              <text x={0} y={y + barHeight / 2 + 4} className="fill-muted-foreground text-xs">
-                {c.label}
-              </text>
-              <rect x={labelWidth} y={y} width={width} height={barHeight} rx={4} className="fill-[#04B1AF]" />
-              <text x={labelWidth + width + 6} y={y + barHeight / 2 + 4} className="fill-foreground text-xs font-medium">
-                {c.count}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+      <div className="space-y-2">
+        {counts.map((c) => (
+          <div key={c.category} className="flex items-center gap-3">
+            <span className="w-36 shrink-0 text-xs text-muted-foreground">{c.label}</span>
+            <div className="h-6 flex-1 overflow-hidden rounded bg-muted">
+              <div
+                className="h-6 rounded bg-[#04B1AF]"
+                style={{ width: `${(c.count / max) * 100}%` }}
+              />
+            </div>
+            <span className="w-6 shrink-0 text-right text-xs font-medium">{c.count}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
