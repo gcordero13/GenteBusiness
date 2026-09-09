@@ -93,7 +93,9 @@ export function ComplaintsList({ rows }: { rows: ComplaintRow[] }) {
               <TableCell className="align-top">
                 <Badge variant="outline">{row.categoryLabel}</Badge>
               </TableCell>
-              <TableCell className="align-top">{row.subject}</TableCell>
+              <TableCell className="max-w-xs align-top">
+                <p className="truncate">{row.subject}</p>
+              </TableCell>
               <TableCell className="max-w-md">
                 <p className="truncate">{row.message}</p>
               </TableCell>
