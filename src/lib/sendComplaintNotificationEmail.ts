@@ -96,14 +96,14 @@ export async function sendComplaintNotificationEmail(input: {
 
   const submitterLine = input.isAnonymous ? "Anónima" : (input.submitterName ?? "Nombre no disponible");
   const html = buildBrandedEmailHtml({
-    title: `Nueva queja #${input.complaintNumber}`,
+    title: `Nuevo reporte #${input.complaintNumber}`,
     bodyHtml: `
       <p style="margin:0 0 12px;"><strong>Categoría:</strong> ${escapeHtml(input.categoryLabel)}</p>
       <p style="margin:0 0 12px;"><strong>Quién envía:</strong> ${escapeHtml(submitterLine)}</p>
       <p style="margin:0 0 4px;"><strong>Mensaje:</strong></p>
       <p style="margin:0;white-space:pre-wrap;">${escapeHtml(input.message)}</p>
     `,
-    ctaText: "Revisar queja",
+    ctaText: "Revisar reporte",
     ctaUrl: input.complaintsUrl,
     logoUrl,
     footerText: "Correo generado automáticamente por Gente Sánchez Business.",
@@ -114,8 +114,8 @@ export async function sendComplaintNotificationEmail(input: {
       transport.sendMail({
         from: fromAddress(settings),
         to,
-        subject: `Nueva queja #${input.complaintNumber} - ${input.categoryLabel}`,
-        text: `Se registró una nueva queja #${input.complaintNumber} (${input.categoryLabel}) de ${submitterLine}: ${input.message}\n\nRevisar: ${input.complaintsUrl}`,
+        subject: `Nuevo reporte #${input.complaintNumber} - ${input.categoryLabel}`,
+        text: `Se registró un nuevo reporte #${input.complaintNumber} (${input.categoryLabel}) de ${submitterLine}: ${input.message}\n\nRevisar: ${input.complaintsUrl}`,
         html,
       }),
     ),

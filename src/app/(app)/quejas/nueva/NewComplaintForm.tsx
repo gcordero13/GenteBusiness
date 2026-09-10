@@ -17,18 +17,19 @@ import { submitComplaint } from "./actions";
 import { MyComplaintsList, rememberAnonymousComplaintId } from "./MyComplaintsList";
 
 const CATEGORIES = [
-  { value: "acoso", label: "Acoso" },
-  { value: "seguridad", label: "Seguridad" },
   { value: "etica", label: "Ética" },
-  { value: "recursos_humanos", label: "Recursos Humanos" },
-  { value: "otro", label: "Otro" },
+  { value: "malas_practicas", label: "Malas Prácticas" },
+  { value: "conflicto_interes", label: "Conflicto de Interés" },
+  { value: "maltrato_acoso", label: "Maltrato o Acoso" },
+  { value: "seguridad", label: "Situaciones de Seguridad" },
+  { value: "otros", label: "Otros" },
 ];
 
 export function NewComplaintForm() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState("");
-  const [category, setCategory] = useState("otro");
+  const [category, setCategory] = useState("etica");
   const [message, setMessage] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoInputKey, setPhotoInputKey] = useState(0);
@@ -66,7 +67,7 @@ export function NewComplaintForm() {
       }
       setSubject("");
       setMessage("");
-      setCategory("otro");
+      setCategory("etica");
       setPhoto(null);
       setPhotoInputKey((k) => k + 1);
       setIsAnonymous(true);
@@ -87,10 +88,10 @@ export function NewComplaintForm() {
             if (nextOpen) setJustSubmitted(false);
           }}
         >
-          <DialogTrigger render={<Button size="lg">Crear Queja o Reporte</Button>} />
+          <DialogTrigger render={<Button size="lg">Crear Reporte</Button>} />
           <DialogContent className="sm:max-w-xl">
             <DialogHeader>
-              <DialogTitle>Enviar queja o reporte</DialogTitle>
+              <DialogTitle>Enviar Reporte</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               {error && <p className="text-sm text-red-600">{error}</p>}
@@ -181,7 +182,7 @@ export function NewComplaintForm() {
         </Dialog>
       </div>
       {justSubmitted && (
-        <p className="mt-2 text-sm text-[#04B1AF]">✓ Tu queja fue enviada. Gracias por reportarlo.</p>
+        <p className="mt-2 text-sm text-[#04B1AF]">✓ Tu reporte fue enviado. Gracias por reportarlo.</p>
       )}
       <MyComplaintsList refreshKey={refreshKey} />
     </>

@@ -34,11 +34,12 @@ export interface MyComplaintRow {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  acoso: "Acoso",
-  seguridad: "Seguridad",
   etica: "Ética",
-  recursos_humanos: "Recursos Humanos",
-  otro: "Otro",
+  malas_practicas: "Malas Prácticas",
+  conflicto_interes: "Conflicto de Interés",
+  maltrato_acoso: "Maltrato o Acoso",
+  seguridad: "Situaciones de Seguridad",
+  otros: "Otros",
 };
 
 const STATUS_LABELS: Record<string, string> = {

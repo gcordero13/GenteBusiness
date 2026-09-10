@@ -6,7 +6,7 @@ export interface CategoryCount {
 
 export function ComplaintsCategoryChart({
   counts,
-  title = "Quejas por categoría",
+  title = "Reportes por categoría",
 }: {
   counts: CategoryCount[];
   title?: string;

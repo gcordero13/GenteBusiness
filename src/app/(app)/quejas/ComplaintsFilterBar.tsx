@@ -15,11 +15,12 @@ const ALL_CATEGORIES_VALUE = "__all__";
 const ALL_STATUSES_VALUE = "__all__";
 
 const CATEGORY_OPTIONS = [
-  { value: "acoso", label: "Acoso" },
-  { value: "seguridad", label: "Seguridad" },
   { value: "etica", label: "Ética" },
-  { value: "recursos_humanos", label: "Recursos Humanos" },
-  { value: "otro", label: "Otro" },
+  { value: "malas_practicas", label: "Malas Prácticas" },
+  { value: "conflicto_interes", label: "Conflicto de Interés" },
+  { value: "maltrato_acoso", label: "Maltrato o Acoso" },
+  { value: "seguridad", label: "Situaciones de Seguridad" },
+  { value: "otros", label: "Otros" },
 ];
 
 const STATUS_OPTIONS = [

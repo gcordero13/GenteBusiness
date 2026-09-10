@@ -6,11 +6,12 @@ import { ComplaintsFilterBar } from "./ComplaintsFilterBar";
 import { ComplaintsList, type ComplaintRow } from "./ComplaintsList";
 
 const CATEGORY_LABELS: Record<string, string> = {
-  acoso: "Acoso",
-  seguridad: "Seguridad",
   etica: "Ética",
-  recursos_humanos: "Recursos Humanos",
-  otro: "Otro",
+  malas_practicas: "Malas Prácticas",
+  conflicto_interes: "Conflicto de Interés",
+  maltrato_acoso: "Maltrato o Acoso",
+  seguridad: "Situaciones de Seguridad",
+  otros: "Otros",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -96,13 +97,13 @@ export default async function ComplaintsPage({
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-xl font-semibold">Quejas y reportes</h1>
+        <h1 className="text-xl font-semibold">Canal para Reportar</h1>
         <p className="text-sm text-muted-foreground">Solo tú puedes ver esta información.</p>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <ComplaintsSummaryCards summary={summary} />
-        <ComplaintsCategoryChart counts={categoryCounts} title="Quejas por categoría" />
-        <ComplaintsCategoryChart counts={statusCounts} title="Quejas por estado" />
+        <ComplaintsCategoryChart counts={categoryCounts} title="Reportes por categoría" />
+        <ComplaintsCategoryChart counts={statusCounts} title="Reportes por estado" />
       </div>
       <ComplaintsFilterBar
         category={params.category ?? null}

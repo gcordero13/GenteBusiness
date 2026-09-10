@@ -37,7 +37,7 @@ describe("Complaints module", () => {
     const admin = createAdminClient();
 
     const { data: id, error } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Prueba anónima",
       p_is_anonymous: true,
     });
@@ -78,7 +78,7 @@ describe("Complaints module", () => {
     // Deliberately do NOT create a matching contacts row for this viewer.
 
     const { data, error } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Sin contacto",
       p_is_anonymous: false,
     });
@@ -148,7 +148,7 @@ describe("Complaints module", () => {
     viewer = await createTestUser("Viewer");
 
     const { data: id, error: submitError } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Prueba para bypass directo",
       p_is_anonymous: true,
     });
@@ -254,7 +254,7 @@ describe("Complaints module", () => {
     const admin = createAdminClient();
 
     const { data: id } = await superAdmin.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Para actualizar estado",
       p_is_anonymous: true,
     });
@@ -294,7 +294,7 @@ describe("Complaints module", () => {
     const admin = createAdminClient();
 
     const { data: anonId, error: anonError } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Con foto anónima",
       p_is_anonymous: true,
       p_photo_path: "test/anon-photo.png",
@@ -312,13 +312,13 @@ describe("Complaints module", () => {
     const admin = createAdminClient();
 
     const { data: firstId } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Primera",
       p_is_anonymous: true,
     });
     complaintIds.push(firstId as string);
     const { data: secondId } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Segunda",
       p_is_anonymous: true,
     });
@@ -345,7 +345,7 @@ describe("Complaints module", () => {
     viewerRowIds.push(viewerRow!.id);
 
     const { data: id } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Intento de update directo",
       p_is_anonymous: true,
     });
@@ -372,7 +372,7 @@ describe("Complaints module", () => {
     contactIds.push(ownContact!.id);
 
     const { data: id } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Mi propia queja con nombre",
       p_is_anonymous: false,
     });
@@ -387,7 +387,7 @@ describe("Complaints module", () => {
     viewer = await createTestUser("Viewer");
 
     const { data: myAnonId } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Mi queja anónima",
       p_is_anonymous: true,
     });
@@ -404,7 +404,7 @@ describe("Complaints module", () => {
     viewer = await createTestUser("Viewer");
 
     const { data: id, error } = await viewer.client.rpc("submit_complaint", {
-      p_category: "otro",
+      p_category: "otros",
       p_message: "Mensaje de prueba",
       p_is_anonymous: true,
       p_subject: "Asunto de prueba",

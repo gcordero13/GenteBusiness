@@ -52,7 +52,7 @@ export function MyComplaintsList({ refreshKey }: { refreshKey: number }) {
 
   return (
     <div className="mt-8 space-y-2">
-      <p className="text-sm font-semibold">Mis quejas</p>
+      <p className="text-sm font-semibold">Mis reportes</p>
       <Table>
         <TableHeader>
           <TableRow>

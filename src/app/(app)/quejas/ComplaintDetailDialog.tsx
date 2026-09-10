@@ -80,7 +80,7 @@ export function ComplaintDetailDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            Queja #{complaint.complaintNumber} — {complaint.subject}
+            Reporte #{complaint.complaintNumber} — {complaint.subject}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
