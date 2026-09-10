@@ -60,7 +60,7 @@ export function ComplaintViewersPanel({
 
   return (
     <div className="rounded-2xl border p-5">
-      <p className="mb-1 text-sm font-semibold">Acceso al Canal para Reportar</p>
+      <p className="mb-1 text-sm font-semibold">Acceso a Reportes Recibidos</p>
       <p className="mb-3 text-xs text-muted-foreground">
         Estas personas pueden ver los reportes enviados, sin importar su perfil de rol.
       </p>

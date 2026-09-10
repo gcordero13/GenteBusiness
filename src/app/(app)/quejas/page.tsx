@@ -97,7 +97,7 @@ export default async function ComplaintsPage({
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-xl font-semibold">Canal para Reportar</h1>
+        <h1 className="text-xl font-semibold">Reportes Recibidos</h1>
         <p className="text-sm text-muted-foreground">Solo tú puedes ver esta información.</p>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

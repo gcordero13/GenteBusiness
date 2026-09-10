@@ -90,8 +90,8 @@ export function Sidebar({
 
   const mainLinks: NavLink[] = [
     { href: "/my-profile", label: "Mi perfil", icon: UserCircle },
-    { href: "/quejas/nueva", label: "Enviar Reporte", icon: MessageSquareWarning },
-    ...(canViewComplaints ? [{ href: "/quejas", label: "Canal para Reportar", icon: Inbox }] : []),
+    { href: "/quejas/nueva", label: "Canal para Reportar", icon: MessageSquareWarning },
+    ...(canViewComplaints ? [{ href: "/quejas", label: "Reportes Recibidos", icon: Inbox }] : []),
     ...(canViewPonchador ? [{ href: "/ponchador", label: "Ponchador", icon: CalendarClock }] : []),
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
     ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),
