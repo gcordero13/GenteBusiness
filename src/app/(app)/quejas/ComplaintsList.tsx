@@ -38,7 +38,7 @@ export function ComplaintsList({ rows }: { rows: ComplaintRow[] }) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">No hay quejas para mostrar.</p>;
+    return <p className="text-sm text-muted-foreground">No hay reportes para mostrar.</p>;
   }
 
   const detail: ComplaintDetail | null = selected

@@ -175,7 +175,7 @@ export function NewComplaintForm() {
                 </div>
               </div>
               <Button size="lg" onClick={submit} disabled={isPending}>
-                Enviar queja
+                Enviar reporte
               </Button>
             </div>
           </DialogContent>

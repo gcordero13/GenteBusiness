@@ -12,7 +12,7 @@ export function ComplaintsSummaryCards({ summary }: { summary: ComplaintsSummary
       <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           <Inbox className="size-4 text-[#04B1AF]" />
-          Total de quejas
+          Total de reportes
         </div>
         <p className="mt-2 text-2xl font-bold">{summary.total}</p>
       </div>
