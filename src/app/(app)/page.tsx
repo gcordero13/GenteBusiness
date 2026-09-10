@@ -56,11 +56,8 @@ export default async function Home() {
   const departmentDefaultById = new Map((departments ?? []).map((d) => [d.id, d.default_schedule_id]));
 
   let myProfile: MyProfileCardData | null = null;
-  let attendanceCards: {
-    card1: AttendanceCard1Data;
-    card2: AttendanceCard2Data;
-    topArrivals: AttendanceTopArrival[];
-  } | null = null;
+  let myAttendanceCards: { card1: AttendanceCard1Data; card2: AttendanceCard2Data } | null = null;
+  let topArrivals: AttendanceTopArrival[] = [];
   if (user?.email) {
     const { data: myContact } = await supabase
       .from("contacts")
@@ -83,15 +80,77 @@ export default async function Home() {
       };
     }
 
-    if (myContact?.hikvision_employee_no) {
-      // Bypasses RLS deliberately for these attendance queries only: time_clock_punches
-      // has no SELECT policy at all, and the Card 3 candidate list is intentionally
-      // company-wide with no permission gate (a spec decision, not an oversight) - see
-      // the "time_clock_punches access" / "contacts access for Card 3" notes in
-      // docs/superpowers/specs/2026-08-11-attendance-summary-cards-design.md.
-      const admin = createAdminClient();
-      const windowStartIso = new Date(today.getTime() - 40 * 24 * 60 * 60 * 1000).toISOString();
+    // Bypasses RLS deliberately: time_clock_punches has no SELECT policy at
+    // all, and the "Top 5 de hoy" candidate list is intentionally company-wide
+    // with no permission gate - visible to any authenticated user regardless
+    // of whether THEY personally have a registered device/punches (a spec
+    // decision, not an oversight) - see the "time_clock_punches access" /
+    // "contacts access for Card 3" notes in
+    // docs/superpowers/specs/2026-08-11-attendance-summary-cards-design.md.
+    const admin = createAdminClient();
+    const windowStartIso = new Date(today.getTime() - 40 * 24 * 60 * 60 * 1000).toISOString();
 
+    const { data: candidateContacts } = await admin
+      .from("contacts")
+      .select("id, first_name, last_name, photo_url, schedule_id, department_id, hikvision_employee_no")
+      .eq("status", "active")
+      .not("hikvision_employee_no", "is", null);
+
+    const employeeNumbers = (candidateContacts ?? [])
+      .map((c) => c.hikvision_employee_no)
+      .filter((no): no is string => Boolean(no));
+
+    const punchesByEmployeeNo = new Map<string, string[]>();
+    if (employeeNumbers.length > 0) {
+      const { data: allPunches } = await admin
+        .from("time_clock_punches")
+        .select("employee_no_string, punched_at")
+        .in("employee_no_string", employeeNumbers)
+        .gte("punched_at", windowStartIso);
+      for (const punch of allPunches ?? []) {
+        const list = punchesByEmployeeNo.get(punch.employee_no_string) ?? [];
+        list.push(punch.punched_at);
+        punchesByEmployeeNo.set(punch.employee_no_string, list);
+      }
+    }
+
+    const todayDayOfWeek = today.getUTCDay();
+    const candidates: EarlyArrivalCandidate[] = [];
+    for (const c of candidateContacts ?? []) {
+      const employeeNo = c.hikvision_employee_no as string;
+      const arrivals = deriveDailyArrivals(punchesByEmployeeNo.get(employeeNo) ?? []);
+      const todayArrival = arrivals.find((a) => a.dateIso === todayIso);
+      if (!todayArrival) continue;
+
+      const contactSchedule = getEffectiveSchedule(
+        c.schedule_id,
+        c.department_id ? departmentDefaultById.get(c.department_id) : null,
+        schedulesById,
+        defaultSchedule,
+      );
+      const scheduledDay = contactSchedule.days.find((d) => d.day_of_week === todayDayOfWeek);
+      if (!scheduledDay) continue;
+
+      candidates.push({
+        contactId: c.id,
+        name: `${c.first_name} ${c.last_name}`,
+        photoUrl: c.photo_url,
+        arrivalMinutes: todayArrival.arrivalMinutes,
+        scheduledStartMinutes: scheduleTimeToMinutes(scheduledDay.start_time),
+      });
+    }
+
+    topArrivals = rankEarlyArrivals(candidates, 5).map((r) => ({
+      contactId: r.contactId,
+      name: r.name,
+      photoUrl: r.photoUrl,
+      arrivalLabel: formatArrivalTime(r.arrivalMinutes),
+      minutesEarly: r.minutesEarly,
+    }));
+
+    if (myContact?.hikvision_employee_no) {
+      // Personal attendance cards only - reuses the SAME admin/windowStartIso
+      // computed above rather than re-deriving them.
       const { data: myPunches } = await admin
         .from("time_clock_punches")
         .select("punched_at")
@@ -120,74 +179,16 @@ export default async function Home() {
 
       const todayComparison = monthlyComparison.find((a) => a.dateIso === todayIso) ?? null;
 
-      const card1: AttendanceCard1Data = {
-        averageArrivalLabel: avgArrivalMinutes === null ? null : formatArrivalTime(avgArrivalMinutes),
-        phrase,
+      myAttendanceCards = {
+        card1: {
+          averageArrivalLabel: avgArrivalMinutes === null ? null : formatArrivalTime(avgArrivalMinutes),
+          phrase,
+        },
+        card2: {
+          arrivalLabel: todayComparison === null ? null : formatArrivalTime(todayComparison.arrivalMinutes),
+          minutesEarly: todayComparison?.minutesEarly ?? null,
+        },
       };
-      const card2: AttendanceCard2Data = {
-        arrivalLabel: todayComparison === null ? null : formatArrivalTime(todayComparison.arrivalMinutes),
-        minutesEarly: todayComparison?.minutesEarly ?? null,
-      };
-
-      const { data: candidateContacts } = await admin
-        .from("contacts")
-        .select("id, first_name, last_name, photo_url, schedule_id, department_id, hikvision_employee_no")
-        .eq("status", "active")
-        .not("hikvision_employee_no", "is", null);
-
-      const employeeNumbers = (candidateContacts ?? [])
-        .map((c) => c.hikvision_employee_no)
-        .filter((no): no is string => Boolean(no));
-
-      const punchesByEmployeeNo = new Map<string, string[]>();
-      if (employeeNumbers.length > 0) {
-        const { data: allPunches } = await admin
-          .from("time_clock_punches")
-          .select("employee_no_string, punched_at")
-          .in("employee_no_string", employeeNumbers)
-          .gte("punched_at", windowStartIso);
-        for (const punch of allPunches ?? []) {
-          const list = punchesByEmployeeNo.get(punch.employee_no_string) ?? [];
-          list.push(punch.punched_at);
-          punchesByEmployeeNo.set(punch.employee_no_string, list);
-        }
-      }
-
-      const todayDayOfWeek = today.getUTCDay();
-      const candidates: EarlyArrivalCandidate[] = [];
-      for (const c of candidateContacts ?? []) {
-        const employeeNo = c.hikvision_employee_no as string;
-        const arrivals = deriveDailyArrivals(punchesByEmployeeNo.get(employeeNo) ?? []);
-        const todayArrival = arrivals.find((a) => a.dateIso === todayIso);
-        if (!todayArrival) continue;
-
-        const contactSchedule = getEffectiveSchedule(
-          c.schedule_id,
-          c.department_id ? departmentDefaultById.get(c.department_id) : null,
-          schedulesById,
-          defaultSchedule,
-        );
-        const scheduledDay = contactSchedule.days.find((d) => d.day_of_week === todayDayOfWeek);
-        if (!scheduledDay) continue;
-
-        candidates.push({
-          contactId: c.id,
-          name: `${c.first_name} ${c.last_name}`,
-          photoUrl: c.photo_url,
-          arrivalMinutes: todayArrival.arrivalMinutes,
-          scheduledStartMinutes: scheduleTimeToMinutes(scheduledDay.start_time),
-        });
-      }
-
-      const topArrivals: AttendanceTopArrival[] = rankEarlyArrivals(candidates, 5).map((r) => ({
-        contactId: r.contactId,
-        name: r.name,
-        photoUrl: r.photoUrl,
-        arrivalLabel: formatArrivalTime(r.arrivalMinutes),
-        minutesEarly: r.minutesEarly,
-      }));
-
-      attendanceCards = { card1, card2, topArrivals };
     }
   }
 
@@ -243,11 +244,11 @@ export default async function Home() {
         events={upcomingEvents ?? []}
         news={activeNews ?? []}
       />
-      {attendanceCards && (
+      {user?.email && (
         <AttendanceSummaryCards
-          card1={attendanceCards.card1}
-          card2={attendanceCards.card2}
-          topArrivals={attendanceCards.topArrivals}
+          card1={myAttendanceCards?.card1 ?? null}
+          card2={myAttendanceCards?.card2 ?? null}
+          topArrivals={topArrivals}
         />
       )}
     </div>

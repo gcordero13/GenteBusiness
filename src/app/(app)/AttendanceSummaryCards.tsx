@@ -25,36 +25,42 @@ export function AttendanceSummaryCards({
   card2,
   topArrivals,
 }: {
-  card1: AttendanceCard1Data;
-  card2: AttendanceCard2Data;
+  card1: AttendanceCard1Data | null;
+  card2: AttendanceCard2Data | null;
   topArrivals: AttendanceTopArrival[];
 }) {
+  const hasOwnCards = card1 !== null && card2 !== null;
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
-        <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          <TrendingUp className="size-4 text-[#04B1AF]" />
-          Mi promedio
-        </div>
-        <p className="mt-2 text-2xl font-bold">{card1.averageArrivalLabel ?? "Sin datos este mes"}</p>
-        {card1.phrase && <p className="mt-1 text-sm text-muted-foreground">{card1.phrase}</p>}
-      </div>
+    <div className={`grid grid-cols-1 gap-4 ${hasOwnCards ? "sm:grid-cols-2 lg:grid-cols-4" : ""}`}>
+      {hasOwnCards && (
+        <>
+          <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
+            <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <TrendingUp className="size-4 text-[#04B1AF]" />
+              Mi promedio
+            </div>
+            <p className="mt-2 text-2xl font-bold">{card1.averageArrivalLabel ?? "Sin datos este mes"}</p>
+            {card1.phrase && <p className="mt-1 text-sm text-muted-foreground">{card1.phrase}</p>}
+          </div>
 
-      <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
-        <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          <Clock className="size-4 text-[#04B1AF]" />
-          Mi llegada de hoy
-        </div>
-        <p className="mt-2 text-2xl font-bold">{card2.arrivalLabel ?? "Aún no has ponchado hoy"}</p>
-        {card2.arrivalLabel && card2.minutesEarly !== null && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{Math.abs(card2.minutesEarly)} min</span>{" "}
-            {card2.minutesEarly >= 0 ? "antes de tu horario" : "después de tu horario"}
-          </p>
-        )}
-      </div>
+          <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
+            <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <Clock className="size-4 text-[#04B1AF]" />
+              Mi llegada de hoy
+            </div>
+            <p className="mt-2 text-2xl font-bold">{card2.arrivalLabel ?? "Aún no has ponchado hoy"}</p>
+            {card2.arrivalLabel && card2.minutesEarly !== null && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{Math.abs(card2.minutesEarly)} min</span>{" "}
+                {card2.minutesEarly >= 0 ? "antes de tu horario" : "después de tu horario"}
+              </p>
+            )}
+          </div>
+        </>
+      )}
 
-      <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5 sm:col-span-2 lg:col-span-2">
+      <div className={`rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5 ${hasOwnCards ? "sm:col-span-2 lg:col-span-2" : ""}`}>
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           <Trophy className="size-4 text-[#04B1AF]" />
           Top 5 de hoy
