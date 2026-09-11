@@ -102,11 +102,20 @@ export default async function Home() {
 
     const punchesByEmployeeNo = new Map<string, string[]>();
     if (employeeNumbers.length > 0) {
+      // Scoped to just today (with a 24h buffer to safely cover the
+      // business-timezone offset) rather than the full 40-day window: a
+      // company-wide, unordered query over 40 days can exceed Supabase's
+      // default 1000-row cap, silently dropping the most recent rows -
+      // exactly the rows this leaderboard needs. Narrowing to "today" keeps
+      // the row count far below that cap; .order() is kept as defense in
+      // depth in case volume ever grows.
+      const todayWindowStartIso = new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString();
       const { data: allPunches } = await admin
         .from("time_clock_punches")
         .select("employee_no_string, punched_at")
         .in("employee_no_string", employeeNumbers)
-        .gte("punched_at", windowStartIso);
+        .gte("punched_at", todayWindowStartIso)
+        .order("punched_at", { ascending: false });
       for (const punch of allPunches ?? []) {
         const list = punchesByEmployeeNo.get(punch.employee_no_string) ?? [];
         list.push(punch.punched_at);

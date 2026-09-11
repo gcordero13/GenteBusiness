@@ -9,13 +9,26 @@
 // already relies on, which is what these storage tests need.
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createTestUser, deleteTestUser, type TestUser } from "./supabaseTestHelpers";
 
 describe("platform_settings RLS", () => {
   let editor: TestUser | undefined;
   let admin: TestUser | undefined;
+  // This is the app's real, singleton settings row (id = true) - there is no
+  // per-test-isolated copy. Any test that writes to it MUST restore the
+  // exact pre-test value afterward, never null/some fixed placeholder, or a
+  // test run risks permanently clobbering the real production logo setting
+  // (this happened: a prior version of this file reset it to null instead
+  // of restoring it, and an interrupted run once left the placeholder value
+  // itself in place).
+  let originalLogoUrl: string | null = null;
+
+  beforeEach(async () => {
+    const { data } = await createAdminClient().from("platform_settings").select("logo_url").eq("id", true).single();
+    originalLogoUrl = data?.logo_url ?? null;
+  });
 
   afterEach(async () => {
     if (editor) await deleteTestUser(editor.id);
@@ -23,7 +36,7 @@ describe("platform_settings RLS", () => {
     editor = undefined;
     admin = undefined;
 
-    await createAdminClient().from("platform_settings").update({ logo_url: null }).eq("id", true);
+    await createAdminClient().from("platform_settings").update({ logo_url: originalLogoUrl }).eq("id", true);
   });
 
   it("lets an anonymous (unauthenticated) client read the platform settings row", async () => {
