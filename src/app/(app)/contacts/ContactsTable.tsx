@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -10,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, MessageCircle } from "lucide-react";
 import { whatsappUrl } from "@/lib/contacts";
 import { ContactViewDialog } from "./ContactViewDialog";
+import { ContactPhotoUploadDialog, type ContactPhotoTarget } from "./ContactPhotoUploadDialog";
 
 export interface ContactRow {
   id: string;
@@ -36,6 +40,9 @@ export function ContactsTable({
   contacts: ContactRow[];
   canEdit?: boolean;
 }) {
+  const [photoContact, setPhotoContact] = useState<ContactPhotoTarget | null>(null);
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
+
   return (
     <div className="overflow-hidden rounded-xl border">
       <Table>
@@ -53,19 +60,38 @@ export function ContactsTable({
           {contacts.map((c) => (
             <TableRow key={c.id}>
               <TableCell className="py-3">
-                <ContactViewDialog contact={c} canEdit={canEdit}>
-                  <span className="flex items-center gap-3 hover:underline">
-                    <Avatar className="size-8">
+                <div className="flex items-center gap-3">
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhotoContact(c);
+                        setPhotoDialogOpen(true);
+                      }}
+                      className="shrink-0 rounded-full transition-opacity hover:opacity-75"
+                      title="Cambiar foto"
+                    >
+                      <Avatar className="size-8">
+                        <AvatarImage src={c.photo_url ?? undefined} alt="" />
+                        <AvatarFallback>
+                          {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </button>
+                  ) : (
+                    <Avatar className="size-8 shrink-0">
                       <AvatarImage src={c.photo_url ?? undefined} alt="" />
                       <AvatarFallback>
                         {`${c.first_name[0] ?? ""}${c.last_name[0] ?? ""}`.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium">
+                  )}
+                  <ContactViewDialog contact={c} canEdit={canEdit}>
+                    <span className="font-medium hover:underline">
                       {c.first_name} {c.last_name}
                     </span>
-                  </span>
-                </ContactViewDialog>
+                  </ContactViewDialog>
+                </div>
               </TableCell>
               <TableCell className="hidden py-3 text-muted-foreground md:table-cell">
                 {c.position}
@@ -100,6 +126,12 @@ export function ContactsTable({
           ))}
         </TableBody>
       </Table>
+      <ContactPhotoUploadDialog
+        key={photoContact?.id ?? "none"}
+        contact={photoContact}
+        open={photoDialogOpen}
+        onOpenChange={setPhotoDialogOpen}
+      />
     </div>
   );
 }

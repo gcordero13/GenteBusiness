@@ -93,6 +93,15 @@ export async function setContactStatus(id: string, status: "active" | "deactivat
   return {};
 }
 
+export async function updateContactPhoto(id: string, photoUrl: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("contacts").update({ photo_url: photoUrl }).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/contacts");
+  revalidatePath(`/contacts/${id}`);
+  return {};
+}
+
 export async function deleteContact(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("contacts").delete().eq("id", id);
