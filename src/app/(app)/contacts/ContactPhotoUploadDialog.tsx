@@ -85,7 +85,17 @@ export function ContactPhotoUploadDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) {
+          setPhotoFile(null);
+          setPreviewUrl(null);
+          setError(null);
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>
