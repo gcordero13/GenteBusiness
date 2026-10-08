@@ -74,7 +74,7 @@ export async function uploadToSharePoint(
   const accessToken = await getGraphAccessToken();
   const siteId = await getSiteId(accessToken);
 
-  const path = `goservices/${crypto.randomUUID()}-${filename}`;
+  const path = `goservices/${crypto.randomUUID()}-${encodeURIComponent(filename)}`;
   const res = await fetch(
     `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${path}:/content`,
     {
