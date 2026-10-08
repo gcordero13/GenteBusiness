@@ -224,12 +224,17 @@ export async function listAssignableUsers(): Promise<{ id: string; email: string
   return data ?? [];
 }
 
-export async function updateGoservicesRequestStatus(requestId: string, status: string): Promise<ActionResult> {
+export async function updateGoservicesRequestStatus(
+  requestId: string,
+  status: "recibido" | "en_proceso" | "completado" | "cancelado",
+): Promise<ActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autorizado" };
+
+  if (!(status in STATUS_LABELS)) return { error: "Estatus inválido" };
 
   const { data: existing, error: fetchError } = await supabase
     .from("goservices_requests")
@@ -278,13 +283,16 @@ export async function assignGoservicesRequest(requestId: string, assignedAppUser
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "goservices" });
   if (!flagsRows?.[0]?.can_view) return { error: "No autorizado" };
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("goservices_requests")
     .update({ assigned_app_user_id: assignedAppUserId })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .select();
   if (error) return { error: error.message };
+  if (!updated || updated.length === 0) return { error: "No autorizado" };
 
   revalidatePath("/goservices");
+  revalidatePath("/solicitudes/goservices");
   revalidatePath("/solicitudes/goservices/asignadas");
   return {};
 }
