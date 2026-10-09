@@ -203,7 +203,6 @@ export interface GoservicesRequestRow {
   detalle: string;
   status: string;
   statusLabel: string;
-  statusNote: string | null;
   assignedAppUserId: string | null;
   assignedAppUserEmail: string | null;
   ubicacion: string | null;
@@ -250,7 +249,6 @@ function toRow(r: {
   requester_department_name: string | null;
   detalle: string;
   status: string;
-  status_note: string | null;
   assigned_app_user_id: string | null;
   ubicacion: string | null;
   subcategoria: string | null;
@@ -276,7 +274,6 @@ function toRow(r: {
     detalle: r.detalle,
     status: r.status,
     statusLabel: STATUS_LABELS[r.status] ?? r.status,
-    statusNote: r.status_note,
     assignedAppUserId: r.assigned_app_user_id,
     assignedAppUserEmail,
     ubicacion: r.ubicacion,
@@ -318,7 +315,7 @@ export async function listMyGoservicesRequests(): Promise<GoservicesRequestRow[]
   const { data } = await supabase
     .from("goservices_requests")
     .select(
-      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, status_note, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
+      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
     )
     .eq("requester_app_user_id", user.id)
     .order("created_at", { ascending: false });
@@ -338,7 +335,7 @@ export async function listAssignedGoservicesRequests(): Promise<GoservicesReques
   const { data } = await supabase
     .from("goservices_requests")
     .select(
-      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, status_note, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
+      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
     )
     .eq("assigned_app_user_id", user.id)
     .order("created_at", { ascending: false });
@@ -353,7 +350,7 @@ export async function listAllGoservicesRequests(filters: { type?: string; status
   let query = supabase
     .from("goservices_requests")
     .select(
-      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, status_note, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
+      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
     )
     .order("created_at", { ascending: false });
 
@@ -366,7 +363,9 @@ export async function listAllGoservicesRequests(filters: { type?: string; status
   return rows.map((r) => toRow(r, r.assigned_app_user_id ? (emailMap.get(r.assigned_app_user_id) ?? null) : null));
 }
 
-export async function listAssignableUsers(): Promise<{ id: string; email: string }[]> {
+export async function listAssignableUsers(
+  requestType: "mantenimiento" | "mensajeria",
+): Promise<{ id: string; email: string }[]> {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "goservices" });
   if (!flagsRows?.[0]?.can_view) return [];
@@ -375,11 +374,16 @@ export async function listAssignableUsers(): Promise<{ id: string; email: string
   const { data: module } = await admin.from("modules").select("id").eq("key", "goservices").single();
   if (!module?.id) return [];
 
+  // can_add = eligible for mantenimiento tickets, can_edit = eligible for
+  // mensajería tickets (both repurposed role_profile_permissions columns on
+  // the goservices module — see the goservices_comments_and_ejecutor_types
+  // migration).
+  const eligibilityColumn = requestType === "mantenimiento" ? "can_add" : "can_edit";
   const { data: ejecutorProfiles } = await admin
     .from("role_profile_permissions")
     .select("role_profile_id")
     .eq("module_id", module.id)
-    .eq("can_add", true);
+    .eq(eligibilityColumn, true);
   const profileIds = (ejecutorProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
   if (profileIds.length === 0) return [];
 
@@ -392,10 +396,67 @@ export async function listAssignableUsers(): Promise<{ id: string; email: string
   return data ?? [];
 }
 
+export interface GoservicesCommentRow {
+  id: string;
+  authorEmail: string;
+  body: string;
+  createdAtLabel: string;
+}
+
+export async function listGoservicesComments(requestId: string): Promise<GoservicesCommentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("goservices_request_comments")
+    .select("id, body, created_at, author_app_user_id")
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: true });
+  if (error || !data) return [];
+
+  const authorIds = [...new Set(data.map((c) => c.author_app_user_id))];
+  const admin = createAdminClient();
+  const { data: authors } = authorIds.length > 0
+    ? await admin.from("app_users").select("id, email").in("id", authorIds)
+    : { data: [] };
+  const emailById = new Map((authors ?? []).map((a: { id: string; email: string }) => [a.id, a.email]));
+
+  return data.map((c) => ({
+    id: c.id,
+    authorEmail: emailById.get(c.author_app_user_id) ?? "Desconocido",
+    body: c.body,
+    createdAtLabel: new Date(c.created_at).toLocaleString("es-DO", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  }));
+}
+
+export async function addGoservicesComment(requestId: string, body: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+  if (!body.trim()) return { error: "El comentario no puede estar vacío" };
+
+  const { error } = await supabase.from("goservices_request_comments").insert({
+    request_id: requestId,
+    author_app_user_id: user.id,
+    body: body.trim(),
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/solicitudes/goservices");
+  revalidatePath("/solicitudes/goservices/asignadas");
+  revalidatePath("/goservices");
+  return {};
+}
+
 export async function updateGoservicesRequestStatus(
   requestId: string,
   status: GoservicesStatus,
-  note?: string,
 ): Promise<ActionResult> {
   const supabase = await createClient();
   const {
@@ -414,12 +475,9 @@ export async function updateGoservicesRequestStatus(
     .single();
   if (fetchError || !existing) return { error: "Solicitud no encontrada" };
 
-  const updatePayload: { status: GoservicesStatus; status_note?: string } = { status };
-  if (note && note.trim()) updatePayload.status_note = note.trim();
-
   const { data: updated, error } = await supabase
     .from("goservices_requests")
-    .update(updatePayload)
+    .update({ status })
     .eq("id", requestId)
     .select();
   if (error) return { error: error.message };
@@ -446,44 +504,12 @@ export async function updateGoservicesRequestStatus(
           detalle: existing.detalle,
           status,
           requestUrl: `${await getSiteUrl()}/solicitudes/goservices?ticket=${requestId}`,
-          executorNote: status === "completado" ? (updated[0]?.status_note ?? null) : undefined,
         });
       }
     } catch (err) {
       console.error("Failed to send goservices status email:", err);
     }
   }
-
-  revalidatePath("/solicitudes/goservices");
-  revalidatePath("/solicitudes/goservices/asignadas");
-  revalidatePath("/goservices");
-  return {};
-}
-
-export async function addGoservicesStatusNote(requestId: string, note: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "No autorizado" };
-
-  const trimmed = note.trim();
-  if (!trimmed) return { error: "La nota no puede estar vacía" };
-
-  const { data: existing, error: fetchError } = await supabase
-    .from("goservices_requests")
-    .select("id")
-    .eq("id", requestId)
-    .single();
-  if (fetchError || !existing) return { error: "Solicitud no encontrada" };
-
-  const { data: updated, error } = await supabase
-    .from("goservices_requests")
-    .update({ status_note: trimmed })
-    .eq("id", requestId)
-    .select();
-  if (error) return { error: error.message };
-  if (!updated || updated.length === 0) return { error: "No autorizado" };
 
   revalidatePath("/solicitudes/goservices");
   revalidatePath("/solicitudes/goservices/asignadas");

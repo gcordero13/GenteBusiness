@@ -20,11 +20,13 @@ export default async function GoservicesDashboardPage({
     redirect("/");
   }
 
-  const [requests, allRequests, users] = await Promise.all([
+  const [requests, allRequests, mantenimientoUsers, mensajeriaUsers] = await Promise.all([
     listAllGoservicesRequests({ type }),
     listAllGoservicesRequests({}),
-    listAssignableUsers(),
+    listAssignableUsers("mantenimiento"),
+    listAssignableUsers("mensajeria"),
   ]);
+  const assignableUsersByType = { mantenimiento: mantenimientoUsers, mensajeria: mensajeriaUsers };
 
   return (
     <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
@@ -37,7 +39,7 @@ export default async function GoservicesDashboardPage({
         </div>
         <GoservicesStatusSummary rows={allRequests} />
         <GoservicesFilterBar type={type ?? null} />
-        <GoservicesTicketExplorer requests={requests} mode={{ kind: "gestor", assignableUsers: users }} />
+        <GoservicesTicketExplorer requests={requests} mode={{ kind: "gestor", assignableUsersByType }} />
       </div>
     </div>
   );

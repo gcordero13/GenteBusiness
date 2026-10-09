@@ -33,7 +33,10 @@ import { AssignedRequestStatusSelect } from "./asignadas/AssignedRequestStatusSe
 export type GoservicesExplorerMode =
   | { kind: "readonly" }
   | { kind: "ejecutor" }
-  | { kind: "gestor"; assignableUsers: { id: string; email: string }[] };
+  | {
+      kind: "gestor";
+      assignableUsersByType: Record<"mantenimiento" | "mensajeria", { id: string; email: string }[]>;
+    };
 
 const PAGE_SIZE = 10;
 const ALL_TAB = "todas";
@@ -364,14 +367,13 @@ export function GoservicesTicketExplorer({
                       key={selectedRequest.id}
                       requestId={selectedRequest.id}
                       assignedAppUserId={selectedRequest.assignedAppUserId}
-                      users={mode.assignableUsers}
+                      users={mode.assignableUsersByType[selectedRequest.requestType]}
                     />
                     <AssignedRequestStatusSelect
                       key={selectedRequest.id}
                       requestId={selectedRequest.id}
                       status={selectedRequest.status}
                       requestType={selectedRequest.requestType}
-                      statusNote={selectedRequest.statusNote}
                       allStatuses
                     />
                   </div>
@@ -382,7 +384,6 @@ export function GoservicesTicketExplorer({
                     requestId={selectedRequest.id}
                     status={selectedRequest.status}
                     requestType={selectedRequest.requestType}
-                    statusNote={selectedRequest.statusNote}
                   />
                 )}
               </div>
