@@ -1,9 +1,9 @@
-import { BadgeCheck, CheckCircle2, ClipboardList, Inbox, Loader2, XCircle, type LucideIcon } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Clock, ClipboardList, Inbox, XCircle, type LucideIcon } from "lucide-react";
 import { STATUS_LABELS } from "@/lib/goservicesStatus";
 
 const STATUS_ICONS: Record<string, LucideIcon> = {
   recibido: Inbox,
-  en_proceso: Loader2,
+  en_proceso: Clock,
   finalizado_ejecutor: CheckCircle2,
   completado: BadgeCheck,
   cancelado: XCircle,
