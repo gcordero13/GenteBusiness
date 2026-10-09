@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { uploadToSharePoint } from "@/lib/sharepoint";
-import { sendGoservicesStatusEmail } from "@/lib/sendGoservicesStatusEmail";
+import {
+  sendGoservicesStatusEmail,
+  sendGoservicesNewRequestEmail,
+  sendGoservicesAssignedEmail,
+} from "@/lib/sendGoservicesStatusEmail";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
 
@@ -65,9 +69,11 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
   const admin = createAdminClient();
   const { data: contact } = await admin
     .from("contacts")
-    .select("id, first_name, last_name")
+    .select("id, first_name, last_name, departments(name)")
     .eq("email", user.email)
     .maybeSingle();
+  const departmentName = (contact?.departments as unknown as { name: string } | null)?.name ?? null;
+  const requesterName = contact ? `${contact.first_name} ${contact.last_name}` : user.email;
 
   let fotoUrl: string | null = null;
   if (input.foto && input.foto.size > 0) {
@@ -83,24 +89,84 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
     documentoUrl = result.url ?? null;
   }
 
-  const { error } = await supabase.from("goservices_requests").insert({
-    request_type: input.requestType,
-    requester_app_user_id: user.id,
-    requester_contact_id: contact?.id ?? null,
-    requester_name: contact ? `${contact.first_name} ${contact.last_name}` : user.email,
-    ubicacion: input.requestType === "mantenimiento" ? input.ubicacion : null,
-    categoria: input.requestType === "mantenimiento" ? input.categoria : null,
-    subcategoria: input.requestType === "mantenimiento" ? (input.subcategoria ?? null) : null,
-    tipo_mensajeria: input.requestType === "mensajeria" ? input.tipoMensajeria : null,
-    contacto_nombre: input.requestType === "mensajeria" ? (input.contactoNombre ?? null) : null,
-    contacto_telefono: input.requestType === "mensajeria" ? (input.contactoTelefono ?? null) : null,
-    contacto_direccion: input.requestType === "mensajeria" ? (input.contactoDireccion ?? null) : null,
-    detalle: input.detalle,
-    foto_url: fotoUrl,
-    documento_url: documentoUrl,
-    status: "recibido",
-  });
+  const { data: inserted, error } = await supabase
+    .from("goservices_requests")
+    .insert({
+      request_type: input.requestType,
+      requester_app_user_id: user.id,
+      requester_contact_id: contact?.id ?? null,
+      requester_name: requesterName,
+      requester_department_name: departmentName ?? null,
+      ubicacion: input.requestType === "mantenimiento" ? input.ubicacion : null,
+      categoria: input.requestType === "mantenimiento" ? input.categoria : null,
+      subcategoria: input.requestType === "mantenimiento" ? (input.subcategoria ?? null) : null,
+      tipo_mensajeria: input.requestType === "mensajeria" ? input.tipoMensajeria : null,
+      contacto_nombre: input.requestType === "mensajeria" ? (input.contactoNombre ?? null) : null,
+      contacto_telefono: input.requestType === "mensajeria" ? (input.contactoTelefono ?? null) : null,
+      contacto_direccion: input.requestType === "mensajeria" ? (input.contactoDireccion ?? null) : null,
+      detalle: input.detalle,
+      foto_url: fotoUrl,
+      documento_url: documentoUrl,
+      status: "recibido",
+    })
+    .select("id, request_number, created_at")
+    .single();
   if (error) return { error: error.message };
+
+  const requestTypeLabel = typeLabel({
+    request_type: input.requestType,
+    categoria: input.categoria ?? null,
+    tipo_mensajeria: input.tipoMensajeria ?? null,
+  });
+
+  try {
+    await sendGoservicesStatusEmail({
+      requesterEmail: user.email,
+      requestNumber: inserted.request_number,
+      requesterName,
+      typeLabel: requestTypeLabel,
+      subcategoria: input.requestType === "mantenimiento" ? (input.subcategoria ?? null) : null,
+      departmentName,
+      createdAtIso: inserted.created_at,
+      detalle: input.detalle,
+      status: "recibido",
+      requestType: input.requestType,
+      requestUrl: `${await getSiteUrl()}/solicitudes/goservices`,
+    });
+  } catch (err) {
+    console.error("Failed to send goservices received email:", err);
+  }
+
+  try {
+    const { data: module } = await admin.from("modules").select("id").eq("key", "goservices").single();
+    let managerEmails: string[] = [];
+    if (module?.id) {
+      const { data: viewerProfiles } = await admin
+        .from("role_profile_permissions")
+        .select("role_profile_id")
+        .eq("module_id", module.id)
+        .eq("can_view", true);
+      const profileIds = (viewerProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
+      if (profileIds.length > 0) {
+        const { data: managerUsers } = await admin
+          .from("app_users")
+          .select("email")
+          .in("role_profile_id", profileIds)
+          .eq("status", "active");
+        managerEmails = (managerUsers ?? []).map((u: { email: string }) => u.email);
+      }
+    }
+    await sendGoservicesNewRequestEmail({
+      managerEmails,
+      requestNumber: inserted.request_number,
+      requesterName,
+      typeLabel: requestTypeLabel,
+      detalle: input.detalle,
+      manageUrl: `${await getSiteUrl()}/goservices`,
+    });
+  } catch (err) {
+    console.error("Failed to send goservices new request manager email:", err);
+  }
 
   revalidatePath("/solicitudes/goservices");
   revalidatePath("/goservices");
@@ -109,10 +175,13 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
 
 export interface GoservicesRequestRow {
   id: string;
+  requestNumber: number;
   createdAtLabel: string;
+  createdAtIso: string;
   requestType: "mantenimiento" | "mensajeria";
   typeLabel: string;
   requesterName: string;
+  departmentName: string | null;
   detalle: string;
   status: string;
   statusLabel: string;
@@ -148,11 +217,13 @@ function typeLabel(row: { request_type: string; categoria: string | null; tipo_m
 
 function toRow(r: {
   id: string;
+  request_number: number;
   created_at: string;
   request_type: "mantenimiento" | "mensajeria";
   categoria: string | null;
   tipo_mensajeria: string | null;
   requester_name: string;
+  requester_department_name: string | null;
   detalle: string;
   status: string;
   assigned_app_user_id: string | null;
@@ -166,10 +237,13 @@ function toRow(r: {
 }): GoservicesRequestRow {
   return {
     id: r.id,
+    requestNumber: r.request_number,
     createdAtLabel: new Date(r.created_at).toLocaleDateString("es-DO", { year: "numeric", month: "short", day: "numeric" }),
+    createdAtIso: r.created_at,
     requestType: r.request_type,
     typeLabel: typeLabel(r),
     requesterName: r.requester_name,
+    departmentName: r.requester_department_name,
     detalle: r.detalle,
     status: r.status,
     statusLabel: STATUS_LABELS[r.status] ?? r.status,
@@ -194,7 +268,7 @@ export async function listMyGoservicesRequests(): Promise<GoservicesRequestRow[]
   const { data } = await supabase
     .from("goservices_requests")
     .select(
-      "id, created_at, request_type, categoria, tipo_mensajeria, requester_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
+      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
     )
     .eq("requester_app_user_id", user.id)
     .order("created_at", { ascending: false });
@@ -212,7 +286,7 @@ export async function listAssignedGoservicesRequests(): Promise<GoservicesReques
   const { data } = await supabase
     .from("goservices_requests")
     .select(
-      "id, created_at, request_type, categoria, tipo_mensajeria, requester_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
+      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
     )
     .eq("assigned_app_user_id", user.id)
     .order("created_at", { ascending: false });
@@ -225,7 +299,7 @@ export async function listAllGoservicesRequests(filters: { type?: string; status
   let query = supabase
     .from("goservices_requests")
     .select(
-      "id, created_at, request_type, categoria, tipo_mensajeria, requester_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
+      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
     )
     .order("created_at", { ascending: false });
 
@@ -242,7 +316,23 @@ export async function listAssignableUsers(): Promise<{ id: string; email: string
   if (!flagsRows?.[0]?.can_view) return [];
 
   const admin = createAdminClient();
-  const { data } = await admin.from("app_users").select("id, email").eq("status", "active").order("email");
+  const { data: module } = await admin.from("modules").select("id").eq("key", "goservices").single();
+  if (!module?.id) return [];
+
+  const { data: ejecutorProfiles } = await admin
+    .from("role_profile_permissions")
+    .select("role_profile_id")
+    .eq("module_id", module.id)
+    .eq("can_add", true);
+  const profileIds = (ejecutorProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
+  if (profileIds.length === 0) return [];
+
+  const { data } = await admin
+    .from("app_users")
+    .select("id, email")
+    .in("role_profile_id", profileIds)
+    .eq("status", "active")
+    .order("email");
   return data ?? [];
 }
 
@@ -260,7 +350,9 @@ export async function updateGoservicesRequestStatus(
 
   const { data: existing, error: fetchError } = await supabase
     .from("goservices_requests")
-    .select("id, requester_app_user_id, request_type, categoria, tipo_mensajeria")
+    .select(
+      "id, request_number, requester_app_user_id, request_type, categoria, tipo_mensajeria, requester_name, subcategoria, requester_department_name, created_at, detalle",
+    )
     .eq("id", requestId)
     .single();
   if (fetchError || !existing) return { error: "Solicitud no encontrada" };
@@ -273,7 +365,7 @@ export async function updateGoservicesRequestStatus(
   if (error) return { error: error.message };
   if (!updated || updated.length === 0) return { error: "No autorizado" };
 
-  if (status === "recibido" || status === "completado" || status === "cancelado") {
+  if (status === "completado" || status === "cancelado") {
     try {
       const admin = createAdminClient();
       const { data: requester } = await admin
@@ -284,7 +376,14 @@ export async function updateGoservicesRequestStatus(
       if (requester?.email) {
         await sendGoservicesStatusEmail({
           requesterEmail: requester.email,
+          requestNumber: existing.request_number,
+          requesterName: existing.requester_name,
+          requestType: existing.request_type,
           typeLabel: typeLabel(existing),
+          subcategoria: existing.subcategoria,
+          departmentName: existing.requester_department_name,
+          createdAtIso: existing.created_at,
+          detalle: existing.detalle,
           status,
           requestUrl: `${await getSiteUrl()}/solicitudes/goservices`,
         });
@@ -309,9 +408,30 @@ export async function assignGoservicesRequest(requestId: string, assignedAppUser
     .from("goservices_requests")
     .update({ assigned_app_user_id: assignedAppUserId })
     .eq("id", requestId)
-    .select();
+    .select("id, request_number, request_type, categoria, tipo_mensajeria, detalle");
   if (error) return { error: error.message };
   if (!updated || updated.length === 0) return { error: "No autorizado" };
+
+  try {
+    const admin = createAdminClient();
+    const { data: assignee } = await admin
+      .from("app_users")
+      .select("email")
+      .eq("id", assignedAppUserId)
+      .maybeSingle();
+    const row = updated[0];
+    if (assignee?.email) {
+      await sendGoservicesAssignedEmail({
+        assigneeEmail: assignee.email,
+        requestNumber: row.request_number,
+        typeLabel: typeLabel(row),
+        detalle: row.detalle,
+        assignedUrl: `${await getSiteUrl()}/solicitudes/goservices/asignadas`,
+      });
+    }
+  } catch (err) {
+    console.error("Failed to send goservices assigned email:", err);
+  }
 
   revalidatePath("/goservices");
   revalidatePath("/solicitudes/goservices");
