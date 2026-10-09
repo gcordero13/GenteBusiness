@@ -124,6 +124,44 @@ describe("sendGoservicesStatusEmail", () => {
     expect(html).toContain("Tu solicitud ha sido cancelada");
   });
 
+  it("includes the Nota del ejecutor field in the 'completado' email when executorNote is set", async () => {
+    await sendGoservicesStatusEmail({ ...baseInput, status: "completado", executorNote: "Se reemplazó la pieza dañada" });
+
+    const { html, text } = sendMailMock.mock.calls[0][0];
+    expect(html).toContain("Nota del ejecutor");
+    expect(html).toContain("Se reemplazó la pieza dañada");
+    expect(text).toContain("Nota del ejecutor");
+    expect(text).toContain("Se reemplazó la pieza dañada");
+  });
+
+  it("HTML-escapes the executorNote", async () => {
+    await sendGoservicesStatusEmail({
+      ...baseInput,
+      status: "completado",
+      executorNote: "<script>alert(1)</script>",
+    });
+
+    const { html } = sendMailMock.mock.calls[0][0];
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+  });
+
+  it("omits the Nota del ejecutor field when executorNote is absent", async () => {
+    await sendGoservicesStatusEmail({ ...baseInput, status: "completado" });
+
+    const { html, text } = sendMailMock.mock.calls[0][0];
+    expect(html).not.toContain("Nota del ejecutor");
+    expect(text).not.toContain("Nota del ejecutor");
+  });
+
+  it("omits the Nota del ejecutor field for non-completado statuses even if executorNote is set", async () => {
+    await sendGoservicesStatusEmail({ ...baseInput, status: "cancelado", executorNote: "Nota que no debería salir" });
+
+    const { html, text } = sendMailMock.mock.calls[0][0];
+    expect(html).not.toContain("Nota del ejecutor");
+    expect(text).not.toContain("Nota del ejecutor");
+  });
+
   it("HTML-escapes free-text fields like detalle, requesterName and subcategoria", async () => {
     await sendGoservicesStatusEmail({
       ...baseInput,
@@ -156,15 +194,19 @@ describe("sendGoservicesStatusEmail", () => {
 });
 
 describe("sendGoservicesNewRequestEmail", () => {
+  const baseNewRequestInput = {
+    requestNumber: 42,
+    requesterName: "Juan Campos",
+    typeLabel: "Cerrajería",
+    subcategoria: "Cambio de chapa" as string | null,
+    departmentName: "Operaciones" as string | null,
+    createdAtIso: "2026-05-11T19:00:26Z",
+    detalle: "Cambio de cerradura",
+    manageUrl: "https://gente-business.vercel.app/goservices",
+  };
+
   it("no-ops when managerEmails is empty", async () => {
-    await sendGoservicesNewRequestEmail({
-      managerEmails: [],
-      requestNumber: 42,
-      requesterName: "Juan Campos",
-      typeLabel: "Cerrajería",
-      detalle: "Cambio de cerradura",
-      manageUrl: "https://gente-business.vercel.app/goservices",
-    });
+    await sendGoservicesNewRequestEmail({ ...baseNewRequestInput, managerEmails: [] });
 
     expect(createAdminClient).not.toHaveBeenCalled();
     expect(sendMailMock).not.toHaveBeenCalled();
@@ -172,12 +214,8 @@ describe("sendGoservicesNewRequestEmail", () => {
 
   it("fans out to every manager email", async () => {
     await sendGoservicesNewRequestEmail({
+      ...baseNewRequestInput,
       managerEmails: ["gestor1@sanchezbusinesscorp.com", "gestor2@sanchezbusinesscorp.com"],
-      requestNumber: 42,
-      requesterName: "Juan Campos",
-      typeLabel: "Cerrajería",
-      detalle: "Cambio de cerradura",
-      manageUrl: "https://gente-business.vercel.app/goservices",
     });
 
     expect(sendMailMock).toHaveBeenCalledTimes(2);
@@ -188,6 +226,57 @@ describe("sendGoservicesNewRequestEmail", () => {
     expect(html).toContain("Juan Campos");
     expect(html).toContain("Cerrajería");
     expect(html).toContain("Cambio de cerradura");
+  });
+
+  it("includes the rich field layout: N° de Solicitud, Categoria and Departamento", async () => {
+    await sendGoservicesNewRequestEmail({
+      ...baseNewRequestInput,
+      managerEmails: ["gestor1@sanchezbusinesscorp.com"],
+    });
+
+    const { html, text } = sendMailMock.mock.calls[0][0];
+    for (const body of [html, text]) {
+      expect(body).toContain("42");
+      expect(body).toContain("Cambio de chapa");
+      expect(body).toContain("Operaciones");
+      expect(body).toContain(
+        new Date(baseNewRequestInput.createdAtIso).toLocaleDateString("es-DO", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+      );
+    }
+  });
+
+  it("omits Categoria and Departamento when not provided", async () => {
+    await sendGoservicesNewRequestEmail({
+      ...baseNewRequestInput,
+      subcategoria: null,
+      departmentName: null,
+      managerEmails: ["gestor1@sanchezbusinesscorp.com"],
+    });
+
+    const { html, text } = sendMailMock.mock.calls[0][0];
+    expect(html).not.toContain("Categoria");
+    expect(html).not.toContain("Departamento");
+    expect(text).not.toContain("Categoria");
+    expect(text).not.toContain("Departamento");
+  });
+
+  it("HTML-escapes requesterName and detalle", async () => {
+    await sendGoservicesNewRequestEmail({
+      ...baseNewRequestInput,
+      requesterName: "<b>Juan</b>",
+      detalle: "<script>alert(1)</script>",
+      managerEmails: ["gestor1@sanchezbusinesscorp.com"],
+    });
+
+    const { html } = sendMailMock.mock.calls[0][0];
+    expect(html).not.toContain("<b>Juan</b>");
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).toContain("&lt;b&gt;Juan&lt;/b&gt;");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
   });
 });
 

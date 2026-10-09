@@ -111,6 +111,51 @@ function closingParagraph(status: "recibido" | "completado" | "cancelado", reque
   return "Tu solicitud ha sido cancelada. Si crees que esto es un error o necesitas más información, no dudes en contactarte con nosotros.";
 }
 
+// Shared "N° de Solicitud / Solicitante / Tipo / Categoria / Departamento /
+// Fecha / Detalle" field block used by both the solicitante status email and
+// the gestor new-request notification, so the two stay in the same format.
+interface RequestFieldsInput {
+  requestNumber: number;
+  requesterName: string;
+  typeLabel: string;
+  subcategoria: string | null;
+  departmentName: string | null;
+  createdAtIso: string;
+  detalle: string;
+}
+
+function buildRequestFieldsHtml(input: RequestFieldsInput): string[] {
+  const fields: string[] = [
+    `<p style="margin:0 0 10px;">📌 <strong>N° de Solicitud:</strong> ${input.requestNumber}</p>`,
+    `<p style="margin:0 0 10px;">👤 <strong>Solicitante:</strong> ${escapeHtml(input.requesterName)}</p>`,
+    `<p style="margin:0 0 10px;">🚚 <strong>Tipo de solicitud:</strong> ${input.typeLabel}</p>`,
+  ];
+  if (input.subcategoria) {
+    fields.push(`<p style="margin:0 0 10px;">🚚 <strong>Categoria:</strong> ${escapeHtml(input.subcategoria)}</p>`);
+  }
+  if (input.departmentName) {
+    fields.push(`<p style="margin:0 0 10px;">🏢 <strong>Departamento:</strong> ${input.departmentName}</p>`);
+  }
+  fields.push(`<p style="margin:0 0 10px;">📅 <strong>Fecha:</strong> ${formatFechaEs(input.createdAtIso)}</p>`);
+  fields.push(
+    `<p style="margin:0;white-space:pre-wrap;">📝 <strong>Detalle:</strong> ${escapeHtml(input.detalle)}</p>`,
+  );
+  return fields;
+}
+
+function buildRequestFieldsText(input: RequestFieldsInput): string[] {
+  const lines: string[] = [
+    `N° de Solicitud: ${input.requestNumber}`,
+    `Solicitante: ${input.requesterName}`,
+    `Tipo de solicitud: ${input.typeLabel}`,
+  ];
+  if (input.subcategoria) lines.push(`Categoria: ${input.subcategoria}`);
+  if (input.departmentName) lines.push(`Departamento: ${input.departmentName}`);
+  lines.push(`Fecha: ${formatFechaEs(input.createdAtIso)}`);
+  lines.push(`Detalle: ${input.detalle}`);
+  return lines;
+}
+
 export async function sendGoservicesStatusEmail(input: {
   requesterEmail: string;
   requestNumber: number;
@@ -123,29 +168,21 @@ export async function sendGoservicesStatusEmail(input: {
   detalle: string;
   status: "recibido" | "completado" | "cancelado";
   requestUrl: string;
+  executorNote?: string | null;
 }): Promise<void> {
   const settings = await getEmailSettings();
   const [transport, logoUrl] = await Promise.all([buildTransport(settings), fetchPlatformLogoUrl()]);
 
   const title = STATUS_TITLES[input.status];
   const closing = closingParagraph(input.status, input.requestType);
-  const fechaLabel = formatFechaEs(input.createdAtIso);
+  const showExecutorNote = input.status === "completado" && !!input.executorNote;
 
-  const htmlFields: string[] = [
-    `<p style="margin:0 0 10px;">📌 <strong>N° de Solicitud:</strong> ${input.requestNumber}</p>`,
-    `<p style="margin:0 0 10px;">👤 <strong>Solicitante:</strong> ${escapeHtml(input.requesterName)}</p>`,
-    `<p style="margin:0 0 10px;">🚚 <strong>Tipo de solicitud:</strong> ${input.typeLabel}</p>`,
-  ];
-  if (input.subcategoria) {
-    htmlFields.push(`<p style="margin:0 0 10px;">🚚 <strong>Categoria:</strong> ${escapeHtml(input.subcategoria)}</p>`);
+  const htmlFields = buildRequestFieldsHtml(input);
+  if (showExecutorNote) {
+    htmlFields.push(
+      `<p style="margin:10px 0 0;white-space:pre-wrap;">🗒️ <strong>Nota del ejecutor:</strong> ${escapeHtml(input.executorNote!)}</p>`,
+    );
   }
-  if (input.departmentName) {
-    htmlFields.push(`<p style="margin:0 0 10px;">🏢 <strong>Departamento:</strong> ${input.departmentName}</p>`);
-  }
-  htmlFields.push(`<p style="margin:0 0 10px;">📅 <strong>Fecha:</strong> ${fechaLabel}</p>`);
-  htmlFields.push(
-    `<p style="margin:0;white-space:pre-wrap;">📝 <strong>Detalle:</strong> ${escapeHtml(input.detalle)}</p>`,
-  );
 
   const html = buildBrandedEmailHtml({
     title,
@@ -159,15 +196,8 @@ export async function sendGoservicesStatusEmail(input: {
     footerText: "Correo generado automáticamente por Gente Sánchez Business.",
   });
 
-  const textLines: string[] = [
-    `N° de Solicitud: ${input.requestNumber}`,
-    `Solicitante: ${input.requesterName}`,
-    `Tipo de solicitud: ${input.typeLabel}`,
-  ];
-  if (input.subcategoria) textLines.push(`Categoria: ${input.subcategoria}`);
-  if (input.departmentName) textLines.push(`Departamento: ${input.departmentName}`);
-  textLines.push(`Fecha: ${fechaLabel}`);
-  textLines.push(`Detalle: ${input.detalle}`);
+  const textLines = buildRequestFieldsText(input);
+  if (showExecutorNote) textLines.push(`Nota del ejecutor: ${input.executorNote}`);
 
   const text = `${title}\n\n${textLines.join("\n")}\n\n${closing}\n\nVer: ${input.requestUrl}`;
 
@@ -185,6 +215,9 @@ export async function sendGoservicesNewRequestEmail(input: {
   requestNumber: number;
   requesterName: string;
   typeLabel: string;
+  subcategoria: string | null;
+  departmentName: string | null;
+  createdAtIso: string;
   detalle: string;
   manageUrl: string;
 }): Promise<void> {
@@ -193,12 +226,13 @@ export async function sendGoservicesNewRequestEmail(input: {
   const settings = await getEmailSettings();
   const [transport, logoUrl] = await Promise.all([buildTransport(settings), fetchPlatformLogoUrl()]);
 
+  const htmlFields = buildRequestFieldsHtml(input);
+  const textLines = buildRequestFieldsText(input);
+
   const html = buildBrandedEmailHtml({
     title: `Nueva solicitud GoServices #${input.requestNumber}`,
     bodyHtml: `
-      <p style="margin:0 0 12px;"><strong>Solicitante:</strong> ${escapeHtml(input.requesterName)}</p>
-      <p style="margin:0 0 12px;"><strong>Tipo de solicitud:</strong> ${input.typeLabel}</p>
-      <p style="margin:0;white-space:pre-wrap;"><strong>Detalle:</strong> ${escapeHtml(input.detalle)}</p>
+      ${htmlFields.join("\n")}
     `,
     ctaText: "Ver solicitudes",
     ctaUrl: input.manageUrl,
@@ -212,7 +246,7 @@ export async function sendGoservicesNewRequestEmail(input: {
         from: fromAddress(settings),
         to,
         subject: `Nueva solicitud GoServices #${input.requestNumber}`,
-        text: `Nueva solicitud GoServices #${input.requestNumber} (${input.typeLabel}) de ${input.requesterName}: ${input.detalle}\n\nVer: ${input.manageUrl}`,
+        text: `Nueva solicitud GoServices #${input.requestNumber}\n\n${textLines.join("\n")}\n\nVer: ${input.manageUrl}`,
         html,
       }),
     ),
