@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
@@ -112,8 +113,18 @@ export function GoservicesTicketExplorer({
   requests: GoservicesRequestRow[];
   mode: GoservicesExplorerMode;
 }) {
-  const [activeTab, setActiveTab] = useState<string>(ALL_TAB);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Deep-linking: /solicitudes/goservices?ticket=<id> (also used by the
+  // status-change/assignment emails) should land on that ticket pre-selected
+  // — and on the tab that actually shows it, since a ticket whose status
+  // isn't "Todas" would otherwise be hidden by the default tab filter.
+  const searchParams = useSearchParams();
+  const deepLinkedRequest = useMemo(() => {
+    const ticketId = searchParams.get("ticket");
+    return ticketId ? (requests.find((r) => r.id === ticketId) ?? null) : null;
+  }, [requests, searchParams]);
+
+  const [activeTab, setActiveTab] = useState<string>(() => deepLinkedRequest?.status ?? ALL_TAB);
+  const [selectedId, setSelectedId] = useState<string | null>(() => deepLinkedRequest?.id ?? null);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(1);
 
@@ -358,6 +369,7 @@ export function GoservicesTicketExplorer({
                       requestId={selectedRequest.id}
                       status={selectedRequest.status}
                       requestType={selectedRequest.requestType}
+                      statusNote={selectedRequest.statusNote}
                       allStatuses
                     />
                   </div>
@@ -367,6 +379,7 @@ export function GoservicesTicketExplorer({
                     requestId={selectedRequest.id}
                     status={selectedRequest.status}
                     requestType={selectedRequest.requestType}
+                    statusNote={selectedRequest.statusNote}
                   />
                 )}
               </div>
