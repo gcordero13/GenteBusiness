@@ -6,6 +6,7 @@ import {
   BookUser,
   Building2,
   CalendarClock,
+  ClipboardList,
   Clock,
   FileSignature,
   Fingerprint,
@@ -47,6 +48,7 @@ export function Sidebar({
   canManageAttendanceDevices,
   canManageSchedules,
   canViewComplaints,
+  canViewGoservices,
   onLogout,
   onNavigate,
 }: {
@@ -65,6 +67,7 @@ export function Sidebar({
   canManageAttendanceDevices: boolean;
   canManageSchedules: boolean;
   canViewComplaints: boolean;
+  canViewGoservices: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -92,6 +95,9 @@ export function Sidebar({
     { href: "/my-profile", label: "Mi perfil", icon: UserCircle },
     { href: "/quejas/nueva", label: "Canal para Reportar", icon: MessageSquareWarning },
     ...(canViewComplaints ? [{ href: "/quejas", label: "Reportes Recibidos", icon: Inbox }] : []),
+    { href: "/solicitudes/goservices", label: "GoServices", icon: ClipboardList },
+    { href: "/solicitudes/goservices/asignadas", label: "GoServices: Asignadas", icon: ClipboardList },
+    ...(canViewGoservices ? [{ href: "/goservices", label: "GoServices: Gestión", icon: ClipboardList }] : []),
     ...(canViewPonchador ? [{ href: "/ponchador", label: "Ponchador", icon: CalendarClock }] : []),
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
     ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),
