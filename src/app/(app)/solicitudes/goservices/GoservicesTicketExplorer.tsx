@@ -361,11 +361,13 @@ export function GoservicesTicketExplorer({
                 {mode.kind === "gestor" && (
                   <div className="flex flex-wrap gap-2">
                     <AssignRequestSelect
+                      key={selectedRequest.id}
                       requestId={selectedRequest.id}
                       assignedAppUserId={selectedRequest.assignedAppUserId}
                       users={mode.assignableUsers}
                     />
                     <AssignedRequestStatusSelect
+                      key={selectedRequest.id}
                       requestId={selectedRequest.id}
                       status={selectedRequest.status}
                       requestType={selectedRequest.requestType}
@@ -376,6 +378,7 @@ export function GoservicesTicketExplorer({
                 )}
                 {mode.kind === "ejecutor" && (
                   <AssignedRequestStatusSelect
+                    key={selectedRequest.id}
                     requestId={selectedRequest.id}
                     status={selectedRequest.status}
                     requestType={selectedRequest.requestType}
