@@ -102,6 +102,14 @@ Credentials (never committed, env vars only):
 - Check constraint: a `mantenimiento` row with `tipo_mensajeria` set (or vice versa) is rejected; a `mantenimiento` row missing `ubicacion`/`categoria` is rejected.
 - Notification: status change to each of recibido/completado/cancelado triggers one email; change to `en_proceso` triggers none.
 
+## Addendum (2026-10-09) — Phase 2
+
+Added after initial build, based on direct user feedback once the feature was live on a preview deploy:
+
+- **Ejecutores**: instead of a new allow-list table, reuse the existing `role_profile_permissions` row for the `goservices` module — `can_add` now means "members of this role profile are eligible to be assigned a request" (repurposed; it was otherwise unused for this module, since request creation itself is open to everyone regardless of permission). `listAssignableUsers()` now filters to role profiles with `can_add = true` on `goservices`, mirroring the existing modules→role_profile_permissions→app_users join already used for RRHH email lookup in `solicitudes/vacaciones/actions.ts`. `can_view` continues to mean "gestor" (full oversight), unchanged. The user explicitly chose this over a new per-person list ("prefiero usar Perfiles de rol").
+- **Status dashboard**: a responsive status-count summary (Total/Recibido/En proceso/Completado/Cancelado) on all three screens — full/unfiltered counts on the Gestión dashboard, scoped to "my own rows" on Mis Solicitudes and Mis Tareas Asignadas.
+- **Image modal viewer**: `uploadToSharePoint` previously returned only `webUrl` (a SharePoint page-viewer link, not a raw byte URL — unsuitable for `<img src>`, and requires the viewer's own M365 session to open). Fixed by capturing the upload response's `driveId`/`itemId`, adding a server-side proxy route (`/api/goservices/attachment/[driveId]/[itemId]`) that fetches a fresh, app-authenticated Graph download URL on each request (Graph's `@microsoft.graph.downloadUrl` is short-lived, so it can't be stored — only `driveId`/`itemId` are persisted), and rendering photos through that proxy inside a Dialog instead of a new-tab link. Documents keep the simple link-out behavior (not all document types render as an image).
+
 ## Out of Scope
 
 - A formal "Utility"/"Mensajero" role or tag — assignment is just picking any registered contact.
