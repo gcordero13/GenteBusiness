@@ -38,7 +38,7 @@ export default async function GoservicesAssignedPage() {
                 <TableCell>{r.requesterName}</TableCell>
                 <TableCell className="max-w-xs truncate">{r.detalle}</TableCell>
                 <TableCell>
-                  <AssignedRequestStatusSelect requestId={r.id} status={r.status} />
+                  <AssignedRequestStatusSelect requestId={r.id} status={r.status} requestType={r.requestType} />
                 </TableCell>
                 <TableCell>
                   <GoservicesRequestDetailDialog request={r} />

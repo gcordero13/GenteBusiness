@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { listAllGoservicesRequests, listAssignableUsers } from "../solicitudes/goservices/actions";
 import { GoservicesFilterBar } from "./GoservicesFilterBar";
 import { AssignRequestSelect } from "./AssignRequestSelect";
+import { AssignedRequestStatusSelect } from "../solicitudes/goservices/asignadas/AssignedRequestStatusSelect";
 import { GoservicesRequestDetailDialog } from "../solicitudes/goservices/GoservicesRequestDetailDialog";
 
 export default async function GoservicesDashboardPage({
@@ -49,6 +50,7 @@ export default async function GoservicesDashboardPage({
               <TableHead>Solicitante</TableHead>
               <TableHead>Detalle</TableHead>
               <TableHead>Estatus</TableHead>
+              <TableHead>Cambiar estatus</TableHead>
               <TableHead>Asignado a</TableHead>
               <TableHead></TableHead>
             </TableRow>
@@ -64,6 +66,9 @@ export default async function GoservicesDashboardPage({
                   <Badge variant={r.status === "completado" ? "default" : r.status === "cancelado" ? "secondary" : "outline"}>
                     {r.statusLabel}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <AssignedRequestStatusSelect requestId={r.id} status={r.status} requestType={r.requestType} allStatuses />
                 </TableCell>
                 <TableCell>
                   <AssignRequestSelect requestId={r.id} assignedAppUserId={r.assignedAppUserId} users={users} />
