@@ -9,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateGoservicesRequestStatus, STATUS_LABELS, type GoservicesStatus } from "../actions";
+import { updateGoservicesRequestStatus } from "../actions";
+import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
 
 export function AssignedRequestStatusSelect({ requestId, status }: { requestId: string; status: string }) {
   const router = useRouter();

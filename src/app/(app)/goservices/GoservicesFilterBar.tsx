@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { STATUS_LABELS } from "../solicitudes/goservices/actions";
+import { STATUS_LABELS } from "@/lib/goservicesStatus";
 
 const ALL_VALUE = "__all__";
 

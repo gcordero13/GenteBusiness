@@ -8,8 +8,6 @@ import { sendGoservicesStatusEmail } from "@/lib/sendGoservicesStatusEmail";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
 
-export { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
-
 interface ActionResult {
   error?: string;
 }
