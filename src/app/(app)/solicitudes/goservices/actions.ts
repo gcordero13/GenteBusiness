@@ -139,6 +139,8 @@ export const STATUS_LABELS: Record<string, string> = {
   cancelado: "Cancelado",
 };
 
+export type GoservicesStatus = "recibido" | "en_proceso" | "completado" | "cancelado";
+
 function typeLabel(row: { request_type: string; categoria: string | null; tipo_mensajeria: string | null }): string {
   if (row.request_type === "mantenimiento") return CATEGORIA_LABELS[row.categoria ?? ""] ?? "Mantenimiento";
   return TIPO_MENSAJERIA_LABELS[row.tipo_mensajeria ?? ""] ?? "Mensajería";
@@ -226,7 +228,7 @@ export async function listAssignableUsers(): Promise<{ id: string; email: string
 
 export async function updateGoservicesRequestStatus(
   requestId: string,
-  status: "recibido" | "en_proceso" | "completado" | "cancelado",
+  status: GoservicesStatus,
 ): Promise<ActionResult> {
   const supabase = await createClient();
   const {
