@@ -6,6 +6,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { uploadToSharePoint } from "@/lib/sharepoint";
 import { sendGoservicesStatusEmail } from "@/lib/sendGoservicesStatusEmail";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
+
+export { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
 
 interface ActionResult {
   error?: string;
@@ -102,6 +105,7 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
   if (error) return { error: error.message };
 
   revalidatePath("/solicitudes/goservices");
+  revalidatePath("/goservices");
   return {};
 }
 
@@ -115,6 +119,13 @@ export interface GoservicesRequestRow {
   status: string;
   statusLabel: string;
   assignedAppUserId: string | null;
+  ubicacion: string | null;
+  subcategoria: string | null;
+  contactoNombre: string | null;
+  contactoTelefono: string | null;
+  contactoDireccion: string | null;
+  fotoUrl: string | null;
+  documentoUrl: string | null;
 }
 
 const CATEGORIA_LABELS: Record<string, string> = {
@@ -132,15 +143,6 @@ const TIPO_MENSAJERIA_LABELS: Record<string, string> = {
   traslados: "Traslados",
 };
 
-export const STATUS_LABELS: Record<string, string> = {
-  recibido: "Recibido",
-  en_proceso: "En proceso",
-  completado: "Completado",
-  cancelado: "Cancelado",
-};
-
-export type GoservicesStatus = "recibido" | "en_proceso" | "completado" | "cancelado";
-
 function typeLabel(row: { request_type: string; categoria: string | null; tipo_mensajeria: string | null }): string {
   if (row.request_type === "mantenimiento") return CATEGORIA_LABELS[row.categoria ?? ""] ?? "Mantenimiento";
   return TIPO_MENSAJERIA_LABELS[row.tipo_mensajeria ?? ""] ?? "Mensajería";
@@ -156,6 +158,13 @@ function toRow(r: {
   detalle: string;
   status: string;
   assigned_app_user_id: string | null;
+  ubicacion: string | null;
+  subcategoria: string | null;
+  contacto_nombre: string | null;
+  contacto_telefono: string | null;
+  contacto_direccion: string | null;
+  foto_url: string | null;
+  documento_url: string | null;
 }): GoservicesRequestRow {
   return {
     id: r.id,
@@ -167,6 +176,13 @@ function toRow(r: {
     status: r.status,
     statusLabel: STATUS_LABELS[r.status] ?? r.status,
     assignedAppUserId: r.assigned_app_user_id,
+    ubicacion: r.ubicacion,
+    subcategoria: r.subcategoria,
+    contactoNombre: r.contacto_nombre,
+    contactoTelefono: r.contacto_telefono,
+    contactoDireccion: r.contacto_direccion,
+    fotoUrl: r.foto_url,
+    documentoUrl: r.documento_url,
   };
 }
 
@@ -179,7 +195,9 @@ export async function listMyGoservicesRequests(): Promise<GoservicesRequestRow[]
 
   const { data } = await supabase
     .from("goservices_requests")
-    .select("id, created_at, request_type, categoria, tipo_mensajeria, requester_name, detalle, status, assigned_app_user_id")
+    .select(
+      "id, created_at, request_type, categoria, tipo_mensajeria, requester_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
+    )
     .eq("requester_app_user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -195,7 +213,9 @@ export async function listAssignedGoservicesRequests(): Promise<GoservicesReques
 
   const { data } = await supabase
     .from("goservices_requests")
-    .select("id, created_at, request_type, categoria, tipo_mensajeria, requester_name, detalle, status, assigned_app_user_id")
+    .select(
+      "id, created_at, request_type, categoria, tipo_mensajeria, requester_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
+    )
     .eq("assigned_app_user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -206,7 +226,9 @@ export async function listAllGoservicesRequests(filters: { type?: string; status
   const supabase = await createClient();
   let query = supabase
     .from("goservices_requests")
-    .select("id, created_at, request_type, categoria, tipo_mensajeria, requester_name, detalle, status, assigned_app_user_id")
+    .select(
+      "id, created_at, request_type, categoria, tipo_mensajeria, requester_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
+    )
     .order("created_at", { ascending: false });
 
   if (filters.type) query = query.eq("request_type", filters.type);

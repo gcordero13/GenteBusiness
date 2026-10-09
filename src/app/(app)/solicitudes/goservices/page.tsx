@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { listMyGoservicesRequests } from "./actions";
 import { NewGoservicesRequestDialog } from "./NewGoservicesRequestDialog";
+import { GoservicesRequestDetailDialog } from "./GoservicesRequestDetailDialog";
 
 export default async function GoservicesRequestsPage() {
   const requests = await listMyGoservicesRequests();
@@ -29,6 +30,7 @@ export default async function GoservicesRequestsPage() {
               <TableHead>Tipo</TableHead>
               <TableHead>Detalle</TableHead>
               <TableHead>Estatus</TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -41,6 +43,9 @@ export default async function GoservicesRequestsPage() {
                   <Badge variant={r.status === "completado" ? "default" : r.status === "cancelado" ? "secondary" : "outline"}>
                     {r.statusLabel}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <GoservicesRequestDetailDialog request={r} />
                 </TableCell>
               </TableRow>
             ))}

@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import { lookup } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildBrandedEmailHtml } from "@/lib/emailTemplates";
+import { STATUS_LABELS } from "@/lib/goservicesStatus";
 
 interface EmailSettings {
   smtp_host: string;
@@ -73,12 +74,6 @@ async function fetchPlatformLogoUrl(): Promise<string | null> {
 // text, so typeLabel is always a codebase-controlled label and does not need
 // HTML-escaping the way sendComplaintNotificationEmail.ts escapes its
 // free-text complaint message.
-const STATUS_LABELS: Record<string, string> = {
-  recibido: "Recibido",
-  en_proceso: "En proceso",
-  completado: "Completado",
-  cancelado: "Cancelado",
-};
 
 export async function sendGoservicesStatusEmail(input: {
   requesterEmail: string;

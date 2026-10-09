@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { listAssignedGoservicesRequests } from "../actions";
 import { AssignedRequestStatusSelect } from "./AssignedRequestStatusSelect";
+import { GoservicesRequestDetailDialog } from "../GoservicesRequestDetailDialog";
 
 export default async function GoservicesAssignedPage() {
   const requests = await listAssignedGoservicesRequests();
@@ -26,6 +27,7 @@ export default async function GoservicesAssignedPage() {
               <TableHead>Solicitante</TableHead>
               <TableHead>Detalle</TableHead>
               <TableHead>Estatus</TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -37,6 +39,9 @@ export default async function GoservicesAssignedPage() {
                 <TableCell className="max-w-xs truncate">{r.detalle}</TableCell>
                 <TableCell>
                   <AssignedRequestStatusSelect requestId={r.id} status={r.status} />
+                </TableCell>
+                <TableCell>
+                  <GoservicesRequestDetailDialog request={r} />
                 </TableCell>
               </TableRow>
             ))}

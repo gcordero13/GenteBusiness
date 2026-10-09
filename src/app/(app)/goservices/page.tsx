@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { listAllGoservicesRequests, listAssignableUsers } from "../solicitudes/goservices/actions";
 import { GoservicesFilterBar } from "./GoservicesFilterBar";
 import { AssignRequestSelect } from "./AssignRequestSelect";
+import { GoservicesRequestDetailDialog } from "../solicitudes/goservices/GoservicesRequestDetailDialog";
 
 export default async function GoservicesDashboardPage({
   searchParams,
@@ -49,6 +50,7 @@ export default async function GoservicesDashboardPage({
               <TableHead>Detalle</TableHead>
               <TableHead>Estatus</TableHead>
               <TableHead>Asignado a</TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -65,6 +67,9 @@ export default async function GoservicesDashboardPage({
                 </TableCell>
                 <TableCell>
                   <AssignRequestSelect requestId={r.id} assignedAppUserId={r.assignedAppUserId} users={users} />
+                </TableCell>
+                <TableCell>
+                  <GoservicesRequestDetailDialog request={r} />
                 </TableCell>
               </TableRow>
             ))}
