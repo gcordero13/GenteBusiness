@@ -44,12 +44,16 @@ export function AssignedRequestStatusSelect({
     });
   }
 
-  // A gestor (can_view) may set any status. Otherwise, only the statuses the
-  // assigned ejecutor is allowed to move to for this request's type — plus
-  // the current status itself, so it always has a valid, renderable value
-  // even before the ejecutor has made their own forward choice.
+  // A gestor (can_view) may set any status, but "Finalizado por ejecutor" is
+  // a mantenimiento-only concept (the DB trigger itself rejects it for
+  // mensajería) — exclude it from the gestor's own dropdown for a mensajería
+  // request too, so the UI never offers a state with no defined meaning for
+  // that type. Otherwise, only the statuses the assigned ejecutor is allowed
+  // to move to for this request's type — plus the current status itself, so
+  // it always has a valid, renderable value even before the ejecutor has
+  // made their own forward choice.
   const options: string[] = allStatuses
-    ? Object.keys(STATUS_LABELS)
+    ? Object.keys(STATUS_LABELS).filter((s) => s !== "finalizado_ejecutor" || requestType === "mantenimiento")
     : Array.from(new Set([status, ...ALLOWED_OPTIONS[requestType]]));
 
   return (
