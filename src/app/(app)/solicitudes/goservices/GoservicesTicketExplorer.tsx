@@ -153,9 +153,9 @@ export function GoservicesTicketExplorer({
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:flex-row">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:h-[75vh] md:flex-row">
       {/* LEFT PANE: tabs, sort, list, pagination */}
-      <div className="flex w-full flex-col border-b border-border md:w-[30%] md:min-w-[280px] md:border-r md:border-b-0">
+      <div className="flex w-full flex-col border-b border-border md:w-[30%] md:min-w-[280px] md:border-r md:border-b-0 md:overflow-hidden">
         <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-2 pt-2">
           {tabs.map((tab) => {
             const label = tab === ALL_TAB ? "Todas" : (STATUS_LABELS[tab] ?? tab);
