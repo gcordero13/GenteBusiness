@@ -201,6 +201,7 @@ export interface GoservicesRequestRow {
   status: string;
   statusLabel: string;
   assignedAppUserId: string | null;
+  assignedAppUserEmail: string | null;
   ubicacion: string | null;
   subcategoria: string | null;
   contactoNombre: string | null;
@@ -257,7 +258,7 @@ function toRow(r: {
   documento_url: string | null;
   documento_drive_id: string | null;
   documento_item_id: string | null;
-}): GoservicesRequestRow {
+}, assignedAppUserEmail: string | null = null): GoservicesRequestRow {
   return {
     id: r.id,
     requestNumber: r.request_number,
@@ -271,6 +272,7 @@ function toRow(r: {
     status: r.status,
     statusLabel: STATUS_LABELS[r.status] ?? r.status,
     assignedAppUserId: r.assigned_app_user_id,
+    assignedAppUserEmail,
     ubicacion: r.ubicacion,
     subcategoria: r.subcategoria,
     contactoNombre: r.contacto_nombre,
@@ -283,6 +285,21 @@ function toRow(r: {
     documentoDriveId: r.documento_drive_id,
     documentoItemId: r.documento_item_id,
   };
+}
+
+// The assignee's email isn't visible via a nested PostgREST select here:
+// goservices_requests has two FKs into app_users (assigned_app_user_id and
+// requester_app_user_id), which makes an embedded
+// `app_users!goservices_requests_assigned_app_user_id_fkey(email)` join
+// ambiguous. A separate admin-client lookup sidesteps that entirely, and
+// also ensures the email resolves even when the viewing requester wouldn't
+// otherwise have visibility into another app_user's row under RLS.
+async function buildAssignedEmailMap(assignedAppUserIds: (string | null)[]): Promise<Map<string, string>> {
+  const ids = Array.from(new Set(assignedAppUserIds.filter((id): id is string => !!id)));
+  if (ids.length === 0) return new Map();
+  const admin = createAdminClient();
+  const { data } = await admin.from("app_users").select("id, email").in("id", ids);
+  return new Map((data ?? []).map((u: { id: string; email: string }) => [u.id, u.email]));
 }
 
 export async function listMyGoservicesRequests(): Promise<GoservicesRequestRow[]> {
@@ -300,7 +317,9 @@ export async function listMyGoservicesRequests(): Promise<GoservicesRequestRow[]
     .eq("requester_app_user_id", user.id)
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map(toRow);
+  const rows = data ?? [];
+  const emailMap = await buildAssignedEmailMap(rows.map((r) => r.assigned_app_user_id));
+  return rows.map((r) => toRow(r, r.assigned_app_user_id ? (emailMap.get(r.assigned_app_user_id) ?? null) : null));
 }
 
 export async function listAssignedGoservicesRequests(): Promise<GoservicesRequestRow[]> {
@@ -318,7 +337,9 @@ export async function listAssignedGoservicesRequests(): Promise<GoservicesReques
     .eq("assigned_app_user_id", user.id)
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map(toRow);
+  const rows = data ?? [];
+  const emailMap = await buildAssignedEmailMap(rows.map((r) => r.assigned_app_user_id));
+  return rows.map((r) => toRow(r, r.assigned_app_user_id ? (emailMap.get(r.assigned_app_user_id) ?? null) : null));
 }
 
 export async function listAllGoservicesRequests(filters: { type?: string; status?: string }): Promise<GoservicesRequestRow[]> {
@@ -334,7 +355,9 @@ export async function listAllGoservicesRequests(filters: { type?: string; status
   if (filters.status) query = query.eq("status", filters.status);
 
   const { data } = await query;
-  return (data ?? []).map(toRow);
+  const rows = data ?? [];
+  const emailMap = await buildAssignedEmailMap(rows.map((r) => r.assigned_app_user_id));
+  return rows.map((r) => toRow(r, r.assigned_app_user_id ? (emailMap.get(r.assigned_app_user_id) ?? null) : null));
 }
 
 export async function listAssignableUsers(): Promise<{ id: string; email: string }[]> {

@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { STATUS_LABELS } from "@/lib/goservicesStatus";
 
 const ALL_VALUE = "__all__";
 
@@ -17,17 +16,15 @@ const TYPE_LABELS: Record<string, string> = {
   mensajeria: "Mensajería",
 };
 
-export function GoservicesFilterBar({
-  type,
-  status,
-}: {
-  type: string | null;
-  status: string | null;
-}) {
+// The status dimension is now handled by GoservicesTicketExplorer's own
+// status tabs, so this bar only needs to filter by request type (a
+// dimension the explorer doesn't know about) — a status dropdown here would
+// just duplicate, and could conflict with, the explorer's tabs.
+export function GoservicesFilterBar({ type }: { type: string | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  function updateParam(key: "type" | "status", value: string) {
+  function updateParam(key: "type", value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value === ALL_VALUE) {
       params.delete(key);
@@ -48,22 +45,6 @@ export function GoservicesFilterBar({
         <SelectContent>
           <SelectItem value={ALL_VALUE}>Todos los tipos</SelectItem>
           {Object.entries(TYPE_LABELS).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select value={status ?? ALL_VALUE} onValueChange={(value) => value && updateParam("status", value)}>
-        <SelectTrigger className="w-56">
-          <SelectValue>
-            {(value: string) => (value === ALL_VALUE ? "Todos los estatus" : (STATUS_LABELS[value] ?? value))}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL_VALUE}>Todos los estatus</SelectItem>
-          {Object.entries(STATUS_LABELS).map(([value, label]) => (
             <SelectItem key={value} value={value}>
               {label}
             </SelectItem>
