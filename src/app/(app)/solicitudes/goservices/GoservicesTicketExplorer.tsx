@@ -24,6 +24,13 @@ import { cn } from "@/lib/utils";
 import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
 import { GoservicesStatusBadge } from "./GoservicesStatusBadge";
 import type { GoservicesRequestRow } from "./actions";
+import { AssignRequestSelect } from "../../goservices/AssignRequestSelect";
+import { AssignedRequestStatusSelect } from "./asignadas/AssignedRequestStatusSelect";
+
+export type GoservicesExplorerMode =
+  | { kind: "readonly" }
+  | { kind: "ejecutor" }
+  | { kind: "gestor"; assignableUsers: { id: string; email: string }[] };
 
 const PAGE_SIZE = 10;
 const ALL_TAB = "todas";
@@ -98,10 +105,10 @@ function StatusStepper({ request }: { request: GoservicesRequestRow }) {
 
 export function GoservicesTicketExplorer({
   requests,
-  renderActions,
+  mode,
 }: {
   requests: GoservicesRequestRow[];
-  renderActions?: (request: GoservicesRequestRow) => ReactNode;
+  mode: GoservicesExplorerMode;
 }) {
   const [activeTab, setActiveTab] = useState<string>(ALL_TAB);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -310,7 +317,32 @@ export function GoservicesTicketExplorer({
               </div>
             </div>
 
-            {renderActions && <div className="border-t border-border pt-4">{renderActions(selectedRequest)}</div>}
+            {mode.kind !== "readonly" && (
+              <div className="border-t border-border pt-4">
+                {mode.kind === "gestor" && (
+                  <div className="flex flex-wrap gap-2">
+                    <AssignRequestSelect
+                      requestId={selectedRequest.id}
+                      assignedAppUserId={selectedRequest.assignedAppUserId}
+                      users={mode.assignableUsers}
+                    />
+                    <AssignedRequestStatusSelect
+                      requestId={selectedRequest.id}
+                      status={selectedRequest.status}
+                      requestType={selectedRequest.requestType}
+                      allStatuses
+                    />
+                  </div>
+                )}
+                {mode.kind === "ejecutor" && (
+                  <AssignedRequestStatusSelect
+                    requestId={selectedRequest.id}
+                    status={selectedRequest.status}
+                    requestType={selectedRequest.requestType}
+                  />
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

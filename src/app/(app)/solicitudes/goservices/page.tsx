@@ -13,7 +13,7 @@ export default async function GoservicesRequestsPage() {
         <NewGoservicesRequestDialog />
       </div>
       <GoservicesStatusSummary rows={requests} />
-      <GoservicesTicketExplorer requests={requests} />
+      <GoservicesTicketExplorer requests={requests} mode={{ kind: "readonly" }} />
     </div>
   );
 }
