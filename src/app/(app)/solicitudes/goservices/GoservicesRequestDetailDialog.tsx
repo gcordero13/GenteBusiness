@@ -72,21 +72,26 @@ export function GoservicesRequestDetailDialog({ request }: { request: Goservices
             <p className="whitespace-pre-wrap">{request.detalle}</p>
           </div>
 
-          {(request.fotoUrl || request.documentoUrl) && (
-            <div className="flex flex-wrap gap-4">
-              {request.fotoUrl && (
-                <a
-                  href={request.fotoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2"
-                >
-                  Ver foto
-                </a>
+          {(request.fotoDriveId && request.fotoItemId) || (request.documentoDriveId && request.documentoItemId) ? (
+            <div className="flex flex-wrap items-center gap-4">
+              {request.fotoDriveId && request.fotoItemId && (
+                <Dialog>
+                  <DialogTrigger render={<Button variant="outline" size="sm" />}>Ver foto</DialogTrigger>
+                  <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Foto de la solicitud</DialogTitle>
+                    </DialogHeader>
+                    <img
+                      src={`/api/goservices/attachment/${request.fotoDriveId}/${request.fotoItemId}`}
+                      alt="Foto de la solicitud"
+                      className="max-h-[70vh] w-full object-contain"
+                    />
+                  </DialogContent>
+                </Dialog>
               )}
-              {request.documentoUrl && (
+              {request.documentoDriveId && request.documentoItemId && (
                 <a
-                  href={request.documentoUrl}
+                  href={`/api/goservices/attachment/${request.documentoDriveId}/${request.documentoItemId}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline underline-offset-2"
@@ -95,7 +100,7 @@ export function GoservicesRequestDetailDialog({ request }: { request: Goservices
                 </a>
               )}
             </div>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

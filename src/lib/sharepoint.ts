@@ -10,6 +10,14 @@ interface GraphSiteResponse {
 
 interface GraphUploadResponse {
   webUrl: string;
+  id: string;
+  parentReference: { driveId: string };
+}
+
+export interface SharePointUploadResult {
+  webUrl: string;
+  driveId: string;
+  itemId: string;
 }
 
 function parseSiteUrl(siteUrl: string): { hostname: string; serverRelativePath: string } {
@@ -61,16 +69,19 @@ async function getSiteId(accessToken: string): Promise<string> {
 
 /**
  * Uploads a file to the GoServices SharePoint site's default drive and
- * returns its webUrl. Small-file simple upload (PUT .../content) — fine for
- * the maintenance/mensajería photos and documents this is used for; large
- * files would need Graph's resumable upload session instead, which this
- * doesn't implement.
+ * returns its webUrl plus the driveId/itemId needed to fetch a fresh
+ * download link later (see getSharePointDownloadUrl) — webUrl is a
+ * page-viewer link that requires the viewer's own Microsoft 365 session and
+ * can't be used as an <img src>. Small-file simple upload (PUT
+ * .../content) — fine for the maintenance/mensajería photos and documents
+ * this is used for; large files would need Graph's resumable upload session
+ * instead, which this doesn't implement.
  */
 export async function uploadToSharePoint(
   bytes: ArrayBuffer,
   filename: string,
   contentType: string,
-): Promise<string> {
+): Promise<SharePointUploadResult> {
   const accessToken = await getGraphAccessToken();
   const siteId = await getSiteId(accessToken);
 
@@ -90,5 +101,26 @@ export async function uploadToSharePoint(
     throw new Error(`No se pudo subir el archivo a SharePoint: ${res.status} ${await res.text()}`);
   }
   const data = (await res.json()) as GraphUploadResponse;
-  return data.webUrl;
+  return { webUrl: data.webUrl, driveId: data.parentReference.driveId, itemId: data.id };
+}
+
+/**
+ * Fetches a fresh, short-lived Graph download URL for an already-uploaded
+ * item. The download URL itself can't be persisted (it expires), so callers
+ * should store driveId/itemId and call this on each request.
+ */
+export async function getSharePointDownloadUrl(driveId: string, itemId: string): Promise<string> {
+  const accessToken = await getGraphAccessToken();
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}?select=@microsoft.graph.downloadUrl`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) {
+    throw new Error(`No se pudo obtener el enlace de descarga: ${res.status} ${await res.text()}`);
+  }
+  const data = (await res.json()) as { "@microsoft.graph.downloadUrl"?: string };
+  if (!data["@microsoft.graph.downloadUrl"]) {
+    throw new Error("El archivo no tiene un enlace de descarga disponible");
+  }
+  return data["@microsoft.graph.downloadUrl"];
 }

@@ -38,13 +38,16 @@ const ALLOWED_PHOTO_TYPES: Record<string, string> = {
   "image/webp": "webp",
 };
 
-async function uploadAttachment(file: File, allowedTypes: Record<string, string> | null): Promise<{ url?: string; error?: string }> {
+async function uploadAttachment(
+  file: File,
+  allowedTypes: Record<string, string> | null,
+): Promise<{ url?: string; driveId?: string; itemId?: string; error?: string }> {
   if (file.size > MAX_ATTACHMENT_BYTES) return { error: "El archivo no puede pesar más de 10 MB" };
   if (allowedTypes && !allowedTypes[file.type]) return { error: "El archivo debe ser JPG, PNG o WEBP" };
   const bytes = await file.arrayBuffer();
   try {
-    const url = await uploadToSharePoint(bytes, file.name, file.type || "application/octet-stream");
-    return { url };
+    const result = await uploadToSharePoint(bytes, file.name, file.type || "application/octet-stream");
+    return { url: result.webUrl, driveId: result.driveId, itemId: result.itemId };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "No se pudo subir el archivo" };
   }
@@ -76,17 +79,25 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
   const requesterName = contact ? `${contact.first_name} ${contact.last_name}` : user.email;
 
   let fotoUrl: string | null = null;
+  let fotoDriveId: string | null = null;
+  let fotoItemId: string | null = null;
   if (input.foto && input.foto.size > 0) {
     const result = await uploadAttachment(input.foto, ALLOWED_PHOTO_TYPES);
     if (result.error) return { error: result.error };
     fotoUrl = result.url ?? null;
+    fotoDriveId = result.driveId ?? null;
+    fotoItemId = result.itemId ?? null;
   }
 
   let documentoUrl: string | null = null;
+  let documentoDriveId: string | null = null;
+  let documentoItemId: string | null = null;
   if (input.documento && input.documento.size > 0) {
     const result = await uploadAttachment(input.documento, null);
     if (result.error) return { error: result.error };
     documentoUrl = result.url ?? null;
+    documentoDriveId = result.driveId ?? null;
+    documentoItemId = result.itemId ?? null;
   }
 
   const { data: inserted, error } = await supabase
@@ -106,7 +117,11 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
       contacto_direccion: input.requestType === "mensajeria" ? (input.contactoDireccion ?? null) : null,
       detalle: input.detalle,
       foto_url: fotoUrl,
+      foto_drive_id: fotoDriveId,
+      foto_item_id: fotoItemId,
       documento_url: documentoUrl,
+      documento_drive_id: documentoDriveId,
+      documento_item_id: documentoItemId,
       status: "recibido",
     })
     .select("id, request_number, created_at")
@@ -192,7 +207,11 @@ export interface GoservicesRequestRow {
   contactoTelefono: string | null;
   contactoDireccion: string | null;
   fotoUrl: string | null;
+  fotoDriveId: string | null;
+  fotoItemId: string | null;
   documentoUrl: string | null;
+  documentoDriveId: string | null;
+  documentoItemId: string | null;
 }
 
 const CATEGORIA_LABELS: Record<string, string> = {
@@ -233,7 +252,11 @@ function toRow(r: {
   contacto_telefono: string | null;
   contacto_direccion: string | null;
   foto_url: string | null;
+  foto_drive_id: string | null;
+  foto_item_id: string | null;
   documento_url: string | null;
+  documento_drive_id: string | null;
+  documento_item_id: string | null;
 }): GoservicesRequestRow {
   return {
     id: r.id,
@@ -254,7 +277,11 @@ function toRow(r: {
     contactoTelefono: r.contacto_telefono,
     contactoDireccion: r.contacto_direccion,
     fotoUrl: r.foto_url,
+    fotoDriveId: r.foto_drive_id,
+    fotoItemId: r.foto_item_id,
     documentoUrl: r.documento_url,
+    documentoDriveId: r.documento_drive_id,
+    documentoItemId: r.documento_item_id,
   };
 }
 
@@ -268,7 +295,7 @@ export async function listMyGoservicesRequests(): Promise<GoservicesRequestRow[]
   const { data } = await supabase
     .from("goservices_requests")
     .select(
-      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
+      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
     )
     .eq("requester_app_user_id", user.id)
     .order("created_at", { ascending: false });
@@ -286,7 +313,7 @@ export async function listAssignedGoservicesRequests(): Promise<GoservicesReques
   const { data } = await supabase
     .from("goservices_requests")
     .select(
-      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
+      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
     )
     .eq("assigned_app_user_id", user.id)
     .order("created_at", { ascending: false });
@@ -299,7 +326,7 @@ export async function listAllGoservicesRequests(filters: { type?: string; status
   let query = supabase
     .from("goservices_requests")
     .select(
-      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, documento_url",
+      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
     )
     .order("created_at", { ascending: false });
 
