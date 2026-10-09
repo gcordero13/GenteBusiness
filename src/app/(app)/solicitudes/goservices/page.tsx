@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { listMyGoservicesRequests } from "./actions";
 import { NewGoservicesRequestDialog } from "./NewGoservicesRequestDialog";
 import { GoservicesRequestDetailDialog } from "./GoservicesRequestDetailDialog";
+import { GoservicesStatusSummary } from "./GoservicesStatusSummary";
 
 export default async function GoservicesRequestsPage() {
   const requests = await listMyGoservicesRequests();
@@ -20,6 +21,7 @@ export default async function GoservicesRequestsPage() {
         <h1 className="text-xl font-semibold">Mis solicitudes GoServices</h1>
         <NewGoservicesRequestDialog />
       </div>
+      <GoservicesStatusSummary rows={requests} />
       {requests.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay solicitudes todavía.</p>
       ) : (

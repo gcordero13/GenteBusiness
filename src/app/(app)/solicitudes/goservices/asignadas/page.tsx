@@ -9,6 +9,7 @@ import {
 import { listAssignedGoservicesRequests } from "../actions";
 import { AssignedRequestStatusSelect } from "./AssignedRequestStatusSelect";
 import { GoservicesRequestDetailDialog } from "../GoservicesRequestDetailDialog";
+import { GoservicesStatusSummary } from "../GoservicesStatusSummary";
 
 export default async function GoservicesAssignedPage() {
   const requests = await listAssignedGoservicesRequests();
@@ -16,6 +17,7 @@ export default async function GoservicesAssignedPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <h1 className="text-xl font-semibold">Mis tareas asignadas</h1>
+      <GoservicesStatusSummary rows={requests} />
       {requests.length === 0 ? (
         <p className="text-sm text-muted-foreground">No tienes tareas asignadas por el momento.</p>
       ) : (

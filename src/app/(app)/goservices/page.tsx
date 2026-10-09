@@ -14,6 +14,7 @@ import { GoservicesFilterBar } from "./GoservicesFilterBar";
 import { AssignRequestSelect } from "./AssignRequestSelect";
 import { AssignedRequestStatusSelect } from "../solicitudes/goservices/asignadas/AssignedRequestStatusSelect";
 import { GoservicesRequestDetailDialog } from "../solicitudes/goservices/GoservicesRequestDetailDialog";
+import { GoservicesStatusSummary } from "../solicitudes/goservices/GoservicesStatusSummary";
 
 export default async function GoservicesDashboardPage({
   searchParams,
@@ -30,14 +31,16 @@ export default async function GoservicesDashboardPage({
     redirect("/");
   }
 
-  const [requests, users] = await Promise.all([
+  const [requests, allRequests, users] = await Promise.all([
     listAllGoservicesRequests({ type, status }),
+    listAllGoservicesRequests({}),
     listAssignableUsers(),
   ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <h1 className="text-xl font-semibold">GoServices — Todas las solicitudes</h1>
+      <GoservicesStatusSummary rows={allRequests} />
       <GoservicesFilterBar type={type ?? null} status={status ?? null} />
       {requests.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay solicitudes para los filtros seleccionados.</p>
