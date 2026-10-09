@@ -27,14 +27,18 @@ export default async function GoservicesDashboardPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
-      <h1 className="text-xl font-semibold">GoServices — Todas las solicitudes</h1>
-      <GoservicesStatusSummary rows={allRequests} />
-      <GoservicesFilterBar type={type ?? null} />
-      <GoservicesTicketExplorer
-        requests={requests}
-        mode={{ kind: "gestor", assignableUsers: users }}
-      />
+    <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
+      <div className="mx-auto w-full min-w-0 max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">GoServices — Todas las solicitudes</h1>
+          <p className="text-sm text-muted-foreground">
+            Vista de gestión: asigna responsables y actualiza el estatus de cada ticket.
+          </p>
+        </div>
+        <GoservicesStatusSummary rows={allRequests} />
+        <GoservicesFilterBar type={type ?? null} />
+        <GoservicesTicketExplorer requests={requests} mode={{ kind: "gestor", assignableUsers: users }} />
+      </div>
     </div>
   );
 }

@@ -10,6 +10,8 @@ import {
   ChevronsLeft,
   Eye,
   FileText,
+  Inbox,
+  MousePointerClick,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -60,11 +62,11 @@ function initials(name: string): string {
 
 function Field({ label, children, tall }: { label: string; children: ReactNode; tall?: boolean }) {
   return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</p>
       <div
         className={cn(
-          "rounded-lg bg-muted/60 px-3 py-2 text-sm",
+          "rounded-lg border border-border/60 bg-muted/50 px-3 py-2 text-sm",
           tall ? "max-h-40 overflow-y-auto whitespace-pre-wrap" : "truncate",
         )}
       >
@@ -160,10 +162,19 @@ export function GoservicesTicketExplorer({
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:h-[75vh] md:flex-row">
+    <div
+      className={cn(
+        "flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-md",
+        "transition-shadow duration-300 hover:shadow-lg",
+        // Bounded rather than a flat 75vh: tall enough to feel like a real
+        // workspace, but clamped so it never balloons on very tall screens
+        // nor forces excessive scrolling on short ones.
+        "md:h-[70vh] md:max-h-[44rem] md:min-h-[28rem] md:flex-row",
+      )}
+    >
       {/* LEFT PANE: tabs, sort, list, pagination */}
-      <div className="flex w-full flex-col border-b border-border md:w-[30%] md:min-w-[280px] md:border-r md:border-b-0 md:overflow-hidden">
-        <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-2 pt-2">
+      <div className="flex w-full min-w-0 flex-col border-b border-border md:w-[30%] md:min-w-[280px] md:border-r md:border-b-0 md:overflow-hidden">
+        <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-muted/30 px-2 py-2">
           {tabs.map((tab) => {
             const label = tab === ALL_TAB ? "Todas" : (STATUS_LABELS[tab] ?? tab);
             const active = activeTab === tab;
@@ -173,10 +184,10 @@ export function GoservicesTicketExplorer({
                 type="button"
                 onClick={() => changeTab(tab)}
                 className={cn(
-                  "shrink-0 border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors",
+                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-150",
                   active
-                    ? "border-[#04B1AF] text-[#04B1AF]"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
+                    ? "bg-[#04B1AF] text-white shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 {label}
@@ -185,7 +196,10 @@ export function GoservicesTicketExplorer({
           })}
         </div>
 
-        <div className="flex items-center justify-end border-b border-border px-2 py-1.5">
+        <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+          <span className="text-xs font-medium text-muted-foreground">
+            {sorted.length} solicitud{sorted.length === 1 ? "" : "es"}
+          </span>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -198,7 +212,10 @@ export function GoservicesTicketExplorer({
 
         <div className="max-h-[32rem] flex-1 overflow-y-auto md:max-h-none">
           {pageItems.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No hay solicitudes.</p>
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
+              <Inbox className="size-8 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">No hay solicitudes.</p>
+            </div>
           ) : (
             pageItems.map((r) => {
               const isSelected = selectedRequest?.id === r.id;
@@ -208,11 +225,16 @@ export function GoservicesTicketExplorer({
                   type="button"
                   onClick={() => setSelectedId(r.id)}
                   className={cn(
-                    "flex w-full items-start gap-3 border-b border-border/60 px-3 py-3 text-left transition-colors hover:bg-muted/60",
-                    isSelected && "bg-[#04B1AF]/10",
+                    "flex w-full items-start gap-3 border-b border-l-4 border-border/60 border-l-transparent px-3 py-3 text-left transition-colors",
+                    isSelected
+                      ? "border-l-[#04B1AF] bg-[#04B1AF]/10"
+                      : "hover:border-l-[#04B1AF]/30 hover:bg-muted/60",
                   )}
                 >
-                  <Avatar size="sm" className="mt-0.5">
+                  <Avatar
+                    size="sm"
+                    className={cn("mt-0.5 transition-all", isSelected && "ring-2 ring-[#04B1AF]/50")}
+                  >
                     <AvatarFallback className="bg-[#04B1AF]/15 text-[#04B1AF]">{initials(r.requesterName)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
@@ -226,9 +248,9 @@ export function GoservicesTicketExplorer({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
           <span>
-            {pageStart} - {pageEnd} de {sorted.length} (Seleccionados: {selectedRequest ? 1 : 0})
+            {pageStart} - {pageEnd} de {sorted.length}
           </span>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon-xs" disabled={safePage <= 1} onClick={() => goToPage(1)}>
@@ -246,42 +268,48 @@ export function GoservicesTicketExplorer({
       </div>
 
       {/* RIGHT PANE: status stepper, fields grid, context actions */}
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="min-w-0 flex-1 overflow-y-auto p-5">
         {!selectedRequest ? (
-          <p className="text-sm text-muted-foreground">Selecciona una solicitud para ver el detalle.</p>
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <MousePointerClick className="size-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">Selecciona una solicitud para ver el detalle.</p>
+          </div>
         ) : (
           <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <StatusStepper request={selectedRequest} />
-              {selectedRequest.fotoDriveId && selectedRequest.fotoItemId && (
-                <Dialog>
-                  <DialogTrigger render={<Button variant="secondary" size="sm" className="rounded-full" />}>
-                    <Eye className="size-3.5" />
-                    Ver Foto
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Foto de la solicitud</DialogTitle>
-                    </DialogHeader>
-                    <img
-                      src={`/api/goservices/attachment/${selectedRequest.fotoDriveId}/${selectedRequest.fotoItemId}`}
-                      alt="Foto de la solicitud"
-                      className="max-h-[70vh] w-full object-contain"
-                    />
-                  </DialogContent>
-                </Dialog>
-              )}
-              {selectedRequest.documentoDriveId && selectedRequest.documentoItemId && (
-                <a
-                  href={`/api/goservices/attachment/${selectedRequest.documentoDriveId}/${selectedRequest.documentoItemId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm font-medium transition-colors hover:bg-muted"
-                >
-                  <FileText className="size-3.5" />
-                  Ver documento
-                </a>
-              )}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 p-3">
+              <p className="text-sm font-semibold text-foreground">Ticket #{selectedRequest.requestNumber}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusStepper request={selectedRequest} />
+                {selectedRequest.fotoDriveId && selectedRequest.fotoItemId && (
+                  <Dialog>
+                    <DialogTrigger render={<Button variant="secondary" size="sm" className="rounded-full" />}>
+                      <Eye className="size-3.5" />
+                      Ver Foto
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Foto de la solicitud</DialogTitle>
+                      </DialogHeader>
+                      <img
+                        src={`/api/goservices/attachment/${selectedRequest.fotoDriveId}/${selectedRequest.fotoItemId}`}
+                        alt="Foto de la solicitud"
+                        className="max-h-[70vh] w-full object-contain"
+                      />
+                    </DialogContent>
+                  </Dialog>
+                )}
+                {selectedRequest.documentoDriveId && selectedRequest.documentoItemId && (
+                  <a
+                    href={`/api/goservices/attachment/${selectedRequest.documentoDriveId}/${selectedRequest.documentoItemId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm font-medium transition-colors hover:bg-muted"
+                  >
+                    <FileText className="size-3.5" />
+                    Ver documento
+                  </a>
+                )}
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -318,7 +346,7 @@ export function GoservicesTicketExplorer({
             </div>
 
             {mode.kind !== "readonly" && (
-              <div className="border-t border-border pt-4">
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
                 {mode.kind === "gestor" && (
                   <div className="flex flex-wrap gap-2">
                     <AssignRequestSelect

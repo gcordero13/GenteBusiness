@@ -27,7 +27,10 @@ export function AppShell({
         <Sidebar {...sidebarProps} onNavigate={() => setMobileOpen(false)} />
       </div>
       <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-        <header className="flex items-center justify-between gap-2 border-b p-3 md:hidden">
+        {/* Sticky so the menu toggle stays reachable on long pages, however
+            far the content below it is scrolled (never "ends up under the
+            content" with no way back to the sidebar on mobile). */}
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b bg-card/95 p-3 backdrop-blur-sm md:hidden">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon-sm" onClick={() => setMobileOpen(true)}>
               <Menu className="size-5" />
@@ -42,7 +45,7 @@ export function AppShell({
             </Button>
           </form>
         </header>
-        <main className="flex-1">{children}</main>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>
   );
