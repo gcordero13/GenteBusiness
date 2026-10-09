@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
 import { GoservicesStatusBadge } from "./GoservicesStatusBadge";
+import { GoservicesCommentThread } from "./GoservicesCommentThread";
 import type { GoservicesRequestRow } from "./actions";
 import { AssignRequestSelect } from "../../goservices/AssignRequestSelect";
 import { AssignedRequestStatusSelect } from "./asignadas/AssignedRequestStatusSelect";
@@ -126,7 +127,13 @@ export function GoservicesTicketExplorer({
     return ticketId ? (requests.find((r) => r.id === ticketId) ?? null) : null;
   }, [requests, searchParams]);
 
-  const [activeTab, setActiveTab] = useState<string>(() => deepLinkedRequest?.status ?? ALL_TAB);
+  // Deep-link status wins regardless of mode. Otherwise, ejecutor/gestor
+  // users land on "Recibido" (the actionable queue) while a requester's own
+  // "Mis solicitudes" view still defaults to showing everything they've
+  // submitted.
+  const [activeTab, setActiveTab] = useState<string>(
+    () => deepLinkedRequest?.status ?? (mode.kind === "ejecutor" || mode.kind === "gestor" ? "recibido" : ALL_TAB),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(() => deepLinkedRequest?.id ?? null);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(1);
@@ -388,6 +395,12 @@ export function GoservicesTicketExplorer({
                 )}
               </div>
             )}
+
+            <GoservicesCommentThread
+              key={selectedRequest.id}
+              requestId={selectedRequest.id}
+              canComment={mode.kind !== "readonly"}
+            />
           </div>
         )}
       </div>
