@@ -15,7 +15,7 @@ export default async function LoginPage({
   return (
     <div
       className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-100 bg-cover bg-center px-4"
-      style={{ backgroundImage: "url('/login-background.png')" }}
+      style={{ backgroundImage: "url('/login-background.jpg')" }}
     >
       <div className="animate-in fade-in-0 slide-in-from-bottom-4 relative w-full max-w-sm space-y-6 duration-500">
         <div className="flex flex-col items-center gap-3 text-center">
