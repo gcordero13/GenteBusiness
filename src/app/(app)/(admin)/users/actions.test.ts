@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   deleteUser,
+  deleteUsers,
   inviteContactAsUser,
   inviteUser,
   setUserPassword,
@@ -441,5 +442,63 @@ describe("deleteUser", () => {
     const result = await deleteUser("user-1");
 
     expect(result.error).toBe("delete failed");
+  });
+});
+
+describe("deleteUsers", () => {
+  it("rejects callers without can_manage on the users module", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      mockServerClient({ can_manage: false }) as never,
+    );
+
+    const result = await deleteUsers(["user-1", "user-2"]);
+
+    expect(result.error).toBe("No autorizado");
+    expect(result.deletedCount).toBe(0);
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("returns immediately without calling the admin client for an empty list", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+
+    const result = await deleteUsers([]);
+
+    expect(result).toEqual({ deletedCount: 0, failed: [] });
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("deletes every user when all calls succeed", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const deleteUserMock = vi.fn().mockResolvedValue({ error: null });
+    const admin = mockAdminClient({ deleteUser: deleteUserMock });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await deleteUsers(["user-1", "user-2", "user-3"]);
+
+    expect(result.error).toBeUndefined();
+    expect(result.deletedCount).toBe(3);
+    expect(result.failed).toEqual([]);
+    expect(deleteUserMock).toHaveBeenCalledTimes(3);
+    expect(deleteUserMock).toHaveBeenNthCalledWith(1, "user-1");
+    expect(deleteUserMock).toHaveBeenNthCalledWith(2, "user-2");
+    expect(deleteUserMock).toHaveBeenNthCalledWith(3, "user-3");
+  });
+
+  it("continues past individual failures and reports both successes and failures", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockServerClient({ can_manage: true }) as never);
+    const deleteUserMock = vi
+      .fn()
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: { message: "user is referenced elsewhere" } })
+      .mockResolvedValueOnce({ error: null });
+    const admin = mockAdminClient({ deleteUser: deleteUserMock });
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await deleteUsers(["user-1", "user-2", "user-3"]);
+
+    expect(result.error).toBeUndefined();
+    expect(result.deletedCount).toBe(2);
+    expect(result.failed).toEqual([{ userId: "user-2", message: "user is referenced elsewhere" }]);
+    expect(deleteUserMock).toHaveBeenCalledTimes(3);
   });
 });

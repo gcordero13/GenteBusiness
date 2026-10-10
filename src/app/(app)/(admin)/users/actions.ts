@@ -231,3 +231,34 @@ export async function deleteUser(userId: string): Promise<InviteUserResult> {
   revalidatePath("/users");
   return {};
 }
+
+export interface DeleteUsersResult {
+  error?: string;
+  deletedCount: number;
+  failed: { userId: string; message: string }[];
+}
+
+export async function deleteUsers(userIds: string[]): Promise<DeleteUsersResult> {
+  if (!(await callerCanManageUsers())) {
+    return { error: "No autorizado", deletedCount: 0, failed: [] };
+  }
+  if (userIds.length === 0) {
+    return { deletedCount: 0, failed: [] };
+  }
+
+  const admin = createAdminClient();
+  let deletedCount = 0;
+  const failed: { userId: string; message: string }[] = [];
+
+  for (const userId of userIds) {
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) {
+      failed.push({ userId, message: error.message });
+    } else {
+      deletedCount++;
+    }
+  }
+
+  revalidatePath("/users");
+  return { deletedCount, failed };
+}
