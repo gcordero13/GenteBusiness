@@ -135,6 +135,10 @@ export function GoservicesTicketExplorer({
     () => deepLinkedRequest?.status ?? (mode.kind === "ejecutor" || mode.kind === "gestor" ? "recibido" : ALL_TAB),
   );
   const [selectedId, setSelectedId] = useState<string | null>(() => deepLinkedRequest?.id ?? null);
+  // Mobile (<md) shows one pane at a time — the list or the selected ticket's
+  // detail — instead of stacking both. A deep link should land straight on
+  // the ticket's detail rather than the list.
+  const [mobileView, setMobileView] = useState<"list" | "detail">(() => (deepLinkedRequest ? "detail" : "list"));
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(1);
 
@@ -194,7 +198,12 @@ export function GoservicesTicketExplorer({
       )}
     >
       {/* LEFT PANE: tabs, sort, list, pagination */}
-      <div className="flex w-full min-w-0 flex-col border-b border-border md:w-[30%] md:min-w-[280px] md:border-r md:border-b-0 md:overflow-hidden">
+      <div
+        className={cn(
+          mobileView === "detail" ? "hidden md:flex" : "flex",
+          "w-full min-w-0 flex-col border-b border-border md:w-[30%] md:min-w-[280px] md:border-r md:border-b-0 md:overflow-hidden",
+        )}
+      >
         <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-muted/30 px-2 py-2">
           {tabs.map((tab) => {
             const label = tab === ALL_TAB ? "Todas" : (STATUS_LABELS[tab] ?? tab);
@@ -244,7 +253,10 @@ export function GoservicesTicketExplorer({
                 <button
                   key={r.id}
                   type="button"
-                  onClick={() => setSelectedId(r.id)}
+                  onClick={() => {
+                    setSelectedId(r.id);
+                    setMobileView("detail");
+                  }}
                   className={cn(
                     "flex w-full items-start gap-3 border-b border-l-4 border-border/60 border-l-transparent px-3 py-3 text-left transition-colors",
                     isSelected
@@ -289,7 +301,20 @@ export function GoservicesTicketExplorer({
       </div>
 
       {/* RIGHT PANE: status stepper, fields grid, context actions */}
-      <div className="min-w-0 flex-1 overflow-y-auto p-5">
+      <div
+        className={cn(
+          mobileView === "list" ? "hidden md:block" : "block",
+          "min-w-0 flex-1 overflow-y-auto p-5",
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setMobileView("list")}
+          className="mb-4 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:hidden"
+        >
+          <ChevronLeft className="size-4" />
+          Volver a la lista
+        </button>
         {!selectedRequest ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <MousePointerClick className="size-8 text-muted-foreground/40" />
@@ -361,7 +386,6 @@ export function GoservicesTicketExplorer({
                     <Field label="Dirección">{selectedRequest.contactoDireccion ?? "—"}</Field>
                   </>
                 )}
-                <Field label="Foto / Adjunto">—</Field>
                 <Field label="Fecha de Creación">{selectedRequest.createdAtLabel}</Field>
               </div>
             </div>
