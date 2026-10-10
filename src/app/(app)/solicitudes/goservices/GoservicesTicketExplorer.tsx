@@ -144,6 +144,18 @@ export function GoservicesTicketExplorer({
 
   const tabs = useMemo(() => [ALL_TAB, ...Object.keys(STATUS_LABELS)], []);
 
+  // Counts are always against the full, unfiltered-by-tab `requests` prop so
+  // each tab shows "how many total", not "how many on the current page" —
+  // this is what lets the tab bar double as a mini dashboard on mobile,
+  // where the larger GoservicesStatusSummary cards are hidden.
+  const tabCounts = useMemo(() => {
+    const counts: Record<string, number> = { [ALL_TAB]: requests.length };
+    for (const status of Object.keys(STATUS_LABELS)) {
+      counts[status] = requests.filter((r) => r.status === status).length;
+    }
+    return counts;
+  }, [requests]);
+
   const filtered = useMemo(
     () => (activeTab === ALL_TAB ? requests : requests.filter((r) => r.status === activeTab)),
     [requests, activeTab],
@@ -214,13 +226,21 @@ export function GoservicesTicketExplorer({
                 type="button"
                 onClick={() => changeTab(tab)}
                 className={cn(
-                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-150",
+                  "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-150",
                   active
                     ? "bg-[#04B1AF] text-white shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 {label}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold tabular-nums",
+                    active ? "bg-white/25 text-white" : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {tabCounts[tab] ?? 0}
+                </span>
               </button>
             );
           })}
@@ -271,7 +291,9 @@ export function GoservicesTicketExplorer({
                     <AvatarFallback className="bg-[#04B1AF]/15 text-[#04B1AF]">{initials(r.requesterName)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{r.requesterName}</p>
+                    <p className="truncate text-sm font-semibold">
+                      <span className="font-normal text-muted-foreground">#{r.requestNumber}</span> · {r.requesterName}
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">{r.typeLabel}</p>
                     <p className="truncate text-xs text-muted-foreground/80">{r.createdAtLabel}</p>
                   </div>

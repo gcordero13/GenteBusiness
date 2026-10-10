@@ -11,7 +11,7 @@ const STATUS_ICONS: Record<string, LucideIcon> = {
 
 export function GoservicesStatusSummary({ rows }: { rows: { status: string }[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+    <div className="hidden sm:grid sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
       <div className="group rounded-2xl border border-[#04B1AF]/25 bg-gradient-to-br from-[#04B1AF]/10 to-[#04B1AF]/[0.03] p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4 lg:p-5">
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-[#04B1AF] uppercase">
           <span className="flex size-5 items-center justify-center rounded-full bg-[#04B1AF]/15 sm:size-6 lg:size-7">
