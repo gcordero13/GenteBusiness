@@ -92,3 +92,20 @@ export async function savePlatformLogo(logoUrl: string): Promise<ActionResult> {
   revalidatePath("/reset-password");
   return {};
 }
+
+export async function saveLoginBackground(backgroundUrl: string): Promise<ActionResult> {
+  if (!(await callerCanManageSettings())) {
+    return { error: "No autorizado" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("platform_settings")
+    .update({ login_background_url: backgroundUrl })
+    .eq("id", true);
+  if (error) return { error: error.message };
+
+  revalidatePath("/settings");
+  revalidatePath("/login");
+  return {};
+}

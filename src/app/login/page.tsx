@@ -1,6 +1,7 @@
 import { Mail, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getLoginBackgroundUrl } from "@/lib/platformSettings";
 import { login } from "./actions";
 import { SubmitButton } from "./SubmitButton";
 import { PasswordField } from "./PasswordField";
@@ -11,11 +12,12 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+  const backgroundUrl = (await getLoginBackgroundUrl()) ?? "/login-background.jpg";
 
   return (
     <div
       className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-100 bg-cover bg-center px-4"
-      style={{ backgroundImage: "url('/login-background.jpg')" }}
+      style={{ backgroundImage: `url('${backgroundUrl}')` }}
     >
       <div className="animate-in fade-in-0 slide-in-from-bottom-4 relative w-full max-w-sm space-y-6 duration-500">
         <div className="flex flex-col items-center gap-3 text-center">
