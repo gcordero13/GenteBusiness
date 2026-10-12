@@ -19,7 +19,7 @@ import { STATUS_LABELS } from "@/lib/goservicesStatus";
 import { GoservicesBoardView } from "./GoservicesBoardView";
 import { GoservicesTableView } from "./GoservicesTableView";
 import { GoservicesTicketDetail } from "./GoservicesTicketDetail";
-import type { GoservicesRequestRow } from "./actions";
+import type { GoservicesRequestRow, AssignableUser } from "./actions";
 
 export type ViewMode = "list" | "board" | "table";
 
@@ -28,7 +28,7 @@ export type GoservicesExplorerMode =
   | { kind: "ejecutor" }
   | {
       kind: "gestor";
-      assignableUsers: { id: string; email: string }[];
+      assignableUsers: AssignableUser[];
     };
 
 const PAGE_SIZE = 10;

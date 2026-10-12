@@ -377,7 +377,18 @@ export async function listAllGoservicesRequests(filters: { type?: string; status
   return rows.map((r) => toRow(r, r.assigned_app_user_id ? (emailMap.get(r.assigned_app_user_id) ?? null) : null));
 }
 
-export async function listAssignableUsers(): Promise<{ id: string; email: string }[]> {
+export interface AssignableUser {
+  id: string;
+  email: string;
+  name: string;
+  // null = eligible for either request type (the prior, unrestricted
+  // behavior) — set explicitly from the Users admin page to keep "el
+  // mensajero" and "el de mantenimiento" from showing up for each other's
+  // tickets.
+  ejecutorType: "mantenimiento" | "mensajeria" | null;
+}
+
+export async function listAssignableUsers(): Promise<AssignableUser[]> {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "goservices" });
   if (!flagsRows?.[0]?.can_authorize) return [];
@@ -398,13 +409,40 @@ export async function listAssignableUsers(): Promise<{ id: string; email: string
   const profileIds = (ejecutorProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
   if (profileIds.length === 0) return [];
 
-  const { data } = await admin
+  const { data: users } = await admin
     .from("app_users")
-    .select("id, email")
+    .select("id, email, full_name, goservices_ejecutor_type")
     .in("role_profile_id", profileIds)
     .eq("status", "active")
     .order("email");
-  return data ?? [];
+  if (!users || users.length === 0) return [];
+
+  // app_users.full_name is rarely populated — fall back to the matching
+  // contacts row (the HR/directory record for the same email), which
+  // already has real names for current staff, so the gestor can pick a
+  // person by name instead of having to recognize their email.
+  const emails = users.map((u: { email: string }) => u.email);
+  const { data: contacts } = await admin.from("contacts").select("email, first_name, last_name").in("email", emails);
+  const nameByEmail = new Map(
+    (contacts ?? []).map((c: { email: string; first_name: string; last_name: string }) => [
+      c.email,
+      `${c.first_name} ${c.last_name}`.trim(),
+    ]),
+  );
+
+  return users.map(
+    (u: {
+      id: string;
+      email: string;
+      full_name: string | null;
+      goservices_ejecutor_type: "mantenimiento" | "mensajeria" | null;
+    }) => ({
+      id: u.id,
+      email: u.email,
+      name: u.full_name || nameByEmail.get(u.email) || u.email,
+      ejecutorType: u.goservices_ejecutor_type,
+    }),
+  );
 }
 
 export interface GoservicesCommentRow {

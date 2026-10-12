@@ -20,7 +20,7 @@ export function AssignRequestSelect({
 }: {
   requestId: string;
   assignedAppUserId: string | null;
-  users: { id: string; email: string }[];
+  users: { id: string; email: string; name: string }[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -39,7 +39,7 @@ export function AssignRequestSelect({
     });
   }
 
-  const emailById = new Map(users.map((u) => [u.id, u.email]));
+  const nameById = new Map(users.map((u) => [u.id, u.name]));
 
   return (
     <div className="space-y-1">
@@ -50,14 +50,14 @@ export function AssignRequestSelect({
       >
         <SelectTrigger className="w-56">
           <SelectValue>
-            {(value: string) => (value === UNASSIGNED_VALUE ? "Sin asignar" : (emailById.get(value) ?? value))}
+            {(value: string) => (value === UNASSIGNED_VALUE ? "Sin asignar" : (nameById.get(value) ?? value))}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={UNASSIGNED_VALUE}>Sin asignar</SelectItem>
           {users.map((u) => (
             <SelectItem key={u.id} value={u.id}>
-              {u.email}
+              {u.name}
             </SelectItem>
           ))}
         </SelectContent>

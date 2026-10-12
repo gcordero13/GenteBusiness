@@ -181,7 +181,9 @@ export function GoservicesTicketDetail({
                 <AssignRequestSelect
                   requestId={request.id}
                   assignedAppUserId={request.assignedAppUserId}
-                  users={mode.assignableUsers}
+                  users={mode.assignableUsers.filter(
+                    (u) => u.ejecutorType === null || u.ejecutorType === request.requestType,
+                  )}
                 />
               </div>
               <div className="space-y-1.5">
