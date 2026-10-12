@@ -4,6 +4,7 @@ import { listAllGoservicesRequests, listAssignableUsers } from "../solicitudes/g
 import { GoservicesFilterBar } from "./GoservicesFilterBar";
 import { GoservicesStatusSummary } from "../solicitudes/goservices/GoservicesStatusSummary";
 import { GoservicesTicketExplorer } from "../solicitudes/goservices/GoservicesTicketExplorer";
+import { GoservicesExportButton } from "./GoservicesExportButton";
 
 export default async function GoservicesDashboardPage({
   searchParams,
@@ -16,30 +17,31 @@ export default async function GoservicesDashboardPage({
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", {
     p_module_key: "goservices",
   });
-  if (!flagsRows?.[0]?.can_view) {
+  if (!flagsRows?.[0]?.can_authorize) {
     redirect("/");
   }
 
-  const [requests, allRequests, mantenimientoUsers, mensajeriaUsers] = await Promise.all([
+  const [requests, allRequests, assignableUsers] = await Promise.all([
     listAllGoservicesRequests({ type }),
     listAllGoservicesRequests({}),
-    listAssignableUsers("mantenimiento"),
-    listAssignableUsers("mensajeria"),
+    listAssignableUsers(),
   ]);
-  const assignableUsersByType = { mantenimiento: mantenimientoUsers, mensajeria: mensajeriaUsers };
 
   return (
     <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
       <div className="w-full min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">GoServices — Todas las solicitudes</h1>
-          <p className="text-sm text-muted-foreground">
-            Vista de gestión: asigna responsables y actualiza el estatus de cada ticket.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">GoServices — Todas las solicitudes</h1>
+            <p className="text-sm text-muted-foreground">
+              Vista de gestión: asigna responsables y actualiza el estatus de cada ticket.
+            </p>
+          </div>
+          <GoservicesExportButton rows={allRequests} />
         </div>
         <GoservicesStatusSummary rows={allRequests} />
         <GoservicesFilterBar type={type ?? null} />
-        <GoservicesTicketExplorer requests={requests} mode={{ kind: "gestor", assignableUsersByType }} />
+        <GoservicesTicketExplorer requests={requests} mode={{ kind: "gestor", assignableUsers }} />
       </div>
     </div>
   );

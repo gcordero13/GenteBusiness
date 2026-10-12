@@ -36,7 +36,7 @@ export type GoservicesExplorerMode =
   | { kind: "ejecutor" }
   | {
       kind: "gestor";
-      assignableUsersByType: Record<"mantenimiento" | "mensajeria", { id: string; email: string }[]>;
+      assignableUsers: { id: string; email: string }[];
     };
 
 const PAGE_SIZE = 10;
@@ -420,7 +420,7 @@ export function GoservicesTicketExplorer({
                       key={selectedRequest.id}
                       requestId={selectedRequest.id}
                       assignedAppUserId={selectedRequest.assignedAppUserId}
-                      users={mode.assignableUsersByType[selectedRequest.requestType]}
+                      users={mode.assignableUsers}
                     />
                     <AssignedRequestStatusSelect
                       key={selectedRequest.id}

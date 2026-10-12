@@ -160,7 +160,7 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
         .from("role_profile_permissions")
         .select("role_profile_id")
         .eq("module_id", module.id)
-        .eq("can_view", true);
+        .eq("can_authorize", true);
       const profileIds = (viewerProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
       if (profileIds.length > 0) {
         const { data: managerUsers } = await admin
@@ -363,27 +363,24 @@ export async function listAllGoservicesRequests(filters: { type?: string; status
   return rows.map((r) => toRow(r, r.assigned_app_user_id ? (emailMap.get(r.assigned_app_user_id) ?? null) : null));
 }
 
-export async function listAssignableUsers(
-  requestType: "mantenimiento" | "mensajeria",
-): Promise<{ id: string; email: string }[]> {
+export async function listAssignableUsers(): Promise<{ id: string; email: string }[]> {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "goservices" });
-  if (!flagsRows?.[0]?.can_view) return [];
+  if (!flagsRows?.[0]?.can_authorize) return [];
 
   const admin = createAdminClient();
   const { data: module } = await admin.from("modules").select("id").eq("key", "goservices").single();
   if (!module?.id) return [];
 
-  // can_add = eligible for mantenimiento tickets, can_edit = eligible for
-  // mensajería tickets (both repurposed role_profile_permissions columns on
-  // the goservices module — see the goservices_comments_and_ejecutor_types
-  // migration).
-  const eligibilityColumn = requestType === "mantenimiento" ? "can_add" : "can_edit";
+  // can_manage = "ejecutor": eligible to be assigned any request regardless
+  // of type — mantenimiento vs mensajería is an organizational distinction
+  // via which role profile grants can_manage (e.g. the UTILITY / Mensajeria
+  // profiles), not a separate code-level flag per type.
   const { data: ejecutorProfiles } = await admin
     .from("role_profile_permissions")
     .select("role_profile_id")
     .eq("module_id", module.id)
-    .eq(eligibilityColumn, true);
+    .eq("can_manage", true);
   const profileIds = (ejecutorProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
   if (profileIds.length === 0) return [];
 
@@ -520,7 +517,7 @@ export async function updateGoservicesRequestStatus(
 export async function assignGoservicesRequest(requestId: string, assignedAppUserId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "goservices" });
-  if (!flagsRows?.[0]?.can_view) return { error: "No autorizado" };
+  if (!flagsRows?.[0]?.can_authorize) return { error: "No autorizado" };
 
   const { data: updated, error } = await supabase
     .from("goservices_requests")

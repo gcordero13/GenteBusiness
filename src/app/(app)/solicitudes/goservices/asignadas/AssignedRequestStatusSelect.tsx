@@ -65,7 +65,7 @@ export function AssignedRequestStatusSelect({
     });
   }
 
-  // A gestor (can_view) may set any status, but "Finalizado por ejecutor" is
+  // A gestor (can_authorize) may set any status, but "Finalizado por ejecutor" is
   // a mantenimiento-only concept (the DB trigger itself rejects it for
   // mensajería) — exclude it from the gestor's own dropdown for a mensajería
   // request too, so the UI never offers a state with no defined meaning for
