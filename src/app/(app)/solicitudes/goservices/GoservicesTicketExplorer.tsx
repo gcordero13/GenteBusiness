@@ -1,48 +1,27 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  Eye,
-  FileText,
   Inbox,
-  LayoutGrid,
   MousePointerClick,
-  Rows3,
-  Table2,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
-import { GoservicesStatusBadge } from "./GoservicesStatusBadge";
-import { GoservicesCommentThread } from "./GoservicesCommentThread";
+import { STATUS_LABELS } from "@/lib/goservicesStatus";
 import { GoservicesBoardView } from "./GoservicesBoardView";
 import { GoservicesTableView } from "./GoservicesTableView";
+import { GoservicesTicketDetail } from "./GoservicesTicketDetail";
 import type { GoservicesRequestRow } from "./actions";
-import { AssignRequestSelect } from "../../goservices/AssignRequestSelect";
-import { AssignedRequestStatusSelect } from "./asignadas/AssignedRequestStatusSelect";
 
-type ViewMode = "list" | "board" | "table";
-
-const VIEW_MODE_OPTIONS: { key: ViewMode; label: string; icon: typeof Rows3 }[] = [
-  { key: "list", label: "Lista", icon: Rows3 },
-  { key: "board", label: "Tablero", icon: LayoutGrid },
-  { key: "table", label: "Tabla", icon: Table2 },
-];
+export type ViewMode = "list" | "board" | "table";
 
 export type GoservicesExplorerMode =
   | { kind: "readonly" }
@@ -55,22 +34,6 @@ export type GoservicesExplorerMode =
 const PAGE_SIZE = 10;
 const ALL_TAB = "todas";
 
-const REQUEST_TYPE_LABELS: Record<GoservicesRequestRow["requestType"], string> = {
-  mantenimiento: "Mantenimiento",
-  mensajeria: "Mensajería",
-};
-
-const UBICACION_LABELS: Record<string, string> = {
-  oficina: "Oficina",
-  alojamiento: "Alojamiento",
-};
-
-// The lifecycle sequence differs by request type: "finalizado_ejecutor" is a
-// mantenimiento-only concept (see AssignedRequestStatusSelect) and must never
-// show up in a mensajería ticket's stepper.
-const MANTENIMIENTO_STEPS: GoservicesStatus[] = ["recibido", "en_proceso", "finalizado_ejecutor", "completado"];
-const MENSAJERIA_STEPS: GoservicesStatus[] = ["recibido", "en_proceso", "completado"];
-
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -78,57 +41,14 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function Field({ label, children, tall }: { label: string; children: ReactNode; tall?: boolean }) {
-  return (
-    <div className="space-y-1.5">
-      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</p>
-      <div
-        className={cn(
-          "rounded-lg border border-border/60 bg-muted/50 px-3 py-2 text-sm",
-          tall ? "max-h-40 overflow-y-auto whitespace-pre-wrap" : "truncate",
-        )}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function StatusStepper({ request }: { request: GoservicesRequestRow }) {
-  if (request.status === "cancelado") {
-    return <GoservicesStatusBadge status="cancelado" label={STATUS_LABELS.cancelado} />;
-  }
-
-  const steps = request.requestType === "mantenimiento" ? MANTENIMIENTO_STEPS : MENSAJERIA_STEPS;
-  const currentIndex = steps.indexOf(request.status as GoservicesStatus);
-
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-      {steps.map((step, index) => {
-        const reached = currentIndex >= 0 && index <= currentIndex;
-        return (
-          <span
-            key={step}
-            className={cn(
-              "inline-flex items-center gap-1.5 text-sm",
-              reached ? "font-medium text-foreground" : "text-muted-foreground",
-            )}
-          >
-            <CheckCircle2 className={cn("size-4", reached ? "text-emerald-500" : "text-muted-foreground/40")} />
-            {STATUS_LABELS[step]}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
 export function GoservicesTicketExplorer({
   requests,
   mode,
+  viewMode = "list",
 }: {
   requests: GoservicesRequestRow[];
   mode: GoservicesExplorerMode;
+  viewMode?: ViewMode;
 }) {
   // Deep-linking: /solicitudes/goservices?ticket=<id> (also used by the
   // status-change/assignment emails) should land on that ticket pre-selected
@@ -155,18 +75,13 @@ export function GoservicesTicketExplorer({
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(1);
   // Board/table are gestor-only alternative views (confirmed with the user:
-  // a Kanban-style board grouped by status, and a flat sortable grid). A
-  // click on a card/row jumps back into the familiar list+detail view with
-  // that ticket pre-selected, rather than duplicating the detail pane.
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
-
-  function selectFromAltView(id: string) {
-    const request = requests.find((r) => r.id === id);
-    if (request) setActiveTab(request.status);
-    setSelectedId(id);
-    setMobileView("detail");
-    setViewMode("list");
-  }
+  // a Kanban-style board grouped by status, and a flat sortable grid),
+  // switched via the `viewMode` prop so the switcher can live in the same
+  // row as the page's type filter instead of inside this component. A click
+  // on a card/row opens that ticket's detail in a modal, without leaving the
+  // board/table view behind.
+  const [modalRequestId, setModalRequestId] = useState<string | null>(null);
+  const modalRequest = modalRequestId ? (requests.find((r) => r.id === modalRequestId) ?? null) : null;
 
   const tabs = useMemo(() => [ALL_TAB, ...Object.keys(STATUS_LABELS)], []);
 
@@ -226,31 +141,10 @@ export function GoservicesTicketExplorer({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-3">
-      {mode.kind === "gestor" && (
-        <div className="flex w-fit items-center gap-1 self-end rounded-full border border-border bg-muted/40 p-1">
-          {VIEW_MODE_OPTIONS.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setViewMode(key)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
-                viewMode === key
-                  ? "bg-[#04B1AF] text-white shadow-sm"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icon className="size-3.5" />
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
       {viewMode === "board" ? (
-        <GoservicesBoardView requests={requests} onSelect={selectFromAltView} />
+        <GoservicesBoardView requests={requests} onSelect={setModalRequestId} />
       ) : viewMode === "table" ? (
-        <GoservicesTableView requests={requests} onSelect={selectFromAltView} />
+        <GoservicesTableView requests={requests} onSelect={setModalRequestId} />
       ) : (
     <div
       className={cn(
@@ -401,127 +295,22 @@ export function GoservicesTicketExplorer({
           // a clean teardown and rebuild on every navigation, never a
           // partial re-render that could leave a previous ticket's controls
           // behind alongside the new one.
-          <div key={`${activeTab}:${selectedRequest.id}`} className="space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 p-3">
-              <p className="text-sm font-semibold text-foreground">Ticket #{selectedRequest.requestNumber}</p>
-              <div className="flex flex-wrap items-center gap-3">
-                <StatusStepper request={selectedRequest} />
-                {selectedRequest.fotoDriveId && selectedRequest.fotoItemId && (
-                  <Dialog>
-                    <DialogTrigger render={<Button variant="secondary" size="sm" className="rounded-full" />}>
-                      <Eye className="size-3.5" />
-                      Ver Foto
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl">
-                      <DialogHeader>
-                        <DialogTitle>Foto de la solicitud</DialogTitle>
-                      </DialogHeader>
-                      <img
-                        src={`/api/goservices/attachment/${selectedRequest.fotoDriveId}/${selectedRequest.fotoItemId}`}
-                        alt="Foto de la solicitud"
-                        className="max-h-[70vh] w-full object-contain"
-                      />
-                    </DialogContent>
-                  </Dialog>
-                )}
-                {selectedRequest.documentoDriveId && selectedRequest.documentoItemId && (
-                  <a
-                    href={`/api/goservices/attachment/${selectedRequest.documentoDriveId}/${selectedRequest.documentoItemId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm font-medium transition-colors hover:bg-muted"
-                  >
-                    <FileText className="size-3.5" />
-                    Ver documento
-                  </a>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-4">
-                <Field label="Ticket">#{selectedRequest.requestNumber}</Field>
-                <Field label="Tipo de solicitud">{selectedRequest.typeLabel}</Field>
-                <Field label="Detalle de solicitud" tall>
-                  {selectedRequest.detalle}
-                </Field>
-                <Field label="Estatus">{selectedRequest.statusLabel}</Field>
-                {mode.kind !== "gestor" && (
-                  <Field label="Asignado a">{selectedRequest.assignedAppUserEmail ?? "Sin asignar"}</Field>
-                )}
-              </div>
-              <div className="space-y-4">
-                <Field label="Solicitud">{REQUEST_TYPE_LABELS[selectedRequest.requestType]}</Field>
-                {selectedRequest.requestType === "mantenimiento" ? (
-                  <>
-                    <Field label="Categoria">{selectedRequest.subcategoria ?? "—"}</Field>
-                    <Field label="Ubicación">
-                      {selectedRequest.ubicacion
-                        ? (UBICACION_LABELS[selectedRequest.ubicacion] ?? selectedRequest.ubicacion)
-                        : "—"}
-                    </Field>
-                  </>
-                ) : (
-                  <>
-                    <Field label="Nombre de contacto">{selectedRequest.contactoNombre ?? "—"}</Field>
-                    <Field label="Teléfono">{selectedRequest.contactoTelefono ?? "—"}</Field>
-                    <Field label="Dirección">{selectedRequest.contactoDireccion ?? "—"}</Field>
-                  </>
-                )}
-                <Field label="Fecha de Creación">{selectedRequest.createdAtLabel}</Field>
-              </div>
-            </div>
-
-            {mode.kind !== "readonly" && (
-              <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
-                {mode.kind === "gestor" && (
-                  <div className="flex flex-wrap gap-4">
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                        Asignado a
-                      </p>
-                      <AssignRequestSelect
-                        key={selectedRequest.id}
-                        requestId={selectedRequest.id}
-                        assignedAppUserId={selectedRequest.assignedAppUserId}
-                        users={mode.assignableUsers}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                        Estatus
-                      </p>
-                      <AssignedRequestStatusSelect
-                        key={selectedRequest.id}
-                        requestId={selectedRequest.id}
-                        status={selectedRequest.status}
-                        requestType={selectedRequest.requestType}
-                        allStatuses
-                      />
-                    </div>
-                  </div>
-                )}
-                {mode.kind === "ejecutor" && (
-                  <AssignedRequestStatusSelect
-                    key={selectedRequest.id}
-                    requestId={selectedRequest.id}
-                    status={selectedRequest.status}
-                    requestType={selectedRequest.requestType}
-                  />
-                )}
-              </div>
-            )}
-
-            <GoservicesCommentThread
-              key={selectedRequest.id}
-              requestId={selectedRequest.id}
-              canComment={mode.kind !== "readonly"}
-            />
-          </div>
+          <GoservicesTicketDetail key={`${activeTab}:${selectedRequest.id}`} request={selectedRequest} mode={mode} />
         )}
       </div>
     </div>
       )}
+
+      {/* Tablero/Tabla open the ticket in a modal instead of switching back
+          to the Lista view, so the board/table stay in place behind it. */}
+      <Dialog open={!!modalRequest} onOpenChange={(open) => !open && setModalRequestId(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalle de la solicitud</DialogTitle>
+          </DialogHeader>
+          {modalRequest && <GoservicesTicketDetail key={modalRequest.id} request={modalRequest} mode={mode} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

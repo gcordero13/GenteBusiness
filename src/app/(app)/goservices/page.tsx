@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { listAllGoservicesRequests, listAssignableUsers } from "../solicitudes/goservices/actions";
-import { GoservicesFilterBar } from "./GoservicesFilterBar";
 import { GoservicesStatusSummary } from "../solicitudes/goservices/GoservicesStatusSummary";
-import { GoservicesTicketExplorer } from "../solicitudes/goservices/GoservicesTicketExplorer";
 import { GoservicesExportButton } from "./GoservicesExportButton";
+import { GoservicesGestionView } from "./GoservicesGestionView";
 
 export default async function GoservicesDashboardPage({
   searchParams,
@@ -40,8 +39,7 @@ export default async function GoservicesDashboardPage({
           <GoservicesExportButton rows={allRequests} />
         </div>
         <GoservicesStatusSummary rows={allRequests} />
-        <GoservicesFilterBar type={type ?? null} />
-        <GoservicesTicketExplorer requests={requests} mode={{ kind: "gestor", assignableUsers }} />
+        <GoservicesGestionView type={type ?? null} requests={requests} mode={{ kind: "gestor", assignableUsers }} />
       </div>
     </div>
   );
