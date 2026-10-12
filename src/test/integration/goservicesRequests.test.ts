@@ -307,6 +307,52 @@ describe("goservices_requests RLS", () => {
     expect(stillFinalizado?.status).toBe("finalizado_ejecutor");
   });
 
+  it("lets an assigned mantenimiento ejecutor pause (en_espera) from en_proceso and resume back to en_proceso", async () => {
+    const requester = await createTestUser("Viewer");
+    const manager = await createTestUser("Super Admin");
+    const ejecutor = await createTestUser("Viewer");
+    testUsers.push(requester, manager, ejecutor);
+
+    const { data: created } = await requester.client
+      .from("goservices_requests")
+      .insert(baseMantenimientoPayload(requester.id))
+      .select()
+      .single();
+    requestIds.push(created!.id);
+
+    await manager.client
+      .from("goservices_requests")
+      .update({ assigned_app_user_id: ejecutor.id })
+      .eq("id", created!.id)
+      .select()
+      .single();
+
+    await ejecutor.client
+      .from("goservices_requests")
+      .update({ status: "en_proceso" })
+      .eq("id", created!.id)
+      .select()
+      .single();
+
+    const { data: paused, error: pauseError } = await ejecutor.client
+      .from("goservices_requests")
+      .update({ status: "en_espera" })
+      .eq("id", created!.id)
+      .select()
+      .single();
+    expect(pauseError).toBeNull();
+    expect(paused?.status).toBe("en_espera");
+
+    const { data: resumed, error: resumeError } = await ejecutor.client
+      .from("goservices_requests")
+      .update({ status: "en_proceso" })
+      .eq("id", created!.id)
+      .select()
+      .single();
+    expect(resumeError).toBeNull();
+    expect(resumed?.status).toBe("en_proceso");
+  });
+
   it("lets a gestor close a finalizado_ejecutor mantenimiento request as completado", async () => {
     const requester = await createTestUser("Viewer");
     const manager = await createTestUser("Super Admin");
@@ -438,6 +484,52 @@ describe("goservices_requests RLS", () => {
       .eq("id", restricted!.id)
       .single();
     expect(stillRecibido?.status).toBe("recibido");
+  });
+
+  it("lets an assigned mensajeria ejecutor pause (en_espera) from en_proceso and then complete directly", async () => {
+    const requester = await createTestUser("Viewer");
+    const manager = await createTestUser("Super Admin");
+    const ejecutor = await createTestUser("Viewer");
+    testUsers.push(requester, manager, ejecutor);
+
+    const { data: created } = await requester.client
+      .from("goservices_requests")
+      .insert(baseMensajeriaPayload(requester.id))
+      .select()
+      .single();
+    requestIds.push(created!.id);
+
+    await manager.client
+      .from("goservices_requests")
+      .update({ assigned_app_user_id: ejecutor.id })
+      .eq("id", created!.id)
+      .select()
+      .single();
+
+    await ejecutor.client
+      .from("goservices_requests")
+      .update({ status: "en_proceso" })
+      .eq("id", created!.id)
+      .select()
+      .single();
+
+    const { data: paused, error: pauseError } = await ejecutor.client
+      .from("goservices_requests")
+      .update({ status: "en_espera" })
+      .eq("id", created!.id)
+      .select()
+      .single();
+    expect(pauseError).toBeNull();
+    expect(paused?.status).toBe("en_espera");
+
+    const { data: completed, error: completeError } = await ejecutor.client
+      .from("goservices_requests")
+      .update({ status: "completado" })
+      .eq("id", created!.id)
+      .select()
+      .single();
+    expect(completeError).toBeNull();
+    expect(completed?.status).toBe("completado");
   });
 
   it("rejects an assigned ejecutor who tries to reassign the ticket in the same update that changes status", async () => {

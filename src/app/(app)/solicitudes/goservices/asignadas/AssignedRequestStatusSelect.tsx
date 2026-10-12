@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Pause } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -10,13 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { updateGoservicesRequestStatus } from "../actions";
+import { updateGoservicesRequestStatus, addGoservicesComment } from "../actions";
 import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
 import { GoservicesStatusBadge } from "../GoservicesStatusBadge";
 
 const ALLOWED_OPTIONS: Record<"mantenimiento" | "mensajeria", GoservicesStatus[]> = {
-  mantenimiento: ["en_proceso", "finalizado_ejecutor"],
-  mensajeria: ["en_proceso", "completado"],
+  mantenimiento: ["en_proceso", "en_espera", "finalizado_ejecutor"],
+  mensajeria: ["en_proceso", "en_espera", "completado"],
 };
 
 // Statuses past which the assigned ejecutor has nothing further to do for
@@ -40,6 +41,31 @@ export function AssignedRequestStatusSelect({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // "En espera" requires a reason (confirmed with the user) — posted as a
+  // regular comment before the status change, so the supervisor always sees
+  // why a ticket got paused.
+  const [holdOpen, setHoldOpen] = useState(false);
+  const [holdReason, setHoldReason] = useState("");
+
+  function onHoldConfirm() {
+    if (!holdReason.trim()) return;
+    setError(null);
+    startTransition(async () => {
+      const commentResult = await addGoservicesComment(requestId, holdReason);
+      if (commentResult.error) {
+        setError(commentResult.error);
+        return;
+      }
+      const result = await updateGoservicesRequestStatus(requestId, "en_espera");
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setHoldOpen(false);
+      setHoldReason("");
+      router.refresh();
+    });
+  }
 
   function onSelectChange(next: GoservicesStatus) {
     setError(null);
@@ -99,6 +125,41 @@ export function AssignedRequestStatusSelect({
     <div className="space-y-1">
       {isTerminal ? (
         <GoservicesStatusBadge status={status} label={STATUS_LABELS[status] ?? status} />
+      ) : holdOpen ? (
+        <div className="space-y-1.5">
+          <textarea
+            className="w-full resize-none rounded-md border border-border bg-background p-2 text-sm"
+            value={holdReason}
+            onChange={(e) => setHoldReason(e.target.value)}
+            placeholder="¿Por qué se pausa? (obligatorio)"
+            rows={2}
+            disabled={isPending}
+            autoFocus
+          />
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isPending}
+              onClick={() => {
+                setHoldOpen(false);
+                setHoldReason("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isPending || !holdReason.trim()}
+              className="bg-slate-600 text-white hover:bg-slate-700"
+              onClick={onHoldConfirm}
+            >
+              Confirmar pausa
+            </Button>
+          </div>
+        </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           {showEnProceso && (
@@ -110,6 +171,18 @@ export function AssignedRequestStatusSelect({
               onClick={() => onEjecutorAction(ALLOWED_OPTIONS[requestType][0])}
             >
               En proceso
+            </Button>
+          )}
+          {status === "en_proceso" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isPending}
+              onClick={() => setHoldOpen(true)}
+            >
+              <Pause className="size-3.5" />
+              En espera
             </Button>
           )}
           {requestType === "mantenimiento" ? (

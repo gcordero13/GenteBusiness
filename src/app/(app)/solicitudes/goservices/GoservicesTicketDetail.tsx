@@ -61,7 +61,12 @@ function StatusStepper({ request }: { request: GoservicesRequestRow }) {
   }
 
   const steps = request.requestType === "mantenimiento" ? MANTENIMIENTO_STEPS : MENSAJERIA_STEPS;
-  const currentIndex = steps.indexOf(request.status as GoservicesStatus);
+  // "En espera" is a pause, not a forward step in the sequence — the stepper
+  // freezes at the last real step reached ("En proceso") and an extra badge
+  // next to it communicates the pause, instead of trying to fit "En espera"
+  // into the linear progression.
+  const isOnHold = request.status === "en_espera";
+  const currentIndex = steps.indexOf((isOnHold ? "en_proceso" : request.status) as GoservicesStatus);
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -80,6 +85,7 @@ function StatusStepper({ request }: { request: GoservicesRequestRow }) {
           </span>
         );
       })}
+      {isOnHold && <GoservicesStatusBadge status="en_espera" label={STATUS_LABELS.en_espera} />}
     </div>
   );
 }
