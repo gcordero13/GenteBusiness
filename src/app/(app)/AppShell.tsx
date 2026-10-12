@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "./Sidebar";
+import { InstallAppBanner } from "./InstallAppBanner";
 
 export function AppShell({
   children,
@@ -45,6 +46,7 @@ export function AppShell({
             </Button>
           </form>
         </header>
+        <InstallAppBanner />
         <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>

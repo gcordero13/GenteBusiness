@@ -1,19 +1,10 @@
 import type { MetadataRoute } from "next";
-import { getPlatformLogoUrl } from "@/lib/platformSettings";
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
-  const logoUrl = await getPlatformLogoUrl();
-
-  const icons = logoUrl
-    ? [
-        { src: logoUrl, sizes: "any", purpose: "any" as const },
-        { src: logoUrl, sizes: "any", purpose: "maskable" as const },
-      ]
-    : [
-        { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" as const },
-        { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" as const },
-      ];
-
+  // `/icon` (src/app/icon.tsx) always composites the logo — custom or the
+  // default "GSB" mark — onto a solid teal background, so the icon stays
+  // visible regardless of what's uploaded (the raw uploaded logo is
+  // white-on-transparent and disappears on a light home screen otherwise).
   return {
     name: "Gente Sánchez Business",
     short_name: "GSB",
@@ -22,6 +13,9 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#04b1af",
-    icons,
+    icons: [
+      { src: "/icon", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
   };
 }

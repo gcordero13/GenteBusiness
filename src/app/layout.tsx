@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { RegisterServiceWorker } from "./RegisterServiceWorker";
-import { getPlatformLogoUrl } from "@/lib/platformSettings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,22 +13,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const logoUrl = await getPlatformLogoUrl();
-  const icon = logoUrl ?? "/icon.svg";
+// Icons are handled by the icon.tsx/apple-icon.tsx file conventions
+// (auto-linked by Next) instead of a manual `icons` field here — those
+// routes composite the logo onto a solid background so it stays visible
+// regardless of what's uploaded, which a manual override here would bypass.
+export const metadata: Metadata = {
+  title: "Gente Sánchez Business",
+  description: "Plataforma interna de Gente Sánchez Business",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "GSB",
+  },
+};
 
-  return {
-    title: "Gente Sánchez Business",
-    description: "Plataforma interna de Gente Sánchez Business",
-    icons: {
-      icon,
-      apple: icon,
-    },
-  };
-}
-
-export const viewport = {
+export const viewport: Viewport = {
   themeColor: "#04b1af",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
