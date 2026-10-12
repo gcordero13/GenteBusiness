@@ -158,9 +158,14 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
     if (module?.id) {
       const { data: viewerProfiles } = await admin
         .from("role_profile_permissions")
-        .select("role_profile_id")
+        .select("role_profile_id, role_profiles!inner(name)")
         .eq("module_id", module.id)
-        .eq("can_authorize", true);
+        .eq("can_authorize", true)
+        // Super Admin also carries can_authorize (so it keeps full oversight
+        // and export access), but the new-request notification is meant for
+        // the actual supervisors, not system administrators — exclude it so
+        // admins stop getting every new ticket by email.
+        .neq("role_profiles.name", "Super Admin");
       const profileIds = (viewerProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
       if (profileIds.length > 0) {
         const { data: managerUsers } = await admin
