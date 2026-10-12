@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { listAllGoservicesRequests, listAssignableUsers } from "../solicitudes/goservices/actions";
 import { GoservicesStatusSummary } from "../solicitudes/goservices/GoservicesStatusSummary";
+import { NewGoservicesRequestDialog } from "../solicitudes/goservices/NewGoservicesRequestDialog";
 import { GoservicesExportButton } from "./GoservicesExportButton";
 import { GoservicesGestionView } from "./GoservicesGestionView";
 
@@ -36,7 +37,10 @@ export default async function GoservicesDashboardPage({
               Vista de gestión: asigna responsables y actualiza el estatus de cada ticket.
             </p>
           </div>
-          <GoservicesExportButton rows={allRequests} />
+          <div className="flex flex-wrap items-center gap-2">
+            <NewGoservicesRequestDialog />
+            <GoservicesExportButton rows={allRequests} />
+          </div>
         </div>
         <GoservicesStatusSummary rows={allRequests} />
         <GoservicesGestionView type={type ?? null} requests={requests} mode={{ kind: "gestor", assignableUsers }} />
