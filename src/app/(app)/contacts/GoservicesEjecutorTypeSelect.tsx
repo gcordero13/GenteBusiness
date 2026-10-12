@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { setGoservicesEjecutorType } from "./actions";
+import { setContactGoservicesEjecutorType } from "./actions";
 
 const BOTH_VALUE = "__ambos__";
 
@@ -18,15 +18,16 @@ const LABELS: Record<string, string> = {
   mensajeria: "Mensajería",
 };
 
-// Only rendered for users whose role profile is GoServices ejecutor-eligible
-// (can_manage) — lets an admin keep "el mensajero" and "el de mantenimiento"
-// separate so neither shows up as an assignment candidate for the other's
-// tickets. Unset ("Ambos") keeps the prior, unrestricted behavior.
+// Only rendered for a contact whose platform account is GoServices
+// ejecutor-eligible (can_manage) — lets an admin keep "el mensajero" and
+// "el de mantenimiento" separate so neither shows up as an assignment
+// candidate for the other's tickets. Unset ("Ambos") keeps the prior,
+// unrestricted behavior.
 export function GoservicesEjecutorTypeSelect({
-  userId,
+  appUserId,
   currentType,
 }: {
-  userId: string;
+  appUserId: string;
   currentType: "mantenimiento" | "mensajeria" | null;
 }) {
   const [value, setValue] = useState(currentType ?? BOTH_VALUE);
@@ -38,10 +39,10 @@ export function GoservicesEjecutorTypeSelect({
     setValue(next);
     setError(null);
     startTransition(async () => {
-      const result = await setGoservicesEjecutorType({
-        userId,
-        ejecutorType: next === BOTH_VALUE ? null : (next as "mantenimiento" | "mensajeria"),
-      });
+      const result = await setContactGoservicesEjecutorType(
+        appUserId,
+        next === BOTH_VALUE ? null : (next as "mantenimiento" | "mensajeria"),
+      );
       if (result.error) {
         setError(result.error);
         setValue(previous);
@@ -51,6 +52,7 @@ export function GoservicesEjecutorTypeSelect({
 
   return (
     <div className="space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">Tipo de ticket GoServices (ejecutor)</p>
       <Select value={value} onValueChange={(v) => v && v !== value && change(v)} disabled={isPending}>
         <SelectTrigger className="h-8 w-full">
           <SelectValue>{(val: string) => LABELS[val] ?? val}</SelectValue>

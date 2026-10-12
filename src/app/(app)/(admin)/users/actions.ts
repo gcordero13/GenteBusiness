@@ -41,11 +41,6 @@ interface SetUserStatusInput {
   status: "active" | "deactivated";
 }
 
-interface SetGoservicesEjecutorTypeInput {
-  userId: string;
-  ejecutorType: "mantenimiento" | "mensajeria" | null;
-}
-
 async function callerCanManageUsers(): Promise<boolean> {
   const supabase = await createClient();
   const {
@@ -124,26 +119,6 @@ export async function updateUserRoleProfile(
     return { error: error.message };
   }
 
-  return {};
-}
-
-export async function setGoservicesEjecutorType(
-  input: SetGoservicesEjecutorTypeInput,
-): Promise<InviteUserResult> {
-  if (!(await callerCanManageUsers())) {
-    return { error: "No autorizado" };
-  }
-
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("app_users")
-    .update({ goservices_ejecutor_type: input.ejecutorType })
-    .eq("id", input.userId);
-  if (error) {
-    return { error: error.message };
-  }
-
-  revalidatePath("/users");
   return {};
 }
 

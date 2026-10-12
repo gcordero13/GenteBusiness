@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ContactForm } from "../ContactForm";
 import { SelfEditForm } from "../SelfEditForm";
+import { GoservicesEjecutorTypeSelect } from "../GoservicesEjecutorTypeSelect";
 import { setContactStatus, deleteContact } from "../actions";
 import { Button } from "@/components/ui/button";
 
@@ -36,6 +38,33 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
     .neq("id", id)
     .order("first_name");
   const { data: schedules } = await supabase.from("schedule_templates").select("id, name").order("name");
+
+  // Shown only when this contact's platform account is GoServices
+  // ejecutor-eligible (can_manage) — resolved by email since contacts and
+  // app_users are separate tables.
+  let goservicesAppUser: { id: string; goservices_ejecutor_type: string | null } | null = null;
+  if (flags?.can_edit && contact.email) {
+    const admin = createAdminClient();
+    const { data: appUser } = await admin
+      .from("app_users")
+      .select("id, role_profile_id, goservices_ejecutor_type")
+      .eq("email", contact.email)
+      .maybeSingle();
+    if (appUser) {
+      const { data: goservicesModule } = await admin.from("modules").select("id").eq("key", "goservices").single();
+      const { data: perm } = goservicesModule
+        ? await admin
+            .from("role_profile_permissions")
+            .select("can_manage")
+            .eq("module_id", goservicesModule.id)
+            .eq("role_profile_id", appUser.role_profile_id)
+            .maybeSingle()
+        : { data: null };
+      if (perm?.can_manage) {
+        goservicesAppUser = { id: appUser.id, goservices_ejecutor_type: appUser.goservices_ejecutor_type };
+      }
+    }
+  }
 
   async function toggleStatus() {
     "use server";
@@ -90,6 +119,12 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
         />
       ) : (
         <p className="text-sm text-muted-foreground">No tienes permiso para editar este contacto.</p>
+      )}
+      {goservicesAppUser && (
+        <GoservicesEjecutorTypeSelect
+          appUserId={goservicesAppUser.id}
+          currentType={goservicesAppUser.goservices_ejecutor_type as "mantenimiento" | "mensajeria" | null}
+        />
       )}
       <div className="flex gap-2">
         {flags?.can_deactivate && (

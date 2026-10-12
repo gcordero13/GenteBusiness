@@ -24,7 +24,6 @@ import { Users as UsersIcon } from "lucide-react";
 import { EditUserDialog } from "./EditUserDialog";
 import { SetPasswordDialog } from "./SetPasswordDialog";
 import { RoleProfileSelect } from "./RoleProfileSelect";
-import { GoservicesEjecutorTypeSelect } from "./GoservicesEjecutorTypeSelect";
 import { DeleteUserDialog } from "./DeleteUserDialog";
 import { setUserStatus, deleteUsers } from "./actions";
 
@@ -34,8 +33,6 @@ export interface UsersTableRow {
   full_name: string | null;
   role_profile_id: string;
   status: string;
-  goservices_ejecutor_type: string | null;
-  canManageGoservices: boolean;
 }
 
 function initialsFor(fullName: string | null, email: string): string {
@@ -153,7 +150,6 @@ export function UsersTable({
               </TableHead>
               <TableHead className="py-3">Usuario</TableHead>
               <TableHead className="py-3">Perfil</TableHead>
-              <TableHead className="py-3">Tipo GoServices</TableHead>
               <TableHead className="py-3">Estado</TableHead>
               <TableHead className="py-3 text-right">Acciones</TableHead>
             </TableRow>
@@ -185,16 +181,6 @@ export function UsersTable({
                 </TableCell>
                 <TableCell className="py-3">
                   <RoleProfileSelect userId={u.id} currentProfileId={u.role_profile_id} profiles={profiles} />
-                </TableCell>
-                <TableCell className="py-3">
-                  {u.canManageGoservices ? (
-                    <GoservicesEjecutorTypeSelect
-                      userId={u.id}
-                      currentType={u.goservices_ejecutor_type as "mantenimiento" | "mensajeria" | null}
-                    />
-                  ) : (
-                    <span className="text-sm text-muted-foreground">—</span>
-                  )}
                 </TableCell>
                 <TableCell className="py-3">
                   <Badge variant={u.status === "active" ? "default" : "secondary"}>

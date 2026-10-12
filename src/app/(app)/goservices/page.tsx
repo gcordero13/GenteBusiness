@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { listAllGoservicesRequests, listAssignableUsers } from "../solicitudes/goservices/actions";
 import { GoservicesStatusSummary } from "../solicitudes/goservices/GoservicesStatusSummary";
 import { NewGoservicesRequestDialog } from "../solicitudes/goservices/NewGoservicesRequestDialog";
+import { GoservicesRefreshButton } from "../solicitudes/goservices/GoservicesRefreshButton";
 import { GoservicesExportButton } from "./GoservicesExportButton";
 import { GoservicesGestionView } from "./GoservicesGestionView";
 
@@ -38,6 +39,7 @@ export default async function GoservicesDashboardPage({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <GoservicesRefreshButton />
             <NewGoservicesRequestDialog />
             <GoservicesExportButton rows={allRequests} />
           </div>

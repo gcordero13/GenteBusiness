@@ -18,26 +18,11 @@ export default async function UsersPage() {
 
   const { data: users } = await supabase
     .from("app_users")
-    .select("id, email, full_name, role_profile_id, status, goservices_ejecutor_type, role_profiles(name)")
+    .select("id, email, full_name, role_profile_id, status, role_profiles(name)")
     .order("email");
   const { data: profiles } = await supabase.from("role_profiles").select("id, name").order("name");
 
-  // The GoServices "tipo de ejecutor" control only makes sense for a role
-  // profile that's actually ejecutor-eligible there (can_manage) — shown
-  // per-user by checking their current role profile against this set.
   const admin = createAdminClient();
-  const { data: goservicesModule } = await admin.from("modules").select("id").eq("key", "goservices").single();
-  const { data: goservicesEjecutorPerms } = goservicesModule
-    ? await admin
-        .from("role_profile_permissions")
-        .select("role_profile_id")
-        .eq("module_id", goservicesModule.id)
-        .eq("can_manage", true)
-    : { data: [] };
-  const goservicesEjecutorProfileIds = new Set(
-    (goservicesEjecutorPerms ?? []).map((p: { role_profile_id: string }) => p.role_profile_id),
-  );
-
   const { data: contactsWithEmail } = await admin
     .from("contacts")
     .select("id, first_name, last_name, email")
@@ -63,13 +48,7 @@ export default async function UsersPage() {
           <InviteUserForm profiles={profiles ?? []} />
         </div>
       </div>
-      <UsersTable
-        users={(users ?? []).map((u) => ({
-          ...u,
-          canManageGoservices: goservicesEjecutorProfileIds.has(u.role_profile_id),
-        }))}
-        profiles={profiles ?? []}
-      />
+      <UsersTable users={users ?? []} profiles={profiles ?? []} />
     </div>
   );
 }

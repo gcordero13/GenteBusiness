@@ -196,6 +196,37 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
       body: `${requesterName} · ${requestTypeLabel}`,
       url: manageUrl,
     });
+
+    // Also pushes to ejecutores of the matching type (mantenimiento vs
+    // mensajería), even before a gestor assigns it — confirmed with the
+    // user: "que el mensajero vea los tickets que le llegaron de una vez".
+    // They can already see this ticket (RLS allows it while unassigned).
+    if (module?.id) {
+      const { data: ejecutorProfiles } = await admin
+        .from("role_profile_permissions")
+        .select("role_profile_id")
+        .eq("module_id", module.id)
+        .eq("can_manage", true);
+      const ejecutorProfileIds = (ejecutorProfiles ?? []).map((p: { role_profile_id: string }) => p.role_profile_id);
+      if (ejecutorProfileIds.length > 0) {
+        const { data: ejecutorUsers } = await admin
+          .from("app_users")
+          .select("id, goservices_ejecutor_type")
+          .in("role_profile_id", ejecutorProfileIds)
+          .eq("status", "active");
+        const matchingEjecutorIds = (ejecutorUsers ?? [])
+          .filter(
+            (u: { goservices_ejecutor_type: string | null }) =>
+              !u.goservices_ejecutor_type || u.goservices_ejecutor_type === input.requestType,
+          )
+          .map((u: { id: string }) => u.id);
+        await sendPushToAppUsers(matchingEjecutorIds, {
+          title: `Nueva solicitud #${inserted.request_number} sin asignar`,
+          body: `${requesterName} · ${requestTypeLabel}`,
+          url: `${await getSiteUrl()}/solicitudes/goservices/asignadas?ticket=${inserted.id}`,
+        });
+      }
+    }
   } catch (err) {
     console.error("Failed to send goservices new request manager email:", err);
   }
@@ -346,12 +377,30 @@ export async function listAssignedGoservicesRequests(): Promise<GoservicesReques
   } = await supabase.auth.getUser();
   if (!user) return [];
 
+  // An ejecutor also sees brand-new, still-unassigned tickets matching
+  // their configured type (RLS enforces the same rule server-side) — so a
+  // messenger/maintenance person sees relevant work land in "Recibido"
+  // immediately, without waiting for a gestor to assign it first.
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "goservices" });
+  let orFilter = `assigned_app_user_id.eq.${user.id}`;
+  if (flagsRows?.[0]?.can_manage) {
+    const { data: me } = await supabase
+      .from("app_users")
+      .select("goservices_ejecutor_type")
+      .eq("id", user.id)
+      .maybeSingle();
+    const myType = me?.goservices_ejecutor_type;
+    orFilter += myType
+      ? `,and(assigned_app_user_id.is.null,request_type.eq.${myType})`
+      : `,assigned_app_user_id.is.null`;
+  }
+
   const { data } = await supabase
     .from("goservices_requests")
     .select(
       "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
     )
-    .eq("assigned_app_user_id", user.id)
+    .or(orFilter)
     .order("created_at", { ascending: false });
 
   const rows = data ?? [];

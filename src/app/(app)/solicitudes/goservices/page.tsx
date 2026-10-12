@@ -1,5 +1,6 @@
 import { listMyGoservicesRequests } from "./actions";
 import { NewGoservicesRequestDialog } from "./NewGoservicesRequestDialog";
+import { GoservicesRefreshButton } from "./GoservicesRefreshButton";
 import { GoservicesStatusSummary } from "./GoservicesStatusSummary";
 import { GoservicesTicketExplorer } from "./GoservicesTicketExplorer";
 
@@ -16,7 +17,10 @@ export default async function GoservicesRequestsPage() {
               Consulta el estatus de tus solicitudes de mantenimiento y mensajería.
             </p>
           </div>
-          <NewGoservicesRequestDialog />
+          <div className="flex flex-wrap items-center gap-2">
+            <GoservicesRefreshButton />
+            <NewGoservicesRequestDialog />
+          </div>
         </div>
         <GoservicesStatusSummary rows={requests} />
         <GoservicesTicketExplorer requests={requests} mode={{ kind: "readonly" }} />

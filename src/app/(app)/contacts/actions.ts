@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { escapeIlikePattern } from "@/lib/contacts";
 import { parseCsv, toCsv } from "@/lib/csv";
 import { provisionContactLogin } from "@/lib/supabase/provisionContactLogin";
@@ -82,6 +83,32 @@ export async function updateOwnContactFields(input: OwnContactFieldsInput) {
 
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${input.id}`);
+  return {};
+}
+
+// Lets whoever can edit contacts also set which GoServices request type a
+// person's platform account handles as an ejecutor (Mantenimiento /
+// Mensajería / Ambos) — moved here per the user's request, since it's part
+// of "the person's profile" rather than the Users admin screen. Writes to
+// app_users (a different table from contacts), so it needs its own
+// permission check and the admin client instead of relying on the
+// contacts table's own RLS.
+export async function setContactGoservicesEjecutorType(
+  appUserId: string,
+  ejecutorType: "mantenimiento" | "mensajeria" | null,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "contacts" });
+  if (!flagsRows?.[0]?.can_edit) return { error: "No autorizado" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("app_users")
+    .update({ goservices_ejecutor_type: ejecutorType })
+    .eq("id", appUserId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/contacts");
   return {};
 }
 
