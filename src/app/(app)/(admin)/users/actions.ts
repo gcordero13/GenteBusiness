@@ -88,8 +88,13 @@ export async function setUserPassword(input: SetUserPasswordInput): Promise<Invi
   }
 
   const admin = createAdminClient();
+  // Also force-confirms the email: an admin setting a password directly
+  // (instead of the user confirming an invite email) means there's no
+  // confirmation link in play, so requiring one would just lock the user
+  // out with "Email not confirmed" despite having a valid password.
   const { error } = await admin.auth.admin.updateUserById(input.userId, {
     password: input.password,
+    email_confirm: true,
   });
   if (error) {
     return { error: error.message };

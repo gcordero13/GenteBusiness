@@ -138,7 +138,10 @@ describe("setUserPassword", () => {
     const result = await setUserPassword({ userId: "user-1", password: "secret123" });
 
     expect(result.error).toBeUndefined();
-    expect(updateUserById).toHaveBeenCalledWith("user-1", { password: "secret123" });
+    expect(updateUserById).toHaveBeenCalledWith("user-1", {
+      password: "secret123",
+      email_confirm: true,
+    });
   });
 });
 
