@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "./AppShell";
 import { logout } from "./actions";
+import { PushNotificationManager } from "./PushNotificationManager";
 
 interface ModulePermissionRow {
   module_key: string;
@@ -49,6 +50,7 @@ export default async function AppLayout({
       canManageGoservicesAsignadas={Boolean(permissions.get("goservices")?.can_manage)}
       onLogout={logout}
     >
+      <PushNotificationManager />
       {children}
     </AppShell>
   );

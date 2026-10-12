@@ -9,6 +9,7 @@ import {
   sendGoservicesNewRequestEmail,
   sendGoservicesAssignedEmail,
 } from "@/lib/sendGoservicesStatusEmail";
+import { sendPushToAppUsers } from "@/lib/sendPushNotification";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
 
@@ -155,6 +156,7 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
   try {
     const { data: module } = await admin.from("modules").select("id").eq("key", "goservices").single();
     let managerEmails: string[] = [];
+    let managerAppUserIds: string[] = [];
     if (module?.id) {
       const { data: viewerProfiles } = await admin
         .from("role_profile_permissions")
@@ -170,12 +172,14 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
       if (profileIds.length > 0) {
         const { data: managerUsers } = await admin
           .from("app_users")
-          .select("email")
+          .select("id, email")
           .in("role_profile_id", profileIds)
           .eq("status", "active");
         managerEmails = (managerUsers ?? []).map((u: { email: string }) => u.email);
+        managerAppUserIds = (managerUsers ?? []).map((u: { id: string }) => u.id);
       }
     }
+    const manageUrl = `${await getSiteUrl()}/goservices?ticket=${inserted.id}`;
     await sendGoservicesNewRequestEmail({
       managerEmails,
       requestNumber: inserted.request_number,
@@ -185,7 +189,12 @@ export async function createGoservicesRequest(input: CreateGoservicesRequestInpu
       departmentName,
       createdAtIso: inserted.created_at,
       detalle: input.detalle,
-      manageUrl: `${await getSiteUrl()}/goservices?ticket=${inserted.id}`,
+      manageUrl,
+    });
+    await sendPushToAppUsers(managerAppUserIds, {
+      title: `Nueva solicitud #${inserted.request_number}`,
+      body: `${requesterName} · ${requestTypeLabel}`,
+      url: manageUrl,
     });
   } catch (err) {
     console.error("Failed to send goservices new request manager email:", err);
@@ -493,6 +502,7 @@ export async function updateGoservicesRequestStatus(
         .select("email")
         .eq("id", existing.requester_app_user_id)
         .maybeSingle();
+      const requestUrl = `${await getSiteUrl()}/solicitudes/goservices?ticket=${requestId}`;
       if (requester?.email) {
         await sendGoservicesStatusEmail({
           requesterEmail: requester.email,
@@ -505,9 +515,14 @@ export async function updateGoservicesRequestStatus(
           createdAtIso: existing.created_at,
           detalle: existing.detalle,
           status,
-          requestUrl: `${await getSiteUrl()}/solicitudes/goservices?ticket=${requestId}`,
+          requestUrl,
         });
       }
+      await sendPushToAppUsers([existing.requester_app_user_id], {
+        title: `Solicitud #${existing.request_number} ${STATUS_LABELS[status]}`,
+        body: typeLabel(existing),
+        url: requestUrl,
+      });
     } catch (err) {
       console.error("Failed to send goservices status email:", err);
     }
@@ -540,15 +555,21 @@ export async function assignGoservicesRequest(requestId: string, assignedAppUser
       .eq("id", assignedAppUserId)
       .maybeSingle();
     const row = updated[0];
+    const assignedUrl = `${await getSiteUrl()}/solicitudes/goservices/asignadas?ticket=${requestId}`;
     if (assignee?.email) {
       await sendGoservicesAssignedEmail({
         assigneeEmail: assignee.email,
         requestNumber: row.request_number,
         typeLabel: typeLabel(row),
         detalle: row.detalle,
-        assignedUrl: `${await getSiteUrl()}/solicitudes/goservices/asignadas?ticket=${requestId}`,
+        assignedUrl,
       });
     }
+    await sendPushToAppUsers([assignedAppUserId], {
+      title: `Se te asignó la solicitud #${row.request_number}`,
+      body: typeLabel(row),
+      url: assignedUrl,
+    });
   } catch (err) {
     console.error("Failed to send goservices assigned email:", err);
   }
