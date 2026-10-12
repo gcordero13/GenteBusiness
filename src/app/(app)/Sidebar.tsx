@@ -49,6 +49,7 @@ export function Sidebar({
   canManageSchedules,
   canViewComplaints,
   canViewGoservices,
+  canManageGoservicesAsignadas,
   onLogout,
   onNavigate,
 }: {
@@ -68,6 +69,7 @@ export function Sidebar({
   canManageSchedules: boolean;
   canViewComplaints: boolean;
   canViewGoservices: boolean;
+  canManageGoservicesAsignadas: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -96,7 +98,9 @@ export function Sidebar({
     { href: "/quejas/nueva", label: "Canal para Reportar", icon: MessageSquareWarning },
     ...(canViewComplaints ? [{ href: "/quejas", label: "Reportes Recibidos", icon: Inbox }] : []),
     { href: "/solicitudes/goservices", label: "GoServices", icon: ClipboardList },
-    { href: "/solicitudes/goservices/asignadas", label: "GoServices: Asignadas", icon: ClipboardList },
+    ...(canManageGoservicesAsignadas
+      ? [{ href: "/solicitudes/goservices/asignadas", label: "GoServices: Asignadas", icon: ClipboardList }]
+      : []),
     ...(canViewGoservices ? [{ href: "/goservices", label: "GoServices: Gestión", icon: ClipboardList }] : []),
     ...(canViewPonchador ? [{ href: "/ponchador", label: "Ponchador", icon: CalendarClock }] : []),
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
