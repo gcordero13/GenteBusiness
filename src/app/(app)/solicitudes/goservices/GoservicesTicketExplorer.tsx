@@ -12,7 +12,10 @@ import {
   Eye,
   FileText,
   Inbox,
+  LayoutGrid,
   MousePointerClick,
+  Rows3,
+  Table2,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,9 +30,19 @@ import { cn } from "@/lib/utils";
 import { STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
 import { GoservicesStatusBadge } from "./GoservicesStatusBadge";
 import { GoservicesCommentThread } from "./GoservicesCommentThread";
+import { GoservicesBoardView } from "./GoservicesBoardView";
+import { GoservicesTableView } from "./GoservicesTableView";
 import type { GoservicesRequestRow } from "./actions";
 import { AssignRequestSelect } from "../../goservices/AssignRequestSelect";
 import { AssignedRequestStatusSelect } from "./asignadas/AssignedRequestStatusSelect";
+
+type ViewMode = "list" | "board" | "table";
+
+const VIEW_MODE_OPTIONS: { key: ViewMode; label: string; icon: typeof Rows3 }[] = [
+  { key: "list", label: "Lista", icon: Rows3 },
+  { key: "board", label: "Tablero", icon: LayoutGrid },
+  { key: "table", label: "Tabla", icon: Table2 },
+];
 
 export type GoservicesExplorerMode =
   | { kind: "readonly" }
@@ -141,6 +154,19 @@ export function GoservicesTicketExplorer({
   const [mobileView, setMobileView] = useState<"list" | "detail">(() => (deepLinkedRequest ? "detail" : "list"));
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(1);
+  // Board/table are gestor-only alternative views (confirmed with the user:
+  // a Kanban-style board grouped by status, and a flat sortable grid). A
+  // click on a card/row jumps back into the familiar list+detail view with
+  // that ticket pre-selected, rather than duplicating the detail pane.
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  function selectFromAltView(id: string) {
+    const request = requests.find((r) => r.id === id);
+    if (request) setActiveTab(request.status);
+    setSelectedId(id);
+    setMobileView("detail");
+    setViewMode("list");
+  }
 
   const tabs = useMemo(() => [ALL_TAB, ...Object.keys(STATUS_LABELS)], []);
 
@@ -199,6 +225,33 @@ export function GoservicesTicketExplorer({
   }
 
   return (
+    <div className="flex w-full min-w-0 flex-col gap-3">
+      {mode.kind === "gestor" && (
+        <div className="flex w-fit items-center gap-1 self-end rounded-full border border-border bg-muted/40 p-1">
+          {VIEW_MODE_OPTIONS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setViewMode(key)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+                viewMode === key
+                  ? "bg-[#04B1AF] text-white shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <Icon className="size-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {viewMode === "board" ? (
+        <GoservicesBoardView requests={requests} onSelect={selectFromAltView} />
+      ) : viewMode === "table" ? (
+        <GoservicesTableView requests={requests} onSelect={selectFromAltView} />
+      ) : (
     <div
       className={cn(
         "flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-md",
@@ -343,7 +396,12 @@ export function GoservicesTicketExplorer({
             <p className="text-sm text-muted-foreground">Selecciona una solicitud para ver el detalle.</p>
           </div>
         ) : (
-          <div className="space-y-5">
+          // Keyed by tab+ticket (not just ticket id) so the whole detail
+          // subtree — fields, assign/status controls, comment thread — gets
+          // a clean teardown and rebuild on every navigation, never a
+          // partial re-render that could leave a previous ticket's controls
+          // behind alongside the new one.
+          <div key={`${activeTab}:${selectedRequest.id}`} className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 p-3">
               <p className="text-sm font-semibold text-foreground">Ticket #{selectedRequest.requestNumber}</p>
               <div className="flex flex-wrap items-center gap-3">
@@ -388,7 +446,9 @@ export function GoservicesTicketExplorer({
                   {selectedRequest.detalle}
                 </Field>
                 <Field label="Estatus">{selectedRequest.statusLabel}</Field>
-                <Field label="Asignado a">{selectedRequest.assignedAppUserEmail ?? "Sin asignar"}</Field>
+                {mode.kind !== "gestor" && (
+                  <Field label="Asignado a">{selectedRequest.assignedAppUserEmail ?? "Sin asignar"}</Field>
+                )}
               </div>
               <div className="space-y-4">
                 <Field label="Solicitud">{REQUEST_TYPE_LABELS[selectedRequest.requestType]}</Field>
@@ -415,20 +475,30 @@ export function GoservicesTicketExplorer({
             {mode.kind !== "readonly" && (
               <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
                 {mode.kind === "gestor" && (
-                  <div className="flex flex-wrap gap-2">
-                    <AssignRequestSelect
-                      key={selectedRequest.id}
-                      requestId={selectedRequest.id}
-                      assignedAppUserId={selectedRequest.assignedAppUserId}
-                      users={mode.assignableUsers}
-                    />
-                    <AssignedRequestStatusSelect
-                      key={selectedRequest.id}
-                      requestId={selectedRequest.id}
-                      status={selectedRequest.status}
-                      requestType={selectedRequest.requestType}
-                      allStatuses
-                    />
+                  <div className="flex flex-wrap gap-4">
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                        Asignado a
+                      </p>
+                      <AssignRequestSelect
+                        key={selectedRequest.id}
+                        requestId={selectedRequest.id}
+                        assignedAppUserId={selectedRequest.assignedAppUserId}
+                        users={mode.assignableUsers}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                        Estatus
+                      </p>
+                      <AssignedRequestStatusSelect
+                        key={selectedRequest.id}
+                        requestId={selectedRequest.id}
+                        status={selectedRequest.status}
+                        requestType={selectedRequest.requestType}
+                        allStatuses
+                      />
+                    </div>
                   </div>
                 )}
                 {mode.kind === "ejecutor" && (
@@ -450,6 +520,8 @@ export function GoservicesTicketExplorer({
           </div>
         )}
       </div>
+    </div>
+      )}
     </div>
   );
 }
