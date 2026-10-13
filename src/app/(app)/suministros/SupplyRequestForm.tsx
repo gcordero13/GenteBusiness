@@ -167,19 +167,17 @@ export function SupplyRequestForm({
                     {a.unit} · {a.code}
                   </p>
                 </div>
-                <div className="mt-auto grid grid-cols-[2fr_3fr] items-end gap-3">
-                  {/* column 1: image */}
-                  <div className="flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
-                    {a.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={a.imageUrl} alt={a.name} className="size-full object-contain p-2" />
-                    ) : (
-                      <ImageOff className="size-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  {/* column 2: options anchored to the bottom-right */}
-                  <div className="flex flex-col items-end justify-end gap-2">
-                    <div className="flex items-center justify-center gap-2 rounded-md border px-1.5 py-1">
+                <div className="mt-auto flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex aspect-[3/4] w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                      {a.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={a.imageUrl} alt={a.name} className="size-full object-contain p-1.5" />
+                      ) : (
+                        <ImageOff className="size-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex flex-1 items-center justify-center gap-2 rounded-md border px-1.5 py-1">
                       <button
                         type="button"
                         onClick={() => changeQty(a.id, -1)}
@@ -196,14 +194,14 @@ export function SupplyRequestForm({
                         <Plus className="size-3" />
                       </button>
                     </div>
-                    <Button
-                      size="sm"
-                      className="w-full bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90"
-                      onClick={() => addToCart(a)}
-                    >
-                      Agregar
-                    </Button>
                   </div>
+                  <Button
+                    size="sm"
+                    className="w-full bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90"
+                    onClick={() => addToCart(a)}
+                  >
+                    Agregar
+                  </Button>
                 </div>
               </div>
             ))}
