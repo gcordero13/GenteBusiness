@@ -167,7 +167,7 @@ export function SupplyRequestForm({
                     {a.unit} · {a.code}
                   </p>
                 </div>
-                <div className="mt-auto grid grid-cols-2 gap-3">
+                <div className="mt-auto grid grid-cols-[2fr_3fr] items-end gap-3">
                   {/* column 1: image */}
                   <div className="flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
                     {a.imageUrl ? (
@@ -177,8 +177,8 @@ export function SupplyRequestForm({
                       <ImageOff className="size-5 text-muted-foreground" />
                     )}
                   </div>
-                  {/* column 2: qty stepper on top, Agregar below */}
-                  <div className="flex flex-col justify-center gap-2">
+                  {/* column 2: options anchored to the bottom-right */}
+                  <div className="flex flex-col items-end justify-end gap-2">
                     <div className="flex items-center justify-center gap-2 rounded-md border px-1.5 py-1">
                       <button
                         type="button"
