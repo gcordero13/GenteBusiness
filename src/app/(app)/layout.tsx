@@ -48,6 +48,7 @@ export default async function AppLayout({
       canViewComplaints={Boolean(canViewComplaints)}
       canViewGoservices={Boolean(permissions.get("goservices")?.can_authorize)}
       canManageGoservicesAsignadas={Boolean(permissions.get("goservices")?.can_manage)}
+      canUseGoservices={Boolean(permissions.get("goservices")?.can_view || permissions.get("goservices")?.can_add)}
       canManageSuministros={Boolean(permissions.get("suministros")?.can_manage)}
       canViewSuministros={Boolean(
         permissions.get("suministros")?.can_view || permissions.get("suministros")?.can_manage,

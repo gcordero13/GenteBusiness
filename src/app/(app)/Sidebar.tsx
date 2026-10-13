@@ -134,6 +134,7 @@ export function Sidebar({
   canViewComplaints,
   canViewGoservices,
   canManageGoservicesAsignadas,
+  canUseGoservices,
   canManageSuministros,
   canViewSuministros,
   canViewServiciosGenerales,
@@ -158,6 +159,7 @@ export function Sidebar({
   canViewComplaints: boolean;
   canViewGoservices: boolean;
   canManageGoservicesAsignadas: boolean;
+  canUseGoservices: boolean;
   canManageSuministros: boolean;
   canViewSuministros: boolean;
   canViewServiciosGenerales: boolean;
@@ -189,7 +191,7 @@ export function Sidebar({
     { href: "/my-profile", label: "Mi perfil", icon: UserCircle },
     { href: "/quejas/nueva", label: "Canal para Reportar", icon: MessageSquareWarning },
     ...(canViewComplaints ? [{ href: "/quejas", label: "Reportes Recibidos", icon: Inbox }] : []),
-    { href: "/solicitudes/goservices", label: "GoServices", icon: ClipboardList },
+    ...(canUseGoservices ? [{ href: "/solicitudes/goservices", label: "GoServices", icon: ClipboardList }] : []),
     ...(canManageGoservicesAsignadas
       ? [{ href: "/solicitudes/goservices/asignadas", label: "GoServices: Asignadas", icon: ClipboardList }]
       : []),

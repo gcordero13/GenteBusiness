@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { listMyGoservicesRequests } from "./actions";
 import { NewGoservicesRequestDialog } from "./NewGoservicesRequestDialog";
 import { GoservicesRefreshButton } from "./GoservicesRefreshButton";
@@ -5,6 +7,12 @@ import { GoservicesStatusSummary } from "./GoservicesStatusSummary";
 import { GoservicesTicketExplorer } from "./GoservicesTicketExplorer";
 
 export default async function GoservicesRequestsPage() {
+  const supabase = await createClient();
+  const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "goservices" });
+  if (!flagsRows?.[0]?.can_view && !flagsRows?.[0]?.can_add) {
+    redirect("/");
+  }
+
   const requests = await listMyGoservicesRequests();
 
   return (
