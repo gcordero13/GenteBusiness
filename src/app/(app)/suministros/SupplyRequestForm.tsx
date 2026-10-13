@@ -176,26 +176,26 @@ export function SupplyRequestForm({
                       {a.unit} · {a.code}
                     </p>
                   </div>
-                  <div className="flex items-center justify-center gap-3 rounded-md border px-1.5 py-1">
+                  <div className="flex items-center justify-center gap-2 rounded-md border px-1 py-0.5">
                     <button
                       type="button"
                       onClick={() => changeQty(a.id, -1)}
-                      className="flex size-5 items-center justify-center rounded bg-muted"
+                      className="flex size-4 items-center justify-center rounded bg-muted"
                     >
-                      <Minus className="size-3" />
+                      <Minus className="size-2.5" />
                     </button>
-                    <span className="min-w-[1.2rem] text-center text-xs font-semibold">{qtyFor(a.id)}</span>
+                    <span className="min-w-[1rem] text-center text-xs font-semibold">{qtyFor(a.id)}</span>
                     <button
                       type="button"
                       onClick={() => changeQty(a.id, 1)}
-                      className="flex size-5 items-center justify-center rounded bg-muted"
+                      className="flex size-4 items-center justify-center rounded bg-muted"
                     >
-                      <Plus className="size-3" />
+                      <Plus className="size-2.5" />
                     </button>
                   </div>
                   <Button
                     size="sm"
-                    className="w-full bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90"
+                    className="h-7 w-full bg-[#04B1AF] text-xs text-white hover:bg-[#04B1AF]/90"
                     onClick={() => addToCart(a)}
                   >
                     Agregar
