@@ -134,6 +134,7 @@ export function Sidebar({
   canViewGoservices,
   canManageGoservicesAsignadas,
   canManageSuministros,
+  canViewServiciosGenerales,
   onLogout,
   onNavigate,
 }: {
@@ -155,6 +156,7 @@ export function Sidebar({
   canViewGoservices: boolean;
   canManageGoservicesAsignadas: boolean;
   canManageSuministros: boolean;
+  canViewServiciosGenerales: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -193,12 +195,14 @@ export function Sidebar({
   ];
 
   // "Mantenimiento de TI" is the pre-existing equipment-checklist module
-  // (gated by canViewMaintenance); "Servicios Generales" is the new
-  // calendar-based asset/facilities module, open to everyone to view (no
-  // permission check - matches its RLS, which is select-for-all).
+  // (gated by canViewMaintenance); "Servicios Generales" is gated the same
+  // way every other module is - only visible once granted in Perfiles de
+  // rol (can_view or can_manage), never open to everyone by default.
   const mantenimientosLinks: NavLink[] = [
     ...(canViewMaintenance ? [{ href: "/maintenance", label: "Mantenimiento de TI", icon: Wrench }] : []),
-    { href: "/servicios-generales", label: "Servicios Generales", icon: HardHat },
+    ...(canViewServiciosGenerales
+      ? [{ href: "/servicios-generales", label: "Servicios Generales", icon: HardHat }]
+      : []),
   ];
 
   const mainLinksAfterMaintenance: NavLink[] = [

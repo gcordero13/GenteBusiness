@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { listMaintenanceRecordsForMonth, listUpcomingMaintenanceRecords } from "./actions";
 import { MAINTENANCE_CATEGORIES } from "./categories";
@@ -19,6 +20,10 @@ export default async function ServiciosGeneralesPage({
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "servicios_generales" });
   const canManage = Boolean(flagsRows?.[0]?.can_manage);
+  const canView = Boolean(flagsRows?.[0]?.can_view);
+  if (!canView && !canManage) {
+    redirect("/");
+  }
 
   const [records, upcoming, { data: departments }] = await Promise.all([
     listMaintenanceRecordsForMonth(year, month),
