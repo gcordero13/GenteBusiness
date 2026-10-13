@@ -69,12 +69,14 @@ function toRow(r: {
   };
 }
 
-export async function listSupplyArticles(): Promise<SupplyArticleRow[]> {
+export async function listSupplyArticles(options: { activeOnly?: boolean } = {}): Promise<SupplyArticleRow[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("supply_articles")
     .select("id, name, code, category, unit, price, stock_quantity, low_stock_threshold, image_url, status")
     .order("name");
+  if (options.activeOnly) query = query.eq("status", "active");
+  const { data } = await query;
   return (data ?? []).map(toRow);
 }
 

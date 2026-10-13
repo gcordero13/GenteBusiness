@@ -142,9 +142,10 @@ export function Sidebar({
   ];
 
   const solicitudesLinks: NavLink[] = [
-    // Suministros is a new module, still being built in phases — only
-    // "Crear artículos" exists so far (Solicitud/Despacho/Tablero land
-    // next), so this points there directly instead of a dropdown for now.
+    // Suministros is a new module, still being built in phases (Despacho
+    // and the Tablero land next) — flat links for now instead of the full
+    // nested dropdown from the approved mockup.
+    { href: "/suministros", label: "Suministros", icon: Package },
     ...(canManageSuministros
       ? [{ href: "/suministros/articulos", label: "Suministros: Artículos", icon: Package }]
       : []),
