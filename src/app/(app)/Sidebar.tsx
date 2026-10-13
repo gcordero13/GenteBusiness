@@ -6,6 +6,7 @@ import {
   BookUser,
   Building2,
   CalendarClock,
+  ChevronDown,
   ClipboardList,
   Clock,
   FileSignature,
@@ -16,6 +17,7 @@ import {
   Network,
   PanelLeftClose,
   PanelLeftOpen,
+  Package,
   Palmtree,
   PartyPopper,
   Settings,
@@ -24,6 +26,7 @@ import {
   Users,
   Wrench,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 interface NavLink {
@@ -50,6 +53,7 @@ export function Sidebar({
   canViewComplaints,
   canViewGoservices,
   canManageGoservicesAsignadas,
+  canManageSuministros,
   onLogout,
   onNavigate,
 }: {
@@ -70,10 +74,15 @@ export function Sidebar({
   canViewComplaints: boolean;
   canViewGoservices: boolean;
   canManageGoservicesAsignadas: boolean;
+  canManageSuministros: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  // Expanded by default so nothing already-visible suddenly disappears for
+  // existing users — confirmed with the user: "Ajustes" should become a
+  // dropdown (collapsible), not hidden-by-default.
+  const [settingsOpen, setSettingsOpen] = useState(true);
 
   useEffect(() => {
     // One-time sync from localStorage on mount; deferred to an effect (rather
@@ -83,12 +92,23 @@ export function Sidebar({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(true);
     }
+    if (localStorage.getItem("sidebar-settings-open") === "false") {
+      setSettingsOpen(false);
+    }
   }, []);
 
   function toggle() {
     setCollapsed((prev) => {
       const next = !prev;
       localStorage.setItem("sidebar-collapsed", String(next));
+      return next;
+    });
+  }
+
+  function toggleSettings() {
+    setSettingsOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar-settings-open", String(next));
       return next;
     });
   }
@@ -122,6 +142,12 @@ export function Sidebar({
   ];
 
   const solicitudesLinks: NavLink[] = [
+    // Suministros is a new module, still being built in phases — only
+    // "Crear artículos" exists so far (Solicitud/Despacho/Tablero land
+    // next), so this points there directly instead of a dropdown for now.
+    ...(canManageSuministros
+      ? [{ href: "/suministros/articulos", label: "Suministros: Artículos", icon: Package }]
+      : []),
     ...(canViewSolicitudesVacaciones
       ? [{ href: "/solicitudes/vacaciones", label: "Vacaciones", icon: Palmtree }]
       : []),
@@ -168,24 +194,35 @@ export function Sidebar({
           ))}
           {settingsLinks.length > 0 && (
             <div className="space-y-1 pt-4">
-              {!collapsed && (
-                <p className="flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground">
+              {collapsed ? (
+                <p className="flex items-center justify-center px-2 text-muted-foreground" title="Ajustes">
                   <Settings className="size-3.5" />
-                  Ajustes
                 </p>
-              )}
-              {settingsLinks.map(({ href, label, icon: Icon }) => (
-                <a
-                  key={href}
-                  href={href}
-                  title={label}
-                  onClick={onNavigate}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
+              ) : (
+                <button
+                  type="button"
+                  onClick={toggleSettings}
+                  aria-expanded={settingsOpen}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                  <Icon className="size-4 shrink-0" />
-                  {!collapsed && <span>{label}</span>}
-                </a>
-              ))}
+                  <Settings className="size-3.5" />
+                  <span className="flex-1 text-left">Ajustes</span>
+                  <ChevronDown className={cn("size-3.5 transition-transform", settingsOpen && "rotate-180")} />
+                </button>
+              )}
+              {(settingsOpen || collapsed) &&
+                settingsLinks.map(({ href, label, icon: Icon }) => (
+                  <a
+                    key={href}
+                    href={href}
+                    title={label}
+                    onClick={onNavigate}
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    {!collapsed && <span>{label}</span>}
+                  </a>
+                ))}
             </div>
           )}
           {solicitudesLinks.length > 0 && (

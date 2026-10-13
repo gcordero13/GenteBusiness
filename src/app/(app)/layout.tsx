@@ -48,6 +48,7 @@ export default async function AppLayout({
       canViewComplaints={Boolean(canViewComplaints)}
       canViewGoservices={Boolean(permissions.get("goservices")?.can_authorize)}
       canManageGoservicesAsignadas={Boolean(permissions.get("goservices")?.can_manage)}
+      canManageSuministros={Boolean(permissions.get("suministros")?.can_manage)}
       onLogout={logout}
     >
       <PushNotificationManager />
