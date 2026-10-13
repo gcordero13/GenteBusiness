@@ -11,6 +11,7 @@ import {
   Clock,
   FileSignature,
   Fingerprint,
+  HardHat,
   Inbox,
   LayoutGrid,
   LogOut,
@@ -177,7 +178,7 @@ export function Sidebar({
     });
   }
 
-  const mainLinks: NavLink[] = [
+  const mainLinksBeforeMaintenance: NavLink[] = [
     { href: "/my-profile", label: "Mi perfil", icon: UserCircle },
     { href: "/quejas/nueva", label: "Canal para Reportar", icon: MessageSquareWarning },
     ...(canViewComplaints ? [{ href: "/quejas", label: "Reportes Recibidos", icon: Inbox }] : []),
@@ -189,7 +190,18 @@ export function Sidebar({
     ...(canViewPonchador ? [{ href: "/ponchador", label: "Ponchador", icon: CalendarClock }] : []),
     ...(canViewContacts ? [{ href: "/contacts", label: "Agenda de contactos", icon: BookUser }] : []),
     ...(canUseDocumentStamps ? [{ href: "/document-stamps", label: "Sellos y Firmas", icon: FileSignature }] : []),
-    ...(canViewMaintenance ? [{ href: "/maintenance", label: "Mantenimientos", icon: Wrench }] : []),
+  ];
+
+  // "Mantenimiento de TI" is the pre-existing equipment-checklist module
+  // (gated by canViewMaintenance); "Servicios Generales" is the new
+  // calendar-based asset/facilities module, open to everyone to view (no
+  // permission check - matches its RLS, which is select-for-all).
+  const mantenimientosLinks: NavLink[] = [
+    ...(canViewMaintenance ? [{ href: "/maintenance", label: "Mantenimiento de TI", icon: Wrench }] : []),
+    { href: "/servicios-generales", label: "Servicios Generales", icon: HardHat },
+  ];
+
+  const mainLinksAfterMaintenance: NavLink[] = [
     ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
   ];
 
@@ -254,7 +266,26 @@ export function Sidebar({
           </Button>
         </div>
         <nav className="space-y-1 text-sm">
-          {mainLinks.map(({ href, label, icon: Icon }) => (
+          {mainLinksBeforeMaintenance.map(({ href, label, icon: Icon }) => (
+            <a
+              key={href}
+              href={href}
+              title={label}
+              onClick={onNavigate}
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
+            >
+              <Icon className="size-4 shrink-0" />
+              {!collapsed && <span>{label}</span>}
+            </a>
+          ))}
+          <FlyoutNavGroup
+            label="Mantenimientos"
+            icon={Wrench}
+            links={mantenimientosLinks}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
+          {mainLinksAfterMaintenance.map(({ href, label, icon: Icon }) => (
             <a
               key={href}
               href={href}
