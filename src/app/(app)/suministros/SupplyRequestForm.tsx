@@ -160,40 +160,38 @@ export function SupplyRequestForm({
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredArticles.map((a) => (
-              <div key={a.id} className="flex flex-col gap-2.5 rounded-xl border p-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{a.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {a.unit} · {a.code}
-                  </p>
+              <div key={a.id} className="flex items-stretch gap-3 rounded-xl border p-3">
+                <div className="flex w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted sm:w-24">
+                  {a.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={a.imageUrl} alt={a.name} className="size-full object-contain p-1.5" />
+                  ) : (
+                    <ImageOff className="size-4 text-muted-foreground" />
+                  )}
                 </div>
-                <div className="mt-auto flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex aspect-[3/4] w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
-                      {a.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={a.imageUrl} alt={a.name} className="size-full object-contain p-1.5" />
-                      ) : (
-                        <ImageOff className="size-4 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex flex-1 items-center justify-center gap-2 rounded-md border px-1.5 py-1">
-                      <button
-                        type="button"
-                        onClick={() => changeQty(a.id, -1)}
-                        className="flex size-5 items-center justify-center rounded bg-muted"
-                      >
-                        <Minus className="size-3" />
-                      </button>
-                      <span className="min-w-[1.2rem] text-center text-xs font-semibold">{qtyFor(a.id)}</span>
-                      <button
-                        type="button"
-                        onClick={() => changeQty(a.id, 1)}
-                        className="flex size-5 items-center justify-center rounded bg-muted"
-                      >
-                        <Plus className="size-3" />
-                      </button>
-                    </div>
+                <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{a.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {a.unit} · {a.code}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center gap-3 rounded-md border px-1.5 py-1">
+                    <button
+                      type="button"
+                      onClick={() => changeQty(a.id, -1)}
+                      className="flex size-5 items-center justify-center rounded bg-muted"
+                    >
+                      <Minus className="size-3" />
+                    </button>
+                    <span className="min-w-[1.2rem] text-center text-xs font-semibold">{qtyFor(a.id)}</span>
+                    <button
+                      type="button"
+                      onClick={() => changeQty(a.id, 1)}
+                      className="flex size-5 items-center justify-center rounded bg-muted"
+                    >
+                      <Plus className="size-3" />
+                    </button>
                   </div>
                   <Button
                     size="sm"
