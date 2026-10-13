@@ -89,67 +89,90 @@ export function ArticleFormDialog({ article }: { article?: SupplyArticleRow }) {
         </DialogHeader>
         <div className="space-y-3">
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <Input
-            placeholder="Nombre del artículo"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-muted-foreground">Nombre del artículo</label>
             <Input
-              placeholder="Código (ej. P-011)"
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-            />
-            <Input
-              placeholder="Unidad (ej. Caja)"
-              value={form.unit}
-              onChange={(e) => setForm({ ...form, unit: e.target.value })}
+              placeholder="Ej. Resma de papel bond"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </div>
-          <Input
-            placeholder="Categoría (ej. Papelería)"
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Código</label>
+              <Input
+                placeholder="Ej. P-011"
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Unidad</label>
+              <Input
+                placeholder="Ej. Caja"
+                value={form.unit}
+                onChange={(e) => setForm({ ...form, unit: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-muted-foreground">Categoría</label>
+            <Input
+              placeholder="Ej. Papelería"
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+            />
+          </div>
           <div className="grid grid-cols-3 gap-3">
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="Precio"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
-            />
-            <Input
-              type="number"
-              placeholder="Stock inicial"
-              value={form.stockQuantity}
-              onChange={(e) => setForm({ ...form, stockQuantity: Number(e.target.value) })}
-            />
-            <Input
-              type="number"
-              placeholder="Alerta en"
-              value={form.lowStockThreshold}
-              onChange={(e) => setForm({ ...form, lowStockThreshold: Number(e.target.value) })}
-            />
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Precio</label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Stock inicial</label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={form.stockQuantity}
+                onChange={(e) => setForm({ ...form, stockQuantity: Number(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Alerta de stock bajo</label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={form.lowStockThreshold}
+                onChange={(e) => setForm({ ...form, lowStockThreshold: Number(e.target.value) })}
+              />
+            </div>
           </div>
 
-          <label className="block text-xs font-semibold text-muted-foreground">
-            Imagen del artículo (link, sin subir archivo)
-          </label>
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
-              {form.imageUrl.trim() ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.imageUrl} alt="Vista previa" className="size-full object-cover" />
-              ) : (
-                <ImageOff className="size-4 text-muted-foreground" />
-              )}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-muted-foreground">
+              Imagen del artículo (link, sin subir archivo)
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+                {form.imageUrl.trim() ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.imageUrl} alt="Vista previa" className="size-full object-cover" />
+                ) : (
+                  <ImageOff className="size-4 text-muted-foreground" />
+                )}
+              </div>
+              <Input
+                placeholder="https://..."
+                value={form.imageUrl}
+                onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+              />
             </div>
-            <Input
-              placeholder="https://..."
-              value={form.imageUrl}
-              onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-            />
           </div>
         </div>
         <DialogFooter>
