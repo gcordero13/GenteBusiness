@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import party from "party-js";
 import { Pause } from "lucide-react";
 import {
   Select,
@@ -19,6 +20,10 @@ const ALLOWED_OPTIONS: Record<"mantenimiento" | "mensajeria", GoservicesStatus[]
   mantenimiento: ["en_proceso", "en_espera", "finalizado_ejecutor"],
   mensajeria: ["en_proceso", "en_espera", "completado"],
 };
+
+// A little celebration when a ticket reaches a "done" state - confirmed
+// with the user. Covers both request types' version of "done".
+const CELEBRATION_STATUSES: GoservicesStatus[] = ["completado", "finalizado_ejecutor"];
 
 // Statuses past which the assigned ejecutor has nothing further to do for
 // this request type — show the read-only badge instead of action buttons.
@@ -46,6 +51,13 @@ export function AssignedRequestStatusSelect({
   // why a ticket got paused.
   const [holdOpen, setHoldOpen] = useState(false);
   const [holdReason, setHoldReason] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  function celebrateIfDone(next: GoservicesStatus) {
+    if (CELEBRATION_STATUSES.includes(next) && containerRef.current) {
+      party.confetti(containerRef.current, { count: party.variation.range(30, 40) });
+    }
+  }
 
   function onHoldConfirm() {
     if (!holdReason.trim()) return;
@@ -75,6 +87,7 @@ export function AssignedRequestStatusSelect({
         setError(result.error);
         return;
       }
+      celebrateIfDone(next);
       router.refresh();
     });
   }
@@ -87,6 +100,7 @@ export function AssignedRequestStatusSelect({
         setError(result.error);
         return;
       }
+      celebrateIfDone(next);
       router.refresh();
     });
   }
@@ -101,7 +115,7 @@ export function AssignedRequestStatusSelect({
       (s) => s !== "finalizado_ejecutor" || requestType === "mantenimiento",
     );
     return (
-      <div className="space-y-1">
+      <div className="space-y-1" ref={containerRef}>
         <Select value={status} onValueChange={(v) => v && onSelectChange(v as GoservicesStatus)} disabled={isPending}>
           <SelectTrigger className="w-40"><SelectValue>{(v: string) => STATUS_LABELS[v] ?? v}</SelectValue></SelectTrigger>
           <SelectContent>
@@ -122,7 +136,7 @@ export function AssignedRequestStatusSelect({
   const showEnProceso = status !== "en_proceso";
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" ref={containerRef}>
       {isTerminal ? (
         <GoservicesStatusBadge status={status} label={STATUS_LABELS[status] ?? status} />
       ) : holdOpen ? (

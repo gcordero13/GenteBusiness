@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import party from "party-js";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { STATUS_COLORS, STATUS_LABELS, type GoservicesStatus } from "@/lib/goservicesStatus";
@@ -22,6 +23,13 @@ function isValidDrop(request: GoservicesRequestRow, target: GoservicesStatus): b
   if (target === "finalizado_ejecutor" && request.requestType !== "mantenimiento") return false;
   return request.status !== target;
 }
+
+// A little celebration when a ticket reaches a "done" state - confirmed
+// with the user ("cuando se complete la tarea de goservices, aparezca una
+// animación de estatus"). Covers both request types' version of "done":
+// mensajería tickets finish at "completado", mantenimiento tickets finish
+// (from the ejecutor's side) at "finalizado_ejecutor".
+const CELEBRATION_STATUSES: GoservicesStatus[] = ["completado", "finalizado_ejecutor"];
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -62,7 +70,7 @@ export function GoservicesBoardView({
     return byStatus;
   }, [requests]);
 
-  function handleDrop(target: GoservicesStatus) {
+  function handleDrop(target: GoservicesStatus, anchor: HTMLElement) {
     setDragOverStatus(null);
     const id = draggingId;
     setDraggingId(null);
@@ -76,6 +84,9 @@ export function GoservicesBoardView({
       if (result.error) {
         setError(result.error);
         return;
+      }
+      if (CELEBRATION_STATUSES.includes(target)) {
+        party.confetti(anchor, { count: party.variation.range(30, 40) });
       }
       router.refresh();
     });
@@ -99,7 +110,7 @@ export function GoservicesBoardView({
               onDragLeave={() => setDragOverStatus((prev) => (prev === status ? null : prev))}
               onDrop={(e) => {
                 e.preventDefault();
-                handleDrop(status);
+                handleDrop(status, e.currentTarget);
               }}
               className={cn(
                 "flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors md:h-full",
