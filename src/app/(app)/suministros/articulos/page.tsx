@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { listSupplyArticles } from "./actions";
 import { SupplyArticlesTable } from "./SupplyArticlesTable";
 import { ArticleFormDialog } from "./ArticleFormDialog";
+import { ArticleImportExport } from "./ArticleImportExport";
 
 export default async function SupplyArticlesPage() {
   const supabase = await createClient();
@@ -29,7 +30,10 @@ export default async function SupplyArticlesPage() {
               Catálogo, precios e inventario. Solo visible para el área de Suministros.
             </p>
           </div>
-          <ArticleFormDialog />
+          <div className="flex flex-wrap items-start gap-2">
+            <ArticleImportExport />
+            <ArticleFormDialog />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
