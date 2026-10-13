@@ -134,6 +134,7 @@ export function Sidebar({
   canViewGoservices,
   canManageGoservicesAsignadas,
   canManageSuministros,
+  canViewSuministros,
   canViewServiciosGenerales,
   onLogout,
   onNavigate,
@@ -156,6 +157,7 @@ export function Sidebar({
   canViewGoservices: boolean;
   canManageGoservicesAsignadas: boolean;
   canManageSuministros: boolean;
+  canViewSuministros: boolean;
   canViewServiciosGenerales: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
@@ -221,13 +223,12 @@ export function Sidebar({
     ...(canManageSettings ? [{ href: "/settings", label: "Correo (SMTP)", icon: Settings }] : []),
   ];
 
-  // "Solicitud de suministros" is open to everyone (same as GoServices'
-  // own request page); Despacho/Tablero/Crear artículos only show once a
-  // role profile grants can_manage on the suministros module — each option
-  // lives in Perfiles de rol like every other module, confirmed with the
-  // user, so this is just what Super Admin has by default today.
+  // The whole Suministros group - including "Solicitud de suministros" -
+  // only shows once can_view or can_manage is granted in Perfiles de rol
+  // (reversed from an earlier "open to everyone" design, per the user).
+  // Despacho/Tablero/Crear artículos additionally require can_manage.
   const suministrosSubLinks: NavLink[] = [
-    { href: "/suministros", label: "Solicitud de suministros", icon: ShoppingCart },
+    ...(canViewSuministros ? [{ href: "/suministros", label: "Solicitud de suministros", icon: ShoppingCart }] : []),
     ...(canManageSuministros
       ? [
           { href: "/suministros/despacho", label: "Despacho de suministros", icon: Truck },
