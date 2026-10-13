@@ -87,7 +87,10 @@ export function MaintenanceCalendar({
                     return (
                       <div key={r.id} className="flex items-center gap-1">
                         <span className={`size-1.5 shrink-0 rounded-full ${meta?.dotClass ?? "bg-muted-foreground"}`} />
-                        <span className="truncate text-[10px] text-foreground">{meta?.label.split(" ")[0]}</span>
+                        <span className="truncate text-[10px] text-foreground">
+                          {r.scheduledTime ? `${r.scheduledTime.slice(0, 5)} ` : ""}
+                          {r.assetName ?? meta?.label.split(" ")[0]}
+                        </span>
                       </div>
                     );
                   })}

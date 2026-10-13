@@ -74,7 +74,9 @@ export const STATUS_LABELS: Record<string, string> = {
 
 // Only meaningful for the 'vehiculos' category - confirmed with the user
 // as the fixed list, with 'otro' as the free-text escape hatch for
-// anything else ("existen muchas formas... entre otras cosas").
+// anything else ("existen muchas formas... entre otras cosas"). Replaced
+// 'inspeccion_matricula' (not needed) with 'marbete' (vehicle
+// registration/tax renewal sticker), per the user.
 export type VehicleServiceType =
   | "aceite"
   | "gomas"
@@ -82,7 +84,7 @@ export type VehicleServiceType =
   | "frenos"
   | "filtro_aire"
   | "filtro_combustible"
-  | "inspeccion_matricula"
+  | "marbete"
   | "seguro"
   | "otro";
 
@@ -93,9 +95,28 @@ export const VEHICLE_SERVICE_TYPE_LABELS: Record<VehicleServiceType, string> = {
   frenos: "Frenos",
   filtro_aire: "Filtro de aire",
   filtro_combustible: "Filtro de combustible",
-  inspeccion_matricula: "Inspección / matrícula",
+  marbete: "Marbete",
   seguro: "Seguro",
   otro: "Otro",
 };
 
 export const VEHICLE_SERVICE_TYPES = Object.keys(VEHICLE_SERVICE_TYPE_LABELS) as VehicleServiceType[];
+
+// Which input to show when logging this type of check: a wear item
+// (aceite/gomas/frenos/filtros) tracks mileage; a batería, el seguro, y el
+// marbete vencen por tiempo (confirmed with the user - "por el tiempo que
+// tiene el equipo"), not by mileage; 'otro' shows both since it could be
+// either.
+export type VehicleServiceTrigger = "millaje" | "fecha" | "ambos";
+
+export const VEHICLE_SERVICE_TRIGGER: Record<VehicleServiceType, VehicleServiceTrigger> = {
+  aceite: "millaje",
+  gomas: "millaje",
+  bateria: "fecha",
+  frenos: "millaje",
+  filtro_aire: "millaje",
+  filtro_combustible: "millaje",
+  marbete: "fecha",
+  seguro: "fecha",
+  otro: "ambos",
+};

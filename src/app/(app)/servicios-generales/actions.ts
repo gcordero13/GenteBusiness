@@ -201,6 +201,85 @@ export async function setMaintenanceAssetStatus(id: string, status: "activo" | "
   return {};
 }
 
+// ---- Vendors -------------------------------------------------------------
+
+export interface MaintenanceVendorRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  notes: string | null;
+  status: "activo" | "inactivo";
+}
+
+function toVendorRow(r: { id: string; name: string; phone: string | null; notes: string | null; status: string }): MaintenanceVendorRow {
+  return {
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    notes: r.notes,
+    status: r.status === "inactivo" ? "inactivo" : "activo",
+  };
+}
+
+export async function listMaintenanceVendors(options: { activeOnly?: boolean } = {}): Promise<MaintenanceVendorRow[]> {
+  const supabase = await createClient();
+  let query = supabase.from("general_maintenance_vendors").select("id, name, phone, notes, status").order("name");
+  if (options.activeOnly) query = query.eq("status", "activo");
+  const { data } = await query;
+  return (data ?? []).map(toVendorRow);
+}
+
+export interface MaintenanceVendorInput {
+  name: string;
+  phone: string;
+  notes: string;
+}
+
+export async function createMaintenanceVendor(input: MaintenanceVendorInput): Promise<ActionResult> {
+  if (!(await callerCanManage())) return { error: "No autorizado" };
+  const caller = await callerIdentity();
+  if (!caller) return { error: "No autorizado" };
+  if (!input.name.trim()) return { error: "El nombre es obligatorio" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("general_maintenance_vendors").insert({
+    name: input.name.trim(),
+    phone: input.phone.trim() || null,
+    notes: input.notes.trim() || null,
+    created_by: caller.id,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/servicios-generales/proveedores");
+  return {};
+}
+
+export async function updateMaintenanceVendor(id: string, input: MaintenanceVendorInput): Promise<ActionResult> {
+  if (!(await callerCanManage())) return { error: "No autorizado" };
+  if (!input.name.trim()) return { error: "El nombre es obligatorio" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("general_maintenance_vendors")
+    .update({ name: input.name.trim(), phone: input.phone.trim() || null, notes: input.notes.trim() || null })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/servicios-generales/proveedores");
+  return {};
+}
+
+export async function setMaintenanceVendorStatus(id: string, status: "activo" | "inactivo"): Promise<ActionResult> {
+  if (!(await callerCanManage())) return { error: "No autorizado" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("general_maintenance_vendors").update({ status }).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/servicios-generales/proveedores");
+  return {};
+}
+
 // ---- Records -----------------------------------------------------------
 
 export interface MaintenanceRecordRow {
@@ -211,14 +290,17 @@ export interface MaintenanceRecordRow {
   departmentName: string | null;
   description: string;
   scheduledDate: string;
+  scheduledTime: string | null;
   status: "programado" | "completado" | "vencido" | "cancelado";
   assetId: string | null;
   assetName: string | null;
   vehicleServiceType: VehicleServiceType | null;
   mileageAtService: number | null;
   nextDueMileage: number | null;
+  nextDueDate: string | null;
   cost: number | null;
-  costVendor: string | null;
+  vendorId: string | null;
+  vendorName: string | null;
 }
 
 function toRecordRow(r: {
@@ -229,17 +311,21 @@ function toRecordRow(r: {
   departments: { name: string } | { name: string }[] | null;
   description: string;
   scheduled_date: string;
+  scheduled_time: string | null;
   status: string;
   asset_id: string | null;
   general_maintenance_assets: { name: string } | { name: string }[] | null;
   vehicle_service_type: string | null;
   mileage_at_service: number | null;
   next_due_mileage: number | null;
+  next_due_date: string | null;
   cost: number | null;
-  cost_vendor: string | null;
+  vendor_id: string | null;
+  general_maintenance_vendors: { name: string } | { name: string }[] | null;
 }): MaintenanceRecordRow {
   const dept = Array.isArray(r.departments) ? r.departments[0] : r.departments;
   const asset = Array.isArray(r.general_maintenance_assets) ? r.general_maintenance_assets[0] : r.general_maintenance_assets;
+  const vendor = Array.isArray(r.general_maintenance_vendors) ? r.general_maintenance_vendors[0] : r.general_maintenance_vendors;
   return {
     id: r.id,
     seriesId: r.series_id,
@@ -248,19 +334,22 @@ function toRecordRow(r: {
     departmentName: dept?.name ?? null,
     description: r.description,
     scheduledDate: r.scheduled_date,
+    scheduledTime: r.scheduled_time,
     status: r.status as MaintenanceRecordRow["status"],
     assetId: r.asset_id,
     assetName: asset?.name ?? null,
     vehicleServiceType: r.vehicle_service_type as VehicleServiceType | null,
     mileageAtService: r.mileage_at_service,
     nextDueMileage: r.next_due_mileage,
+    nextDueDate: r.next_due_date,
     cost: r.cost,
-    costVendor: r.cost_vendor,
+    vendorId: r.vendor_id,
+    vendorName: vendor?.name ?? null,
   };
 }
 
 const RECORD_SELECT =
-  "id, series_id, category, department_id, departments(name), description, scheduled_date, status, asset_id, general_maintenance_assets(name), vehicle_service_type, mileage_at_service, next_due_mileage, cost, cost_vendor";
+  "id, series_id, category, department_id, departments(name), description, scheduled_date, scheduled_time, status, asset_id, general_maintenance_assets(name), vehicle_service_type, mileage_at_service, next_due_mileage, next_due_date, cost, vendor_id, general_maintenance_vendors(name)";
 
 // Flips any overdue 'programado' record to 'vencido' before reading, lazily
 // - same precedent as the existing IT maintenance module's 'expirado'
@@ -323,13 +412,15 @@ export interface CreateMaintenanceInput {
   departmentId: string;
   description: string;
   scheduledDate: string;
+  scheduledTime?: string;
   recurring?: { interval: number; unit: "dias" | "semanas" | "meses" };
   assetId?: string;
   vehicleServiceType?: VehicleServiceType;
   mileageAtService?: number;
   nextDueMileage?: number;
+  nextDueDate?: string;
   cost?: number;
-  costVendor?: string;
+  vendorId?: string;
 }
 
 export async function createMaintenanceRecord(input: CreateMaintenanceInput): Promise<ActionResult> {
@@ -367,13 +458,15 @@ export async function createMaintenanceRecord(input: CreateMaintenanceInput): Pr
     department_id: input.departmentId,
     description: input.description.trim(),
     scheduled_date: input.scheduledDate,
+    scheduled_time: input.scheduledTime || null,
     created_by: caller.id,
     asset_id: input.assetId || null,
     vehicle_service_type: input.vehicleServiceType ?? null,
     mileage_at_service: input.mileageAtService ?? null,
     next_due_mileage: input.nextDueMileage ?? null,
+    next_due_date: input.nextDueDate || null,
     cost: input.cost ?? null,
-    cost_vendor: input.costVendor?.trim() || null,
+    vendor_id: input.vendorId || null,
   });
   if (error) return { error: error.message };
 
@@ -498,12 +591,14 @@ export async function exportServiciosGeneralesCsv(): Promise<ActionResult & { cs
   const lines = [
     toCsvRow([
       "fecha",
+      "hora",
       "categoria",
       "activo",
       "departamento",
       "descripcion",
       "tipo_de_chequeo",
       "kilometraje",
+      "proximo_cambio",
       "monto",
       "proveedor",
       "estado",
@@ -513,14 +608,16 @@ export async function exportServiciosGeneralesCsv(): Promise<ActionResult & { cs
     lines.push(
       toCsvRow([
         r.scheduledDate,
+        r.scheduledTime ?? "",
         r.category,
         r.assetName ?? "",
         r.departmentName ?? "",
         r.description,
         r.vehicleServiceType ? VEHICLE_SERVICE_TYPE_LABELS[r.vehicleServiceType] : "",
         r.mileageAtService?.toString() ?? "",
+        r.nextDueMileage != null ? `${r.nextDueMileage} mi` : (r.nextDueDate ?? ""),
         r.cost?.toString() ?? "",
-        r.costVendor ?? "",
+        r.vendorName ?? "",
         STATUS_LABELS[r.status] ?? r.status,
       ]),
     );

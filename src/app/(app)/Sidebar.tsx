@@ -208,7 +208,10 @@ export function Sidebar({
       ? [{ href: "/servicios-generales", label: "Servicios Generales", icon: HardHat }]
       : []),
     ...(canManageServiciosGenerales
-      ? [{ href: "/servicios-generales/activos", label: "Activos", icon: Package }]
+      ? [
+          { href: "/servicios-generales/activos", label: "Activos", icon: Package },
+          { href: "/servicios-generales/proveedores", label: "Proveedores", icon: Truck },
+        ]
       : []),
   ];
 

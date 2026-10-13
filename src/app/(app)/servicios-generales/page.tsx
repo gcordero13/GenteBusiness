@@ -1,8 +1,13 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Wrench } from "lucide-react";
+import { Truck, Wrench } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { listMaintenanceRecordsForMonth, listUpcomingMaintenanceRecords, listMaintenanceAssets } from "./actions";
+import {
+  listMaintenanceRecordsForMonth,
+  listUpcomingMaintenanceRecords,
+  listMaintenanceAssets,
+  listMaintenanceVendors,
+} from "./actions";
 import { MAINTENANCE_CATEGORIES } from "./categories";
 import { MaintenanceCalendar } from "./MaintenanceCalendar";
 import { CreateMaintenanceDialog } from "./CreateMaintenanceDialog";
@@ -28,10 +33,11 @@ export default async function ServiciosGeneralesPage({
     redirect("/");
   }
 
-  const [records, upcoming, assets, { data: departments }] = await Promise.all([
+  const [records, upcoming, assets, vendors, { data: departments }] = await Promise.all([
     listMaintenanceRecordsForMonth(year, month),
     listUpcomingMaintenanceRecords(),
     canManage ? listMaintenanceAssets({ activeOnly: true }) : Promise.resolve([]),
+    canManage ? listMaintenanceVendors({ activeOnly: true }) : Promise.resolve([]),
     supabase.from("departments").select("id, name").order("name"),
   ]);
 
@@ -51,8 +57,12 @@ export default async function ServiciosGeneralesPage({
                 <Wrench className="size-4" />
                 Activos
               </Button>
+              <Button variant="outline" className="gap-2" render={<Link href="/servicios-generales/proveedores" />}>
+                <Truck className="size-4" />
+                Proveedores
+              </Button>
               <ExportReportButton />
-              <CreateMaintenanceDialog departments={departments ?? []} assets={assets} />
+              <CreateMaintenanceDialog departments={departments ?? []} assets={assets} vendors={vendors} />
             </div>
           )}
         </div>

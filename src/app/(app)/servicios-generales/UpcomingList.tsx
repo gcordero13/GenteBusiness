@@ -53,7 +53,10 @@ export function UpcomingMaintenanceList({
             const meta = CATEGORY_BY_KEY.get(r.category);
             return (
               <tr key={r.id} className="border-b last:border-0">
-                <td className="py-2 pr-3 whitespace-nowrap">{r.scheduledDate}</td>
+                <td className="py-2 pr-3 whitespace-nowrap">
+                  {r.scheduledDate}
+                  {r.scheduledTime && <span className="text-muted-foreground"> {r.scheduledTime.slice(0, 5)}</span>}
+                </td>
                 <td className="py-2 pr-3">
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ${meta?.badgeClass ?? ""}`}
@@ -70,12 +73,14 @@ export function UpcomingMaintenanceList({
                     <p className="truncate text-xs text-muted-foreground">
                       {VEHICLE_SERVICE_TYPE_LABELS[r.vehicleServiceType]}
                       {r.mileageAtService != null ? ` · ${r.mileageAtService.toLocaleString()} mi` : ""}
+                      {r.nextDueDate ? ` · Vence ${r.nextDueDate}` : ""}
                     </p>
                   )}
                 </td>
                 <td className="py-2 pr-3 text-muted-foreground">{r.departmentName ?? "—"}</td>
                 <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">
                   {r.cost != null ? `$${r.cost.toFixed(2)}` : "—"}
+                  {r.vendorName && <span className="block text-xs">{r.vendorName}</span>}
                 </td>
                 {canManage && (
                   <td className="py-2">
