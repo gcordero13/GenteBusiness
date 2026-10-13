@@ -13,7 +13,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ImageOff, Plus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createSupplyArticle, updateSupplyArticle, type SupplyArticleInput, type SupplyArticleRow } from "./actions";
+import { UNIT_OPTIONS } from "./units";
 
 const EMPTY: SupplyArticleInput = {
   name: "",
@@ -107,12 +115,21 @@ export function ArticleFormDialog({ article }: { article?: SupplyArticleRow }) {
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-muted-foreground">Unidad</label>
-              <Input
-                placeholder="Ej. Caja"
-                value={form.unit}
-                onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              />
+              <label className="block text-xs font-semibold text-muted-foreground">Unidad de medida</label>
+              <Select value={form.unit || undefined} onValueChange={(v) => v && setForm({ ...form, unit: v })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {() => UNIT_OPTIONS.find((u) => u.abbr === form.unit)?.label ?? "Selecciona"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIT_OPTIONS.map((u) => (
+                    <SelectItem key={u.abbr} value={u.abbr}>
+                      {u.label} ({u.abbr})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="space-y-1">
