@@ -111,10 +111,9 @@ export function SupplyRequestForm({
   return (
     <div className="flex flex-wrap gap-5">
       {/* catalog */}
-      <div className="min-w-0 flex-[999_1_560px] rounded-2xl border bg-card p-5 shadow-sm">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="min-w-0 flex-[999_1_720px] rounded-2xl border bg-card p-5 shadow-sm">
+        <div className="mb-3">
           <h2 className="text-base font-semibold text-foreground">Catálogo de suministros</h2>
-          <p className="text-xs text-muted-foreground">No se muestran precios — solo Suministros los administra</p>
         </div>
 
         <div className="relative mb-3">
@@ -158,7 +157,7 @@ export function SupplyRequestForm({
         {filteredArticles.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">No hay artículos que coincidan.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredArticles.map((a) => (
               <div key={a.id} className="flex items-stretch gap-3 rounded-xl border p-3">
                 <div className="flex w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted sm:w-24">
