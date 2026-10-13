@@ -161,19 +161,21 @@ export function SupplyRequestForm({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredArticles.map((a) => (
               <div key={a.id} className="flex flex-col gap-2.5 rounded-xl border p-3">
-                <div className="flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
-                  {a.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={a.imageUrl} alt={a.name} className="size-full object-contain p-2" />
-                  ) : (
-                    <ImageOff className="size-5 text-muted-foreground" />
-                  )}
-                </div>
-                <div>
-                  <p className="truncate text-sm font-semibold text-foreground">{a.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {a.unit} · {a.code}
-                  </p>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex aspect-[3/4] w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                    {a.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={a.imageUrl} alt={a.name} className="size-full object-contain p-1" />
+                    ) : (
+                      <ImageOff className="size-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{a.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {a.unit} · {a.code}
+                    </p>
+                  </div>
                 </div>
                 <div className="mt-auto flex items-center justify-between">
                   <div className="flex items-center gap-2 rounded-md border px-1.5 py-1">
