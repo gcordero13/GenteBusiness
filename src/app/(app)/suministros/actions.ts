@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { STATUS_LABELS } from "./constants";
 
 interface ActionResult {
   error?: string;
@@ -66,17 +67,6 @@ export interface SupplyRequestContext {
   pendingException: boolean;
   approvedExceptionAvailable: boolean;
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  pendiente_aprobacion: "En revisión",
-  aprobada: "Aprobada",
-  editada_pendiente_reaprobacion: "Editada · Re-aprobación",
-  rechazada: "Rechazada",
-  en_preparacion: "En preparación",
-  parcial: "Parcial",
-  entregada: "Entregada",
-  cancelada: "Cancelada",
-};
 
 export async function getSupplyRequestContext(): Promise<SupplyRequestContext | null> {
   const supabase = await createClient();
@@ -225,6 +215,279 @@ export async function requestSupplyException(approverAppUserId: string, note: st
   if (error) return { error: error.message };
 
   revalidatePath("/suministros");
+  return {};
+}
+
+async function callerCanManageSuministros(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase.rpc("get_my_module_permissions", { p_module_key: "suministros" });
+  return Boolean(data?.[0]?.can_manage);
+}
+
+export interface SupplyRequestItemRow {
+  id: string;
+  articleId: string;
+  articleName: string;
+  unit: string;
+  unitPrice: number;
+  qtyRequested: number;
+  qtyApproved: number | null;
+  qtyPrepared: number | null;
+  qtyDelivered: number | null;
+}
+
+export interface SupplyRequestRow {
+  id: string;
+  requestNumber: number;
+  requesterName: string;
+  requesterDepartmentName: string | null;
+  approverName: string;
+  status: string;
+  statusLabel: string;
+  notes: string | null;
+  createdAtLabel: string;
+  items: SupplyRequestItemRow[];
+  isMyApproval: boolean;
+}
+
+function toItemRow(i: {
+  id: string;
+  article_id: string;
+  article_name: string;
+  unit: string;
+  unit_price: number;
+  qty_requested: number;
+  qty_approved: number | null;
+  qty_prepared: number | null;
+  qty_delivered: number | null;
+}): SupplyRequestItemRow {
+  return {
+    id: i.id,
+    articleId: i.article_id,
+    articleName: i.article_name,
+    unit: i.unit,
+    unitPrice: i.unit_price,
+    qtyRequested: i.qty_requested,
+    qtyApproved: i.qty_approved,
+    qtyPrepared: i.qty_prepared,
+    qtyDelivered: i.qty_delivered,
+  };
+}
+
+// Any employee can end up being someone's approver (the chain is the org
+// chart, not a permission flag), so this list is NOT gated behind
+// can_manage — it's whatever requests have the current user as approver.
+export async function listPendingApprovals(): Promise<SupplyRequestRow[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("supply_requests")
+    .select(
+      "id, request_number, requester_name, requester_department_name, approver_name, status, notes, created_at, supply_request_items(id, article_id, article_name, unit, unit_price, qty_requested, qty_approved, qty_prepared, qty_delivered)",
+    )
+    .eq("approver_app_user_id", user.id)
+    .in("status", ["pendiente_aprobacion", "editada_pendiente_reaprobacion"])
+    .order("created_at", { ascending: true });
+
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    requestNumber: r.request_number,
+    requesterName: r.requester_name,
+    requesterDepartmentName: r.requester_department_name,
+    approverName: r.approver_name,
+    status: r.status,
+    statusLabel: STATUS_LABELS[r.status] ?? r.status,
+    notes: r.notes,
+    createdAtLabel: new Date(r.created_at).toLocaleDateString("es-DO", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    items: (r.supply_request_items as Parameters<typeof toItemRow>[0][]).map(toItemRow),
+    isMyApproval: true,
+  }));
+}
+
+export async function decideSupplyRequest(
+  requestId: string,
+  decision: "aprobada" | "rechazada",
+  itemApprovals: { itemId: string; qtyApproved: number }[],
+  reason: string,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+
+  const { data: request } = await supabase
+    .from("supply_requests")
+    .select("id, approver_app_user_id, status")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!request || request.approver_app_user_id !== user.id) return { error: "No autorizado" };
+  if (!["pendiente_aprobacion", "editada_pendiente_reaprobacion"].includes(request.status)) {
+    return { error: "Esta solicitud ya fue procesada" };
+  }
+  if (decision === "rechazada" && !reason.trim()) return { error: "Indica el motivo del rechazo" };
+
+  if (decision === "aprobada") {
+    for (const item of itemApprovals) {
+      const { error } = await supabase
+        .from("supply_request_items")
+        .update({ qty_approved: item.qtyApproved })
+        .eq("id", item.itemId)
+        .eq("request_id", requestId);
+      if (error) return { error: error.message };
+    }
+  }
+
+  const { error } = await supabase
+    .from("supply_requests")
+    .update({
+      status: decision,
+      notes: decision === "rechazada" ? reason.trim() : undefined,
+    })
+    .eq("id", requestId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/suministros");
+  revalidatePath("/suministros/tablero");
+  revalidatePath("/suministros/despacho");
+  return {};
+}
+
+export async function listSupplyRequestsForBoard(): Promise<SupplyRequestRow[]> {
+  if (!(await callerCanManageSuministros())) return [];
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("supply_requests")
+    .select(
+      "id, request_number, requester_name, requester_department_name, approver_name, status, notes, created_at, supply_request_items(id, article_id, article_name, unit, unit_price, qty_requested, qty_approved, qty_prepared, qty_delivered)",
+    )
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    requestNumber: r.request_number,
+    requesterName: r.requester_name,
+    requesterDepartmentName: r.requester_department_name,
+    approverName: r.approver_name,
+    status: r.status,
+    statusLabel: STATUS_LABELS[r.status] ?? r.status,
+    notes: r.notes,
+    createdAtLabel: new Date(r.created_at).toLocaleDateString("es-DO", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    items: (r.supply_request_items as Parameters<typeof toItemRow>[0][]).map(toItemRow),
+    isMyApproval: false,
+  }));
+}
+
+export async function listDispatchQueue(): Promise<SupplyRequestRow[]> {
+  if (!(await callerCanManageSuministros())) return [];
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("supply_requests")
+    .select(
+      "id, request_number, requester_name, requester_department_name, approver_name, status, notes, created_at, supply_request_items(id, article_id, article_name, unit, unit_price, qty_requested, qty_approved, qty_prepared, qty_delivered)",
+    )
+    .in("status", ["aprobada", "en_preparacion", "parcial"])
+    .order("created_at", { ascending: true });
+
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    requestNumber: r.request_number,
+    requesterName: r.requester_name,
+    requesterDepartmentName: r.requester_department_name,
+    approverName: r.approver_name,
+    status: r.status,
+    statusLabel: STATUS_LABELS[r.status] ?? r.status,
+    notes: r.notes,
+    createdAtLabel: new Date(r.created_at).toLocaleDateString("es-DO", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    items: (r.supply_request_items as Parameters<typeof toItemRow>[0][]).map(toItemRow),
+    isMyApproval: false,
+  }));
+}
+
+export async function markRequestInPreparation(requestId: string): Promise<ActionResult> {
+  if (!(await callerCanManageSuministros())) return { error: "No autorizado" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("supply_requests")
+    .update({ status: "en_preparacion" })
+    .eq("id", requestId)
+    .eq("status", "aprobada");
+  if (error) return { error: error.message };
+
+  revalidatePath("/suministros/despacho");
+  revalidatePath("/suministros/tablero");
+  return {};
+}
+
+// Confirms delivery for the given items (qtyDelivered capped at qtyApproved
+// by the caller's UI), decrements stock by what was actually delivered, and
+// marks the request 'entregada' when every item is fully delivered or
+// 'parcial' otherwise — matches the approved mockup's dispatch workflow.
+export async function confirmDispatchDelivery(
+  requestId: string,
+  deliveries: { itemId: string; articleId: string; qtyPrepared: number; qtyDelivered: number }[],
+): Promise<ActionResult> {
+  if (!(await callerCanManageSuministros())) return { error: "No autorizado" };
+
+  const admin = createAdminClient();
+  const { data: request } = await admin
+    .from("supply_requests")
+    .select("id, status")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!request || !["aprobada", "en_preparacion", "parcial"].includes(request.status)) {
+    return { error: "Esta solicitud no está en despacho" };
+  }
+
+  for (const d of deliveries) {
+    const { error: itemError } = await admin
+      .from("supply_request_items")
+      .update({ qty_prepared: d.qtyPrepared, qty_delivered: d.qtyDelivered })
+      .eq("id", d.itemId)
+      .eq("request_id", requestId);
+    if (itemError) return { error: itemError.message };
+
+    if (d.qtyDelivered > 0) {
+      const { data: article } = await admin
+        .from("supply_articles")
+        .select("stock_quantity")
+        .eq("id", d.articleId)
+        .maybeSingle();
+      if (article) {
+        const { error: stockError } = await admin
+          .from("supply_articles")
+          .update({ stock_quantity: Math.max(0, article.stock_quantity - d.qtyDelivered) })
+          .eq("id", d.articleId);
+        if (stockError) return { error: stockError.message };
+      }
+    }
+  }
+
+  const { data: items } = await admin
+    .from("supply_request_items")
+    .select("qty_approved, qty_delivered")
+    .eq("request_id", requestId);
+  const allDelivered = (items ?? []).every((i) => (i.qty_delivered ?? 0) >= (i.qty_approved ?? 0));
+  const anyDelivered = (items ?? []).some((i) => (i.qty_delivered ?? 0) > 0);
+  const nextStatus = allDelivered ? "entregada" : anyDelivered ? "parcial" : "en_preparacion";
+
+  const { error } = await admin.from("supply_requests").update({ status: nextStatus }).eq("id", requestId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/suministros/despacho");
+  revalidatePath("/suministros/tablero");
   return {};
 }
 

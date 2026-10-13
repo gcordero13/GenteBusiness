@@ -1,13 +1,15 @@
 import { listSupplyArticles } from "./articulos/actions";
-import { getSupplyRequestContext, listMySupplyRequests } from "./actions";
+import { getSupplyRequestContext, listMySupplyRequests, listPendingApprovals } from "./actions";
 import { SupplyRequestForm } from "./SupplyRequestForm";
 import { RequestExceptionDialog } from "./RequestExceptionDialog";
+import { ApprovalsPanel } from "./ApprovalsPanel";
 
 export default async function SupplyRequestPage() {
-  const [articles, context, recent] = await Promise.all([
+  const [articles, context, recent, pendingApprovals] = await Promise.all([
     listSupplyArticles({ activeOnly: true }),
     getSupplyRequestContext(),
     listMySupplyRequests(),
+    listPendingApprovals(),
   ]);
 
   if (!context) {
@@ -41,6 +43,8 @@ export default async function SupplyRequestPage() {
             )}
           </div>
         )}
+
+        <ApprovalsPanel requests={pendingApprovals} />
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-2xl border bg-card p-4 shadow-sm">
