@@ -1,30 +1,15 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Truck, Wrench } from "lucide-react";
+import { Repeat, Truck, Wrench } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import {
-  listMaintenanceRecordsForMonth,
-  listUpcomingMaintenanceRecords,
-  listMaintenanceAssets,
-  listMaintenanceVendors,
-} from "./actions";
+import { listAllMaintenanceRecords, listMaintenanceAssets, listMaintenanceVendors } from "./actions";
 import { MAINTENANCE_CATEGORIES } from "./categories";
-import { MaintenanceCalendar } from "./MaintenanceCalendar";
 import { CreateMaintenanceDialog } from "./CreateMaintenanceDialog";
-import { UpcomingMaintenanceList } from "./UpcomingList";
 import { ExportReportButton } from "./ExportButton";
+import { ServiciosGeneralesWorkspace } from "./ServiciosGeneralesWorkspace";
 import { Button } from "@/components/ui/button";
 
-export default async function ServiciosGeneralesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ year?: string; month?: string }>;
-}) {
-  const params = await searchParams;
-  const today = new Date();
-  const year = Number(params.year) || today.getFullYear();
-  const month = Number(params.month) || today.getMonth() + 1;
-
+export default async function ServiciosGeneralesPage() {
   const supabase = await createClient();
   const { data: flagsRows } = await supabase.rpc("get_my_module_permissions", { p_module_key: "servicios_generales" });
   const canManage = Boolean(flagsRows?.[0]?.can_manage);
@@ -33,9 +18,8 @@ export default async function ServiciosGeneralesPage({
     redirect("/");
   }
 
-  const [records, upcoming, assets, vendors, { data: departments }] = await Promise.all([
-    listMaintenanceRecordsForMonth(year, month),
-    listUpcomingMaintenanceRecords(),
+  const [records, assets, vendors, { data: departments }] = await Promise.all([
+    listAllMaintenanceRecords(),
     canManage ? listMaintenanceAssets({ activeOnly: true }) : Promise.resolve([]),
     canManage ? listMaintenanceVendors({ activeOnly: true }) : Promise.resolve([]),
     supabase.from("departments").select("id, name").order("name"),
@@ -61,6 +45,10 @@ export default async function ServiciosGeneralesPage({
                 <Truck className="size-4" />
                 Proveedores
               </Button>
+              <Button variant="outline" className="gap-2" render={<Link href="/servicios-generales/planes" />}>
+                <Repeat className="size-4" />
+                Planes
+              </Button>
               <ExportReportButton />
               <CreateMaintenanceDialog departments={departments ?? []} assets={assets} vendors={vendors} />
             </div>
@@ -81,25 +69,7 @@ export default async function ServiciosGeneralesPage({
           ))}
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
-          <MaintenanceCalendar year={year} month={month} records={records} />
-          <div className="rounded-2xl border bg-card p-4 shadow-sm">
-            <h3 className="mb-2 text-sm font-semibold text-foreground">Tipos de mantenimiento</h3>
-            <div className="space-y-1.5">
-              {MAINTENANCE_CATEGORIES.map((c) => (
-                <div key={c.key} className="flex items-center gap-2 text-sm">
-                  <span className={`size-2 rounded-full ${c.dotClass}`} />
-                  <span className="text-foreground">{c.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-card p-4 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold text-foreground">Próximos mantenimientos</h3>
-          <UpcomingMaintenanceList records={upcoming} canManage={canManage} />
-        </div>
+        <ServiciosGeneralesWorkspace records={records} canManage={canManage} />
       </div>
     </div>
   );

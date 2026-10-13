@@ -40,10 +40,15 @@ export function CreateMaintenanceDialog({
   departments,
   assets,
   vendors,
+  forcePlan = false,
 }: {
   departments: { id: string; name: string }[];
   assets: MaintenanceAssetRow[];
   vendors: MaintenanceVendorRow[];
+  // "Planes de mantenimiento" reuses this same form, just always recurring
+  // and without the toggle - a plan IS a recurring rule, so there's
+  // nothing to opt into.
+  forcePlan?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -53,7 +58,7 @@ export function CreateMaintenanceDialog({
   const [description, setDescription] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
-  const [isRecurring, setIsRecurring] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(forcePlan);
   const [interval, setInterval] = useState(1);
   const [unit, setUnit] = useState<FrequencyUnit>("meses");
   const [vehicleServiceType, setVehicleServiceType] = useState<VehicleServiceType>("aceite");
@@ -79,7 +84,7 @@ export function CreateMaintenanceDialog({
     setDescription("");
     setScheduledDate("");
     setScheduledTime("");
-    setIsRecurring(false);
+    setIsRecurring(forcePlan);
     setInterval(1);
     setUnit("meses");
     setVehicleServiceType("aceite");
@@ -137,11 +142,11 @@ export function CreateMaintenanceDialog({
     >
       <DialogTrigger render={<Button className="gap-2 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90" />}>
         <Plus className="size-4" />
-        Crear mantenimiento
+        {forcePlan ? "Nuevo plan" : "Crear mantenimiento"}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nuevo mantenimiento</DialogTitle>
+          <DialogTitle>{forcePlan ? "Nuevo plan de mantenimiento" : "Nuevo mantenimiento"}</DialogTitle>
         </DialogHeader>
         <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -208,7 +213,9 @@ export function CreateMaintenanceDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-muted-foreground">Fecha programada</label>
+              <label className="block text-xs font-semibold text-muted-foreground">
+                {forcePlan ? "Fecha de inicio" : "Fecha programada"}
+              </label>
               <Input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
             </div>
             <div className="space-y-1">
@@ -301,10 +308,12 @@ export function CreateMaintenanceDialog({
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-            <input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
-            ¿Se repite?
-          </label>
+          {!forcePlan && (
+            <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+              <input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
+              ¿Se repite?
+            </label>
+          )}
           {isRecurring && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">

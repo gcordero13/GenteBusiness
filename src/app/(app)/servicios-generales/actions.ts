@@ -280,6 +280,75 @@ export async function setMaintenanceVendorStatus(id: string, status: "activo" | 
   return {};
 }
 
+// ---- Plans (recurring series) -------------------------------------------
+
+export interface MaintenancePlanRow {
+  id: string;
+  category: MaintenanceCategoryKey;
+  assetId: string | null;
+  assetName: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  description: string;
+  frequencyInterval: number;
+  frequencyUnit: "dias" | "semanas" | "meses";
+  isActive: boolean;
+  createdAt: string;
+}
+
+function toPlanRow(r: {
+  id: string;
+  category: string;
+  asset_id: string | null;
+  general_maintenance_assets: { name: string } | { name: string }[] | null;
+  department_id: string | null;
+  departments: { name: string } | { name: string }[] | null;
+  description: string;
+  frequency_interval: number;
+  frequency_unit: string;
+  is_active: boolean;
+  created_at: string;
+}): MaintenancePlanRow {
+  const dept = Array.isArray(r.departments) ? r.departments[0] : r.departments;
+  const asset = Array.isArray(r.general_maintenance_assets) ? r.general_maintenance_assets[0] : r.general_maintenance_assets;
+  return {
+    id: r.id,
+    category: r.category as MaintenanceCategoryKey,
+    assetId: r.asset_id,
+    assetName: asset?.name ?? null,
+    departmentId: r.department_id,
+    departmentName: dept?.name ?? null,
+    description: r.description,
+    frequencyInterval: r.frequency_interval,
+    frequencyUnit: r.frequency_unit as MaintenancePlanRow["frequencyUnit"],
+    isActive: r.is_active,
+    createdAt: r.created_at,
+  };
+}
+
+export async function listMaintenancePlans(): Promise<MaintenancePlanRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("general_maintenance_series")
+    .select(
+      "id, category, asset_id, general_maintenance_assets(name), department_id, departments(name), description, frequency_interval, frequency_unit, is_active, created_at",
+    )
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map(toPlanRow);
+}
+
+export async function reactivateMaintenanceSeries(seriesId: string): Promise<ActionResult> {
+  if (!(await callerCanManage())) return { error: "No autorizado" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("general_maintenance_series").update({ is_active: true }).eq("id", seriesId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/servicios-generales/planes");
+  return {};
+}
+
 // ---- Records -----------------------------------------------------------
 
 export interface MaintenanceRecordRow {
@@ -364,34 +433,18 @@ async function markOverdueAsVencido(): Promise<void> {
     .lt("scheduled_date", today);
 }
 
-export async function listMaintenanceRecordsForMonth(year: number, month: number): Promise<MaintenanceRecordRow[]> {
-  await markOverdueAsVencido();
-
-  const supabase = await createClient();
-  const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
-  const nextMonthDate = new Date(Date.UTC(year, month, 1));
-  const monthEnd = nextMonthDate.toISOString().slice(0, 10);
-
-  const { data } = await supabase
-    .from("general_maintenance_records")
-    .select(RECORD_SELECT)
-    .gte("scheduled_date", monthStart)
-    .lt("scheduled_date", monthEnd)
-    .order("scheduled_date", { ascending: true });
-
-  return (data ?? []).map(toRecordRow);
-}
-
-export async function listUpcomingMaintenanceRecords(limit = 8): Promise<MaintenanceRecordRow[]> {
+// Backs the Lista/Tablero views and the calendar's client-side month
+// slicing - an internal tool's maintenance volume is small enough that
+// fetching everything once and filtering in the browser (same pattern as
+// Suministros' Tablero) is simpler than paginated server queries per view.
+export async function listAllMaintenanceRecords(): Promise<MaintenanceRecordRow[]> {
   await markOverdueAsVencido();
 
   const supabase = await createClient();
   const { data } = await supabase
     .from("general_maintenance_records")
     .select(RECORD_SELECT)
-    .in("status", ["programado", "vencido"])
-    .order("scheduled_date", { ascending: true })
-    .limit(limit);
+    .order("scheduled_date", { ascending: false });
 
   return (data ?? []).map(toRecordRow);
 }
@@ -444,6 +497,7 @@ export async function createMaintenanceRecord(input: CreateMaintenanceInput): Pr
         description: input.description.trim(),
         frequency_interval: input.recurring.interval,
         frequency_unit: input.recurring.unit,
+        asset_id: input.assetId || null,
         created_by: caller.id,
       })
       .select("id")
@@ -507,7 +561,7 @@ export async function completeMaintenanceRecord(id: string): Promise<ActionResul
   const admin = createAdminClient();
   const { data: record } = await admin
     .from("general_maintenance_records")
-    .select("id, series_id, category, department_id, description, scheduled_date, status")
+    .select("id, series_id, category, department_id, description, scheduled_date, status, asset_id")
     .eq("id", id)
     .maybeSingle();
   if (!record) return { error: "No encontrado" };
@@ -535,6 +589,7 @@ export async function completeMaintenanceRecord(id: string): Promise<ActionResul
         department_id: record.department_id,
         description: record.description,
         scheduled_date: nextDate,
+        asset_id: record.asset_id,
         created_by: caller.id,
       });
     }
@@ -566,6 +621,7 @@ export async function cancelMaintenanceSeries(seriesId: string): Promise<ActionR
   if (error) return { error: error.message };
 
   revalidatePath("/servicios-generales");
+  revalidatePath("/servicios-generales/planes");
   return {};
 }
 

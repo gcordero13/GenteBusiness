@@ -7,24 +7,28 @@ import { Button } from "@/components/ui/button";
 import { CATEGORY_BY_KEY, VEHICLE_SERVICE_TYPE_LABELS } from "./categories";
 import { completeMaintenanceRecord, cancelMaintenanceRecord, type MaintenanceRecordRow } from "./actions";
 
-export function UpcomingMaintenanceList({
+export function MaintenanceListView({
   records,
   canManage,
+  onSelectRecord,
 }: {
   records: MaintenanceRecordRow[];
   canManage: boolean;
+  onSelectRecord: (record: MaintenanceRecordRow) => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  function complete(id: string) {
+  function complete(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
     startTransition(async () => {
       await completeMaintenanceRecord(id);
       router.refresh();
     });
   }
 
-  function cancel(id: string) {
+  function cancel(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
     startTransition(async () => {
       await cancelMaintenanceRecord(id);
       router.refresh();
@@ -32,7 +36,7 @@ export function UpcomingMaintenanceList({
   }
 
   if (records.length === 0) {
-    return <p className="py-6 text-center text-sm text-muted-foreground">No hay mantenimientos próximos.</p>;
+    return <p className="py-6 text-center text-sm text-muted-foreground">No hay mantenimientos que coincidan.</p>;
   }
 
   return (
@@ -45,6 +49,7 @@ export function UpcomingMaintenanceList({
             <th className="pb-2 pr-3 font-medium">Artículo / Descripción</th>
             <th className="pb-2 pr-3 font-medium">Área</th>
             <th className="pb-2 pr-3 font-medium">Gasto</th>
+            <th className="pb-2 pr-3 font-medium">Estado</th>
             {canManage && <th className="pb-2 font-medium" />}
           </tr>
         </thead>
@@ -52,7 +57,11 @@ export function UpcomingMaintenanceList({
           {records.map((r) => {
             const meta = CATEGORY_BY_KEY.get(r.category);
             return (
-              <tr key={r.id} className="border-b last:border-0">
+              <tr
+                key={r.id}
+                onClick={() => onSelectRecord(r)}
+                className="cursor-pointer border-b last:border-0 hover:bg-muted/50"
+              >
                 <td className="py-2 pr-3 whitespace-nowrap">
                   {r.scheduledDate}
                   {r.scheduledTime && <span className="text-muted-foreground"> {r.scheduledTime.slice(0, 5)}</span>}
@@ -64,7 +73,6 @@ export function UpcomingMaintenanceList({
                     <span className={`size-1.5 rounded-full ${meta?.dotClass ?? ""}`} />
                     {meta?.label ?? r.category}
                   </span>
-                  {r.status === "vencido" && <span className="ml-1.5 text-xs font-semibold text-red-600">Vencido</span>}
                 </td>
                 <td className="max-w-[220px] py-2 pr-3">
                   <p className="truncate font-medium text-foreground">{r.assetName ?? r.description}</p>
@@ -82,29 +90,52 @@ export function UpcomingMaintenanceList({
                   {r.cost != null ? `$${r.cost.toFixed(2)}` : "—"}
                   {r.vendorName && <span className="block text-xs">{r.vendorName}</span>}
                 </td>
+                <td className="py-2 pr-3">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      r.status === "vencido"
+                        ? "bg-red-50 text-red-700"
+                        : r.status === "completado"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : r.status === "cancelado"
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {r.status === "programado"
+                      ? "Programado"
+                      : r.status === "vencido"
+                        ? "Vencido"
+                        : r.status === "completado"
+                          ? "Completado"
+                          : "Cancelado"}
+                  </span>
+                </td>
                 {canManage && (
                   <td className="py-2">
-                    <div className="flex gap-1.5">
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        disabled={isPending}
-                        onClick={() => complete(r.id)}
-                        title="Marcar completado"
-                      >
-                        <Check className="size-3.5" />
-                      </Button>
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        disabled={isPending}
-                        onClick={() => cancel(r.id)}
-                        title="Cancelar"
-                        className="text-red-600"
-                      >
-                        <X className="size-3.5" />
-                      </Button>
-                    </div>
+                    {(r.status === "programado" || r.status === "vencido") && (
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="icon-sm"
+                          variant="outline"
+                          disabled={isPending}
+                          onClick={(e) => complete(e, r.id)}
+                          title="Marcar completado"
+                        >
+                          <Check className="size-3.5" />
+                        </Button>
+                        <Button
+                          size="icon-sm"
+                          variant="outline"
+                          disabled={isPending}
+                          onClick={(e) => cancel(e, r.id)}
+                          title="Cancelar"
+                          className="text-red-600"
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </td>
                 )}
               </tr>

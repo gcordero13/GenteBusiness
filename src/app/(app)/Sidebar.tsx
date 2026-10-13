@@ -13,6 +13,7 @@ import {
   Fingerprint,
   HardHat,
   Inbox,
+  Repeat,
   LayoutGrid,
   LogOut,
   MessageSquareWarning,
@@ -211,6 +212,7 @@ export function Sidebar({
       ? [
           { href: "/servicios-generales/activos", label: "Activos", icon: Package },
           { href: "/servicios-generales/proveedores", label: "Proveedores", icon: Truck },
+          { href: "/servicios-generales/planes", label: "Planes de mantenimiento", icon: Repeat },
         ]
       : []),
   ];

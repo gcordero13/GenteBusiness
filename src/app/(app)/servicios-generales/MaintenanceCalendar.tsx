@@ -1,3 +1,5 @@
+"use client";
+
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CATEGORY_BY_KEY } from "./categories";
 import type { MaintenanceRecordRow } from "./actions";
@@ -13,6 +15,7 @@ interface DayCell {
   records: MaintenanceRecordRow[];
 }
 
+// Expects `records` already scoped to the given month/year.
 function buildMonthGrid(year: number, month: number, records: MaintenanceRecordRow[]): (DayCell | null)[] {
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -36,35 +39,46 @@ export function MaintenanceCalendar({
   year,
   month,
   records,
+  onNavigate,
+  onSelectRecord,
 }: {
   year: number;
   month: number;
   records: MaintenanceRecordRow[];
+  onNavigate: (year: number, month: number) => void;
+  onSelectRecord: (record: MaintenanceRecordRow) => void;
 }) {
   const cells = buildMonthGrid(year, month, records);
-  const prevMonth = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
-  const nextMonth = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
+
+  function goPrev() {
+    onNavigate(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1);
+  }
+  function goNext() {
+    onNavigate(month === 12 ? year + 1 : year, month === 12 ? 1 : month + 1);
+  }
 
   return (
     <div className="rounded-2xl border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Calendario de Mantenimientos</h3>
         <div className="flex items-center gap-2 text-sm">
-          <a
-            href={`?year=${prevMonth.year}&month=${prevMonth.month}`}
+          <button
+            type="button"
+            onClick={goPrev}
             className="flex size-6 items-center justify-center rounded hover:bg-muted"
           >
             <ChevronLeft className="size-4" />
-          </a>
+          </button>
           <span className="min-w-[9rem] text-center font-medium text-foreground">
             {MONTH_NAMES[month - 1]} {year}
           </span>
-          <a
-            href={`?year=${nextMonth.year}&month=${nextMonth.month}`}
+          <button
+            type="button"
+            onClick={goNext}
             className="flex size-6 items-center justify-center rounded hover:bg-muted"
           >
             <ChevronRight className="size-4" />
-          </a>
+          </button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1 text-xs">
@@ -85,13 +99,18 @@ export function MaintenanceCalendar({
                   {cell.records.slice(0, 3).map((r) => {
                     const meta = CATEGORY_BY_KEY.get(r.category);
                     return (
-                      <div key={r.id} className="flex items-center gap-1">
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => onSelectRecord(r)}
+                        className="flex w-full items-center gap-1 rounded hover:bg-muted"
+                      >
                         <span className={`size-1.5 shrink-0 rounded-full ${meta?.dotClass ?? "bg-muted-foreground"}`} />
-                        <span className="truncate text-[10px] text-foreground">
+                        <span className="truncate text-left text-[10px] text-foreground">
                           {r.scheduledTime ? `${r.scheduledTime.slice(0, 5)} ` : ""}
                           {r.assetName ?? meta?.label.split(" ")[0]}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                   {cell.records.length > 3 && (
