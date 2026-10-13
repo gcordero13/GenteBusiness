@@ -161,10 +161,10 @@ export function SupplyRequestForm({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredArticles.map((a) => (
               <div key={a.id} className="flex flex-col gap-2.5 rounded-xl border p-3">
-                <div className="flex h-16 w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
+                <div className="flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
                   {a.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={a.imageUrl} alt={a.name} className="size-full object-cover" />
+                    <img src={a.imageUrl} alt={a.name} className="size-full object-contain p-2" />
                   ) : (
                     <ImageOff className="size-5 text-muted-foreground" />
                   )}
