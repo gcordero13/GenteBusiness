@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,34 +20,63 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MAINTENANCE_CATEGORIES, type MaintenanceCategoryKey } from "./categories";
-import { createMaintenanceRecord } from "./actions";
+import {
+  MAINTENANCE_CATEGORIES,
+  VEHICLE_SERVICE_TYPES,
+  VEHICLE_SERVICE_TYPE_LABELS,
+  type MaintenanceCategoryKey,
+  type VehicleServiceType,
+} from "./categories";
+import { createMaintenanceRecord, type MaintenanceAssetRow } from "./actions";
 
 type FrequencyUnit = "dias" | "semanas" | "meses";
 
 const FREQUENCY_LABELS: Record<FrequencyUnit, string> = { dias: "Días", semanas: "Semanas", meses: "Meses" };
+const NO_ASSET_VALUE = "__none__";
 
-export function CreateMaintenanceDialog({ departments }: { departments: { id: string; name: string }[] }) {
+export function CreateMaintenanceDialog({
+  departments,
+  assets,
+}: {
+  departments: { id: string; name: string }[];
+  assets: MaintenanceAssetRow[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<MaintenanceCategoryKey>(MAINTENANCE_CATEGORIES[0].key);
   const [departmentId, setDepartmentId] = useState(departments[0]?.id ?? "");
+  const [assetId, setAssetId] = useState<string>(NO_ASSET_VALUE);
   const [description, setDescription] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
   const [interval, setInterval] = useState(1);
   const [unit, setUnit] = useState<FrequencyUnit>("meses");
+  const [vehicleServiceType, setVehicleServiceType] = useState<VehicleServiceType>("aceite");
+  const [mileageAtService, setMileageAtService] = useState("");
+  const [nextDueMileage, setNextDueMileage] = useState("");
+  const [cost, setCost] = useState("");
+  const [costVendor, setCostVendor] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const isVehicleCategory = category === "vehiculos";
+  const assetsForCategory = useMemo(() => assets.filter((a) => a.category === category), [assets, category]);
+  const selectedAsset = assetsForCategory.find((a) => a.id === assetId) ?? null;
 
   function reset() {
     setCategory(MAINTENANCE_CATEGORIES[0].key);
     setDepartmentId(departments[0]?.id ?? "");
+    setAssetId(NO_ASSET_VALUE);
     setDescription("");
     setScheduledDate("");
     setIsRecurring(false);
     setInterval(1);
     setUnit("meses");
+    setVehicleServiceType("aceite");
+    setMileageAtService("");
+    setNextDueMileage("");
+    setCost("");
+    setCostVendor("");
     setError(null);
   }
 
@@ -60,6 +89,12 @@ export function CreateMaintenanceDialog({ departments }: { departments: { id: st
         description,
         scheduledDate,
         recurring: isRecurring ? { interval, unit } : undefined,
+        assetId: assetId === NO_ASSET_VALUE ? undefined : assetId,
+        vehicleServiceType: isVehicleCategory ? vehicleServiceType : undefined,
+        mileageAtService: isVehicleCategory && mileageAtService ? Number(mileageAtService) : undefined,
+        nextDueMileage: isVehicleCategory && nextDueMileage ? Number(nextDueMileage) : undefined,
+        cost: cost ? Number(cost) : undefined,
+        costVendor: costVendor || undefined,
       });
       if (result.error) {
         setError(result.error);
@@ -87,11 +122,18 @@ export function CreateMaintenanceDialog({ departments }: { departments: { id: st
         <DialogHeader>
           <DialogTitle>Nuevo mantenimiento</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-muted-foreground">Tipo de mantenimiento</label>
-            <Select value={category} onValueChange={(v) => v && setCategory(v as MaintenanceCategoryKey)}>
+            <Select
+              value={category}
+              onValueChange={(v) => {
+                if (!v) return;
+                setCategory(v as MaintenanceCategoryKey);
+                setAssetId(NO_ASSET_VALUE);
+              }}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue>{() => MAINTENANCE_CATEGORIES.find((c) => c.key === category)?.label}</SelectValue>
               </SelectTrigger>
@@ -104,6 +146,29 @@ export function CreateMaintenanceDialog({ departments }: { departments: { id: st
               </SelectContent>
             </Select>
           </div>
+
+          {assetsForCategory.length > 0 && (
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">
+                {isVehicleCategory ? "Vehículo" : "Activo"}
+              </label>
+              <Select value={assetId} onValueChange={(v) => v && setAssetId(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>{() => selectedAsset?.name ?? "Sin activo específico"}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_ASSET_VALUE}>Sin activo específico</SelectItem>
+                  {assetsForCategory.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                      {a.licensePlate ? ` (${a.licensePlate})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-muted-foreground">Departamento / Área</label>
             <Select value={departmentId} onValueChange={(v) => v && setDepartmentId(v)}>
@@ -119,10 +184,12 @@ export function CreateMaintenanceDialog({ departments }: { departments: { id: st
               </SelectContent>
             </Select>
           </div>
+
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-muted-foreground">Fecha programada</label>
             <Input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
           </div>
+
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-muted-foreground">Descripción</label>
             <textarea
@@ -133,6 +200,60 @@ export function CreateMaintenanceDialog({ departments }: { departments: { id: st
               placeholder="Describe el mantenimiento o la solicitud..."
             />
           </div>
+
+          {isVehicleCategory && (
+            <div className="space-y-3 rounded-xl border bg-muted/30 p-3">
+              <p className="text-xs font-semibold text-foreground">Detalle del vehículo</p>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-muted-foreground">Tipo de chequeo</label>
+                <Select value={vehicleServiceType} onValueChange={(v) => v && setVehicleServiceType(v as VehicleServiceType)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{() => VEHICLE_SERVICE_TYPE_LABELS[vehicleServiceType]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VEHICLE_SERVICE_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {VEHICLE_SERVICE_TYPE_LABELS[t]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-muted-foreground">Kilometraje actual</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={mileageAtService}
+                    onChange={(e) => setMileageAtService(e.target.value)}
+                    placeholder={selectedAsset?.currentMileage?.toString() ?? ""}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-muted-foreground">Próximo cambio (millas)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={nextDueMileage}
+                    onChange={(e) => setNextDueMileage(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Monto gastado</label>
+              <Input type="number" step="0.01" min={0} value={cost} onChange={(e) => setCost(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Proveedor</label>
+              <Input value={costVendor} onChange={(e) => setCostVendor(e.target.value)} placeholder="Ej. Taller X" />
+            </div>
+          </div>
+
           <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
             <input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
             ¿Se repite?

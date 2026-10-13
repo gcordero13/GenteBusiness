@@ -71,3 +71,31 @@ export const STATUS_LABELS: Record<string, string> = {
   vencido: "Vencido",
   cancelado: "Cancelado",
 };
+
+// Only meaningful for the 'vehiculos' category - confirmed with the user
+// as the fixed list, with 'otro' as the free-text escape hatch for
+// anything else ("existen muchas formas... entre otras cosas").
+export type VehicleServiceType =
+  | "aceite"
+  | "gomas"
+  | "bateria"
+  | "frenos"
+  | "filtro_aire"
+  | "filtro_combustible"
+  | "inspeccion_matricula"
+  | "seguro"
+  | "otro";
+
+export const VEHICLE_SERVICE_TYPE_LABELS: Record<VehicleServiceType, string> = {
+  aceite: "Cambio de aceite",
+  gomas: "Gomas",
+  bateria: "Batería",
+  frenos: "Frenos",
+  filtro_aire: "Filtro de aire",
+  filtro_combustible: "Filtro de combustible",
+  inspeccion_matricula: "Inspección / matrícula",
+  seguro: "Seguro",
+  otro: "Otro",
+};
+
+export const VEHICLE_SERVICE_TYPES = Object.keys(VEHICLE_SERVICE_TYPE_LABELS) as VehicleServiceType[];

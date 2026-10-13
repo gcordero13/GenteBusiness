@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { STATUS_LABELS, type MaintenanceCategoryKey } from "./categories";
+import { STATUS_LABELS, VEHICLE_SERVICE_TYPE_LABELS, type MaintenanceCategoryKey, type VehicleServiceType } from "./categories";
 
 interface ActionResult {
   error?: string;
@@ -28,6 +28,181 @@ async function callerCanManage(): Promise<boolean> {
   return Boolean(data?.[0]?.can_manage);
 }
 
+// ---- Assets ----------------------------------------------------------
+
+export interface MaintenanceAssetRow {
+  id: string;
+  category: MaintenanceCategoryKey;
+  name: string;
+  brand: string | null;
+  spec: string | null;
+  licensePlate: string | null;
+  currentMileage: number | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  assignedAppUserId: string | null;
+  assignedUserName: string | null;
+  status: "activo" | "inactivo";
+}
+
+function toAssetRow(
+  r: {
+    id: string;
+    category: string;
+    name: string;
+    brand: string | null;
+    spec: string | null;
+    license_plate: string | null;
+    current_mileage: number | null;
+    department_id: string | null;
+    departments: { name: string } | { name: string }[] | null;
+    assigned_app_user_id: string | null;
+    status: string;
+  },
+  emailByUserId: Map<string, string>,
+): MaintenanceAssetRow {
+  const dept = Array.isArray(r.departments) ? r.departments[0] : r.departments;
+  return {
+    id: r.id,
+    category: r.category as MaintenanceCategoryKey,
+    name: r.name,
+    brand: r.brand,
+    spec: r.spec,
+    licensePlate: r.license_plate,
+    currentMileage: r.current_mileage,
+    departmentId: r.department_id,
+    departmentName: dept?.name ?? null,
+    assignedAppUserId: r.assigned_app_user_id,
+    assignedUserName: r.assigned_app_user_id ? (emailByUserId.get(r.assigned_app_user_id) ?? null) : null,
+    status: r.status === "inactivo" ? "inactivo" : "activo",
+  };
+}
+
+const ASSET_SELECT =
+  "id, category, name, brand, spec, license_plate, current_mileage, department_id, departments(name), assigned_app_user_id, status";
+
+// general_maintenance_assets has two FKs into app_users (assigned_app_user_id
+// and created_by), which makes an embedded `app_users!assigned_app_user_id(email)`
+// join ambiguous - same issue already hit in GoServices. A separate lookup
+// sidesteps it entirely, and also resolves a real name via contacts
+// (app_users.full_name is rarely populated - same precedent as GoServices'
+// listAssignableUsers).
+async function buildUserNameMap(userIds: (string | null)[]): Promise<Map<string, string>> {
+  const ids = Array.from(new Set(userIds.filter((id): id is string => Boolean(id))));
+  if (ids.length === 0) return new Map();
+
+  const admin = createAdminClient();
+  const { data: users } = await admin.from("app_users").select("id, email").in("id", ids);
+  if (!users || users.length === 0) return new Map();
+
+  const emails = users.map((u: { email: string }) => u.email);
+  const { data: contacts } = await admin.from("contacts").select("email, first_name, last_name").in("email", emails);
+  const nameByEmail = new Map((contacts ?? []).map((c) => [c.email, `${c.first_name} ${c.last_name}`]));
+
+  return new Map(users.map((u: { id: string; email: string }) => [u.id, nameByEmail.get(u.email) ?? u.email]));
+}
+
+export interface AssignableAppUser {
+  id: string;
+  name: string;
+}
+
+// Assigning an asset/record is open to any platform user, not restricted
+// to the Servicios Generales team - confirmed with the user ("a cualquier
+// usuario de la plataforma").
+export async function listAssignableAppUsers(): Promise<AssignableAppUser[]> {
+  if (!(await callerCanManage())) return [];
+
+  const admin = createAdminClient();
+  const { data: users } = await admin.from("app_users").select("id, email").eq("status", "active").order("email");
+  if (!users || users.length === 0) return [];
+
+  const emailByIdMap = await buildUserNameMap(users.map((u: { id: string }) => u.id));
+  return users.map((u: { id: string }) => ({ id: u.id, name: emailByIdMap.get(u.id) ?? u.id }));
+}
+
+export async function listMaintenanceAssets(options: { activeOnly?: boolean } = {}): Promise<MaintenanceAssetRow[]> {
+  const supabase = await createClient();
+  let query = supabase.from("general_maintenance_assets").select(ASSET_SELECT).order("name");
+  if (options.activeOnly) query = query.eq("status", "activo");
+  const { data } = await query;
+  const rows = data ?? [];
+  const nameByUserId = await buildUserNameMap(rows.map((r) => r.assigned_app_user_id));
+  return rows.map((r) => toAssetRow(r, nameByUserId));
+}
+
+export interface MaintenanceAssetInput {
+  category: MaintenanceCategoryKey;
+  name: string;
+  brand: string;
+  spec: string;
+  licensePlate: string;
+  currentMileage: number | null;
+  departmentId: string;
+  assignedAppUserId: string;
+}
+
+export async function createMaintenanceAsset(input: MaintenanceAssetInput): Promise<ActionResult> {
+  if (!(await callerCanManage())) return { error: "No autorizado" };
+  const caller = await callerIdentity();
+  if (!caller) return { error: "No autorizado" };
+  if (!input.name.trim()) return { error: "El nombre es obligatorio" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("general_maintenance_assets").insert({
+    category: input.category,
+    name: input.name.trim(),
+    brand: input.brand.trim() || null,
+    spec: input.spec.trim() || null,
+    license_plate: input.licensePlate.trim() || null,
+    current_mileage: input.currentMileage,
+    department_id: input.departmentId || null,
+    assigned_app_user_id: input.assignedAppUserId || null,
+    created_by: caller.id,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/servicios-generales/activos");
+  return {};
+}
+
+export async function updateMaintenanceAsset(id: string, input: MaintenanceAssetInput): Promise<ActionResult> {
+  if (!(await callerCanManage())) return { error: "No autorizado" };
+  if (!input.name.trim()) return { error: "El nombre es obligatorio" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("general_maintenance_assets")
+    .update({
+      category: input.category,
+      name: input.name.trim(),
+      brand: input.brand.trim() || null,
+      spec: input.spec.trim() || null,
+      license_plate: input.licensePlate.trim() || null,
+      current_mileage: input.currentMileage,
+      department_id: input.departmentId || null,
+      assigned_app_user_id: input.assignedAppUserId || null,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/servicios-generales/activos");
+  return {};
+}
+
+export async function setMaintenanceAssetStatus(id: string, status: "activo" | "inactivo"): Promise<ActionResult> {
+  if (!(await callerCanManage())) return { error: "No autorizado" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("general_maintenance_assets").update({ status }).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/servicios-generales/activos");
+  return {};
+}
+
+// ---- Records -----------------------------------------------------------
+
 export interface MaintenanceRecordRow {
   id: string;
   seriesId: string | null;
@@ -37,6 +212,13 @@ export interface MaintenanceRecordRow {
   description: string;
   scheduledDate: string;
   status: "programado" | "completado" | "vencido" | "cancelado";
+  assetId: string | null;
+  assetName: string | null;
+  vehicleServiceType: VehicleServiceType | null;
+  mileageAtService: number | null;
+  nextDueMileage: number | null;
+  cost: number | null;
+  costVendor: string | null;
 }
 
 function toRecordRow(r: {
@@ -48,8 +230,16 @@ function toRecordRow(r: {
   description: string;
   scheduled_date: string;
   status: string;
+  asset_id: string | null;
+  general_maintenance_assets: { name: string } | { name: string }[] | null;
+  vehicle_service_type: string | null;
+  mileage_at_service: number | null;
+  next_due_mileage: number | null;
+  cost: number | null;
+  cost_vendor: string | null;
 }): MaintenanceRecordRow {
   const dept = Array.isArray(r.departments) ? r.departments[0] : r.departments;
+  const asset = Array.isArray(r.general_maintenance_assets) ? r.general_maintenance_assets[0] : r.general_maintenance_assets;
   return {
     id: r.id,
     seriesId: r.series_id,
@@ -59,10 +249,18 @@ function toRecordRow(r: {
     description: r.description,
     scheduledDate: r.scheduled_date,
     status: r.status as MaintenanceRecordRow["status"],
+    assetId: r.asset_id,
+    assetName: asset?.name ?? null,
+    vehicleServiceType: r.vehicle_service_type as VehicleServiceType | null,
+    mileageAtService: r.mileage_at_service,
+    nextDueMileage: r.next_due_mileage,
+    cost: r.cost,
+    costVendor: r.cost_vendor,
   };
 }
 
-const RECORD_SELECT = "id, series_id, category, department_id, departments(name), description, scheduled_date, status";
+const RECORD_SELECT =
+  "id, series_id, category, department_id, departments(name), description, scheduled_date, status, asset_id, general_maintenance_assets(name), vehicle_service_type, mileage_at_service, next_due_mileage, cost, cost_vendor";
 
 // Flips any overdue 'programado' record to 'vencido' before reading, lazily
 // - same precedent as the existing IT maintenance module's 'expirado'
@@ -109,12 +307,29 @@ export async function listUpcomingMaintenanceRecords(limit = 8): Promise<Mainten
   return (data ?? []).map(toRecordRow);
 }
 
+export async function listMaintenanceRecordsForAsset(assetId: string): Promise<MaintenanceRecordRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("general_maintenance_records")
+    .select(RECORD_SELECT)
+    .eq("asset_id", assetId)
+    .order("scheduled_date", { ascending: false });
+
+  return (data ?? []).map(toRecordRow);
+}
+
 export interface CreateMaintenanceInput {
   category: MaintenanceCategoryKey;
   departmentId: string;
   description: string;
   scheduledDate: string;
   recurring?: { interval: number; unit: "dias" | "semanas" | "meses" };
+  assetId?: string;
+  vehicleServiceType?: VehicleServiceType;
+  mileageAtService?: number;
+  nextDueMileage?: number;
+  cost?: number;
+  costVendor?: string;
 }
 
 export async function createMaintenanceRecord(input: CreateMaintenanceInput): Promise<ActionResult> {
@@ -153,11 +368,33 @@ export async function createMaintenanceRecord(input: CreateMaintenanceInput): Pr
     description: input.description.trim(),
     scheduled_date: input.scheduledDate,
     created_by: caller.id,
+    asset_id: input.assetId || null,
+    vehicle_service_type: input.vehicleServiceType ?? null,
+    mileage_at_service: input.mileageAtService ?? null,
+    next_due_mileage: input.nextDueMileage ?? null,
+    cost: input.cost ?? null,
+    cost_vendor: input.costVendor?.trim() || null,
   });
   if (error) return { error: error.message };
 
+  if (input.assetId && input.mileageAtService) {
+    await bumpAssetMileage(input.assetId, input.mileageAtService);
+  }
+
   revalidatePath("/servicios-generales");
   return {};
+}
+
+async function bumpAssetMileage(assetId: string, mileage: number): Promise<void> {
+  const admin = createAdminClient();
+  const { data: asset } = await admin
+    .from("general_maintenance_assets")
+    .select("current_mileage")
+    .eq("id", assetId)
+    .maybeSingle();
+  if (asset && (asset.current_mileage ?? 0) < mileage) {
+    await admin.from("general_maintenance_assets").update({ current_mileage: mileage }).eq("id", assetId);
+  }
 }
 
 function nextOccurrenceDate(fromIso: string, interval: number, unit: "dias" | "semanas" | "meses"): string {
@@ -258,10 +495,34 @@ export async function exportServiciosGeneralesCsv(): Promise<ActionResult & { cs
     .order("scheduled_date", { ascending: false });
 
   const rows = (data ?? []).map(toRecordRow);
-  const lines = [toCsvRow(["fecha", "categoria", "departamento", "descripcion", "estado"])];
+  const lines = [
+    toCsvRow([
+      "fecha",
+      "categoria",
+      "activo",
+      "departamento",
+      "descripcion",
+      "tipo_de_chequeo",
+      "kilometraje",
+      "monto",
+      "proveedor",
+      "estado",
+    ]),
+  ];
   for (const r of rows) {
     lines.push(
-      toCsvRow([r.scheduledDate, r.category, r.departmentName ?? "", r.description, STATUS_LABELS[r.status] ?? r.status]),
+      toCsvRow([
+        r.scheduledDate,
+        r.category,
+        r.assetName ?? "",
+        r.departmentName ?? "",
+        r.description,
+        r.vehicleServiceType ? VEHICLE_SERVICE_TYPE_LABELS[r.vehicleServiceType] : "",
+        r.mileageAtService?.toString() ?? "",
+        r.cost?.toString() ?? "",
+        r.costVendor ?? "",
+        STATUS_LABELS[r.status] ?? r.status,
+      ]),
     );
   }
   return { csv: lines.join("\r\n") };

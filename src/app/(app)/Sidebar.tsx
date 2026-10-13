@@ -136,6 +136,7 @@ export function Sidebar({
   canManageSuministros,
   canViewSuministros,
   canViewServiciosGenerales,
+  canManageServiciosGenerales,
   onLogout,
   onNavigate,
 }: {
@@ -159,6 +160,7 @@ export function Sidebar({
   canManageSuministros: boolean;
   canViewSuministros: boolean;
   canViewServiciosGenerales: boolean;
+  canManageServiciosGenerales: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -204,6 +206,9 @@ export function Sidebar({
     ...(canViewMaintenance ? [{ href: "/maintenance", label: "Mantenimiento de TI", icon: Wrench }] : []),
     ...(canViewServiciosGenerales
       ? [{ href: "/servicios-generales", label: "Servicios Generales", icon: HardHat }]
+      : []),
+    ...(canManageServiciosGenerales
+      ? [{ href: "/servicios-generales/activos", label: "Activos", icon: Package }]
       : []),
   ];
 

@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CATEGORY_BY_KEY } from "./categories";
+import { CATEGORY_BY_KEY, VEHICLE_SERVICE_TYPE_LABELS } from "./categories";
 import { completeMaintenanceRecord, cancelMaintenanceRecord, type MaintenanceRecordRow } from "./actions";
 
 export function UpcomingMaintenanceList({
@@ -42,8 +42,9 @@ export function UpcomingMaintenanceList({
           <tr className="border-b text-left text-xs text-muted-foreground">
             <th className="pb-2 pr-3 font-medium">Fecha</th>
             <th className="pb-2 pr-3 font-medium">Tipo</th>
-            <th className="pb-2 pr-3 font-medium">Descripción</th>
+            <th className="pb-2 pr-3 font-medium">Artículo / Descripción</th>
             <th className="pb-2 pr-3 font-medium">Área</th>
+            <th className="pb-2 pr-3 font-medium">Gasto</th>
             {canManage && <th className="pb-2 font-medium" />}
           </tr>
         </thead>
@@ -62,8 +63,20 @@ export function UpcomingMaintenanceList({
                   </span>
                   {r.status === "vencido" && <span className="ml-1.5 text-xs font-semibold text-red-600">Vencido</span>}
                 </td>
-                <td className="max-w-[220px] truncate py-2 pr-3">{r.description}</td>
+                <td className="max-w-[220px] py-2 pr-3">
+                  <p className="truncate font-medium text-foreground">{r.assetName ?? r.description}</p>
+                  {r.assetName && <p className="truncate text-xs text-muted-foreground">{r.description}</p>}
+                  {r.vehicleServiceType && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {VEHICLE_SERVICE_TYPE_LABELS[r.vehicleServiceType]}
+                      {r.mileageAtService != null ? ` · ${r.mileageAtService.toLocaleString()} mi` : ""}
+                    </p>
+                  )}
+                </td>
                 <td className="py-2 pr-3 text-muted-foreground">{r.departmentName ?? "—"}</td>
+                <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">
+                  {r.cost != null ? `$${r.cost.toFixed(2)}` : "—"}
+                </td>
                 {canManage && (
                   <td className="py-2">
                     <div className="flex gap-1.5">
