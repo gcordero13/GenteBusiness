@@ -401,6 +401,10 @@ export async function listAssignedGoservicesRequests(): Promise<GoservicesReques
       "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
     )
     .or(orFilter)
+    // Historical tickets imported from the old system (legacy_ticket_number
+    // set) are already closed and have nothing for an ejecutor to act on -
+    // excluded here so they don't bury real, active assignments.
+    .is("legacy_ticket_number", null)
     .order("created_at", { ascending: false });
 
   const rows = data ?? [];
