@@ -412,22 +412,42 @@ export async function listAssignedGoservicesRequests(): Promise<GoservicesReques
   return rows.map((r) => toRow(r, r.assigned_app_user_id ? (emailMap.get(r.assigned_app_user_id) ?? null) : null));
 }
 
+const GOSERVICES_REQUESTS_SELECT =
+  "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id";
+
 export async function listAllGoservicesRequests(filters: { type?: string; status?: string }): Promise<GoservicesRequestRow[]> {
   const supabase = await createClient();
-  let query = supabase
-    .from("goservices_requests")
-    .select(
-      "id, request_number, created_at, request_type, categoria, tipo_mensajeria, requester_name, requester_department_name, detalle, status, assigned_app_user_id, ubicacion, subcategoria, contacto_nombre, contacto_telefono, contacto_direccion, foto_url, foto_drive_id, foto_item_id, documento_url, documento_drive_id, documento_item_id",
-    )
-    .order("created_at", { ascending: false });
 
-  if (filters.type) query = query.eq("request_type", filters.type);
-  if (filters.status) query = query.eq("status", filters.status);
+  // PostgREST caps any single response at 1,000 rows (Supabase's default
+  // db.max_rows) regardless of how many actually match - with ~1,700
+  // requests now (the historical import), a plain unbounded select here
+  // silently dropped everything past the newest 1,000. Page through in
+  // 1,000-row chunks via .range() until a page comes back short.
+  const PAGE_SIZE = 1000;
+  const allRows: Record<string, unknown>[] = [];
+  for (let page = 0; ; page++) {
+    let query = supabase
+      .from("goservices_requests")
+      .select(GOSERVICES_REQUESTS_SELECT)
+      .order("created_at", { ascending: false })
+      .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
-  const { data } = await query;
-  const rows = data ?? [];
-  const emailMap = await buildAssignedEmailMap(rows.map((r) => r.assigned_app_user_id));
-  return rows.map((r) => toRow(r, r.assigned_app_user_id ? (emailMap.get(r.assigned_app_user_id) ?? null) : null));
+    if (filters.type) query = query.eq("request_type", filters.type);
+    if (filters.status) query = query.eq("status", filters.status);
+
+    const { data } = await query;
+    const pageRows = data ?? [];
+    allRows.push(...pageRows);
+    if (pageRows.length < PAGE_SIZE) break;
+  }
+
+  const emailMap = await buildAssignedEmailMap(allRows.map((r) => r.assigned_app_user_id as string | null));
+  return allRows.map((r) =>
+    toRow(
+      r as Parameters<typeof toRow>[0],
+      r.assigned_app_user_id ? (emailMap.get(r.assigned_app_user_id as string) ?? null) : null,
+    ),
+  );
 }
 
 export interface AssignableUser {
