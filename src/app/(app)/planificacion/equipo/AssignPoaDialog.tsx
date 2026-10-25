@@ -65,7 +65,6 @@ export function AssignPoaDialog({ contact, periodYear }: { contact: SupervisedCo
     startTransition(async () => {
       const result = await assignPoa({
         contactId: contact.contactId,
-        departmentId: contact.departmentId,
         positionId: positionId || null,
         periodYear,
         objectives: clean,

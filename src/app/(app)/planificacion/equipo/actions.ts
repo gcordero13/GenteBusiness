@@ -108,7 +108,6 @@ export async function listActivePositionOptions(): Promise<ListPositionsOption[]
 
 export interface AssignPoaInput {
   contactId: string;
-  departmentId: string;
   positionId: string | null;
   periodYear: number;
   objectives: { title: string; kpiMetric: string; targetValue: number; unit: string }[];
@@ -119,9 +118,18 @@ export async function assignPoa(input: AssignPoaInput): Promise<ActionResult> {
   if (!flags.canManage && !flags.canAuthorize) return { error: "No autorizado" };
   if (input.objectives.length === 0) return { error: "Agrega al menos un objetivo" };
 
+  const admin = createAdminClient();
+  const { data: contactRow } = await admin
+    .from("contacts")
+    .select("department_id")
+    .eq("id", input.contactId)
+    .maybeSingle();
+  const departmentId = contactRow?.department_id;
+  if (!departmentId) return { error: "No se encontró el departamento del contacto" };
+
   if (!flags.canAuthorize) {
     const departmentIds = await mySupervisedDepartmentIds();
-    if (!departmentIds.includes(input.departmentId)) return { error: "No autorizado para este departamento" };
+    if (!departmentIds.includes(departmentId)) return { error: "No autorizado para este departamento" };
   }
 
   const supabase = await createClient();
@@ -130,12 +138,11 @@ export async function assignPoa(input: AssignPoaInput): Promise<ActionResult> {
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autorizado" };
 
-  const admin = createAdminClient();
   const { data: poa, error } = await admin
     .from("poas")
     .insert({
       contact_id: input.contactId,
-      department_id: input.departmentId,
+      department_id: departmentId,
       position_id: input.positionId,
       period_year: input.periodYear,
       created_by: user.id,
