@@ -26,6 +26,7 @@ import {
   Settings,
   ShieldCheck,
   ShoppingCart,
+  Target,
   Truck,
   UserCircle,
   Users,
@@ -139,6 +140,9 @@ export function Sidebar({
   canViewSuministros,
   canViewServiciosGenerales,
   canManageServiciosGenerales,
+  canViewPlanificacion,
+  canManagePlanificacion,
+  canAuthorizePlanificacion,
   onLogout,
   onNavigate,
 }: {
@@ -164,6 +168,9 @@ export function Sidebar({
   canViewSuministros: boolean;
   canViewServiciosGenerales: boolean;
   canManageServiciosGenerales: boolean;
+  canViewPlanificacion: boolean;
+  canManagePlanificacion: boolean;
+  canAuthorizePlanificacion: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -253,6 +260,23 @@ export function Sidebar({
   const solicitudesLinks: NavLink[] = [
     ...(canViewSolicitudesVacaciones
       ? [{ href: "/solicitudes/vacaciones", label: "Vacaciones", icon: Palmtree }]
+      : []),
+  ];
+
+  // "Mi POA" is visible to anyone granted can_view/can_manage/can_authorize
+  // on 'planificacion' - gated the same way every other module in this app
+  // is (never open by default). "Mi equipo" needs can_manage or
+  // can_authorize; "Puestos" and "Líderes" are Consejo-only (can_authorize).
+  const planificacionLinks: NavLink[] = [
+    ...(canViewPlanificacion ? [{ href: "/planificacion/poas", label: "Mi POA", icon: Target }] : []),
+    ...(canManagePlanificacion || canAuthorizePlanificacion
+      ? [{ href: "/planificacion/equipo", label: "Mi equipo", icon: Users }]
+      : []),
+    ...(canAuthorizePlanificacion
+      ? [
+          { href: "/planificacion/puestos", label: "Puestos y KPIs", icon: ShieldCheck },
+          { href: "/planificacion/lideres", label: "Líderes por departamento", icon: Network },
+        ]
       : []),
   ];
 
@@ -355,6 +379,23 @@ export function Sidebar({
                 label="Ajustes"
                 icon={Settings}
                 links={settingsLinks}
+                collapsed={collapsed}
+                onNavigate={onNavigate}
+              />
+            </div>
+          )}
+          {planificacionLinks.length > 0 && (
+            <div className="space-y-1 pt-4">
+              {!collapsed && (
+                <p className="flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground">
+                  <Target className="size-3.5" />
+                  Planificación
+                </p>
+              )}
+              <FlyoutNavGroup
+                label="Planificación"
+                icon={Target}
+                links={planificacionLinks}
                 collapsed={collapsed}
                 onNavigate={onNavigate}
               />
