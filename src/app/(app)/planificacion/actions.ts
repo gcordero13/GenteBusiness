@@ -171,3 +171,64 @@ export async function logObjectiveUpdate(objectiveId: string, value: number, not
   revalidatePath("/planificacion/equipo");
   return {};
 }
+
+function escapeCsvField(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+function toCsvRow(fields: string[]): string {
+  return fields.map(escapeCsvField).join(",");
+}
+
+export async function exportPlanificacionCsv(periodYear: number): Promise<ActionResult & { csv?: string }> {
+  const flags = await callerFlags();
+  if (!flags.canManage && !flags.canAuthorize) return { error: "No autorizado" };
+
+  const admin = createAdminClient();
+  let query = admin
+    .from("poas")
+    .select(
+      "id, contact_id, contacts(first_name, last_name), department_id, departments(name), poa_objectives(title, kpi_metric, target_value, unit, poa_objective_updates(value, recorded_at))",
+    )
+    .eq("period_year", periodYear);
+
+  if (!flags.canAuthorize) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: deptRows } = await admin
+      .from("planificacion_department_leaders")
+      .select("department_id")
+      .eq("app_user_id", user?.id ?? "");
+    const departmentIds = (deptRows ?? []).map((r) => r.department_id);
+    if (departmentIds.length === 0) return { csv: toCsvRow(["persona", "departamento", "objetivo", "metrica", "meta", "ultimo_valor", "fecha"]) };
+    query = query.in("department_id", departmentIds);
+  }
+
+  const { data: poas } = await query;
+  const lines = [toCsvRow(["persona", "departamento", "objetivo", "metrica", "meta", "ultimo_valor", "fecha"])];
+
+  for (const poa of poas ?? []) {
+    const contact = Array.isArray(poa.contacts) ? poa.contacts[0] : poa.contacts;
+    const dept = Array.isArray(poa.departments) ? poa.departments[0] : poa.departments;
+    const personName = contact ? `${contact.first_name} ${contact.last_name}` : "";
+    for (const objective of poa.poa_objectives ?? []) {
+      const updates = objective.poa_objective_updates ?? [];
+      const latest = updates.length > 0 ? updates[updates.length - 1] : null;
+      lines.push(
+        toCsvRow([
+          personName,
+          dept?.name ?? "",
+          objective.title,
+          objective.kpi_metric,
+          `${objective.target_value}${objective.unit ? ` ${objective.unit}` : ""}`,
+          latest ? String(latest.value) : "",
+          latest ? latest.recorded_at : "",
+        ]),
+      );
+    }
+  }
+
+  return { csv: lines.join("\r\n") };
+}
