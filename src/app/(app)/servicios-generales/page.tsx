@@ -69,7 +69,13 @@ export default async function ServiciosGeneralesPage() {
           ))}
         </div>
 
-        <ServiciosGeneralesWorkspace records={records} canManage={canManage} />
+        <ServiciosGeneralesWorkspace
+          records={records}
+          canManage={canManage}
+          departments={departments ?? []}
+          assets={assets}
+          vendors={vendors}
+        />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,10 @@ export function CreateMaintenanceDialog({
   assets,
   vendors,
   forcePlan = false,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  initialDate,
+  hideTrigger = false,
 }: {
   departments: { id: string; name: string }[];
   assets: MaintenanceAssetRow[];
@@ -49,14 +53,28 @@ export function CreateMaintenanceDialog({
   // and without the toggle - a plan IS a recurring rule, so there's
   // nothing to opt into.
   forcePlan?: boolean;
+  // Lets the calendar open this same form pre-filled with the day the user
+  // clicked, instead of only via the standalone "Crear mantenimiento"
+  // button - both entry points share one form/validation/submit path.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialDate?: string;
+  hideTrigger?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const [category, setCategory] = useState<MaintenanceCategoryKey>(MAINTENANCE_CATEGORIES[0].key);
   const [departmentId, setDepartmentId] = useState(departments[0]?.id ?? "");
   const [assetId, setAssetId] = useState<string>(NO_ASSET_VALUE);
+  // Only used in forcePlan mode - lets one submission create an
+  // independent plan per selected asset (same category/frequency/
+  // description/etc. for all of them), confirmed with the user
+  // ("seleccionar varios activos para mantenimiento o fumigación").
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [description, setDescription] = useState("");
-  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledDate, setScheduledDate] = useState(initialDate ?? "");
   const [scheduledTime, setScheduledTime] = useState("");
   const [isRecurring, setIsRecurring] = useState(forcePlan);
   const [interval, setInterval] = useState(1);
@@ -72,17 +90,30 @@ export function CreateMaintenanceDialog({
 
   const isVehicleCategory = category === "vehiculos";
   const assetsForCategory = useMemo(() => assets.filter((a) => a.category === category), [assets, category]);
-  const selectedAsset = assetsForCategory.find((a) => a.id === assetId) ?? null;
+  const selectedAsset = forcePlan
+    ? (assetsForCategory.find((a) => a.id === selectedAssetIds[0]) ?? null)
+    : (assetsForCategory.find((a) => a.id === assetId) ?? null);
   const trigger = VEHICLE_SERVICE_TRIGGER[vehicleServiceType];
   const showMileageFields = trigger === "millaje" || trigger === "ambos";
   const showDateField = trigger === "fecha" || trigger === "ambos";
+
+  // Keeps the date in sync when the calendar opens this dialog for a
+  // different day each time (the component instance persists across
+  // clicks, so a plain useState initializer only captures the first date).
+  useEffect(() => {
+    if (open && initialDate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setScheduledDate(initialDate);
+    }
+  }, [open, initialDate]);
 
   function reset() {
     setCategory(MAINTENANCE_CATEGORIES[0].key);
     setDepartmentId(departments[0]?.id ?? "");
     setAssetId(NO_ASSET_VALUE);
+    setSelectedAssetIds([]);
     setDescription("");
-    setScheduledDate("");
+    setScheduledDate(initialDate ?? "");
     setScheduledTime("");
     setIsRecurring(forcePlan);
     setInterval(1);
@@ -106,25 +137,35 @@ export function CreateMaintenanceDialog({
 
   function submit() {
     setError(null);
+    // forcePlan + several assets selected -> one independent plan per
+    // asset, all sharing this same configuration. Everywhere else, a
+    // single optional asset (or none) as before.
+    const targetAssetIds: (string | undefined)[] =
+      forcePlan && selectedAssetIds.length > 0
+        ? selectedAssetIds
+        : [forcePlan ? undefined : assetId === NO_ASSET_VALUE ? undefined : assetId];
+
     startTransition(async () => {
-      const result = await createMaintenanceRecord({
-        category,
-        departmentId,
-        description,
-        scheduledDate,
-        scheduledTime: scheduledTime || undefined,
-        recurring: isRecurring ? { interval, unit } : undefined,
-        assetId: assetId === NO_ASSET_VALUE ? undefined : assetId,
-        vehicleServiceType: isVehicleCategory ? vehicleServiceType : undefined,
-        mileageAtService: isVehicleCategory && showMileageFields && mileageAtService ? Number(mileageAtService) : undefined,
-        nextDueMileage: isVehicleCategory && showMileageFields && nextDueMileage ? Number(nextDueMileage) : undefined,
-        nextDueDate: isVehicleCategory && showDateField && nextDueDate ? nextDueDate : undefined,
-        cost: cost ? Number(cost) : undefined,
-        vendorId: vendorId === NO_VENDOR_VALUE ? undefined : vendorId,
-      });
-      if (result.error) {
-        setError(result.error);
-        return;
+      for (const targetAssetId of targetAssetIds) {
+        const result = await createMaintenanceRecord({
+          category,
+          departmentId,
+          description,
+          scheduledDate,
+          scheduledTime: scheduledTime || undefined,
+          recurring: isRecurring ? { interval, unit } : undefined,
+          assetId: targetAssetId,
+          vehicleServiceType: isVehicleCategory ? vehicleServiceType : undefined,
+          mileageAtService: isVehicleCategory && showMileageFields && mileageAtService ? Number(mileageAtService) : undefined,
+          nextDueMileage: isVehicleCategory && showMileageFields && nextDueMileage ? Number(nextDueMileage) : undefined,
+          nextDueDate: isVehicleCategory && showDateField && nextDueDate ? nextDueDate : undefined,
+          cost: cost ? Number(cost) : undefined,
+          vendorId: vendorId === NO_VENDOR_VALUE ? undefined : vendorId,
+        });
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
       }
       setOpen(false);
       reset();
@@ -140,10 +181,12 @@ export function CreateMaintenanceDialog({
         if (!next) reset();
       }}
     >
-      <DialogTrigger render={<Button className="gap-2 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90" />}>
-        <Plus className="size-4" />
-        {forcePlan ? "Nuevo plan" : "Crear mantenimiento"}
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger render={<Button className="gap-2 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90" />}>
+          <Plus className="size-4" />
+          {forcePlan ? "Nuevo plan" : "Crear mantenimiento"}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{forcePlan ? "Nuevo plan de mantenimiento" : "Nuevo mantenimiento"}</DialogTitle>
@@ -158,6 +201,7 @@ export function CreateMaintenanceDialog({
                 if (!v) return;
                 setCategory(v as MaintenanceCategoryKey);
                 setAssetId(NO_ASSET_VALUE);
+                setSelectedAssetIds([]);
               }}
             >
               <SelectTrigger className="w-full">
@@ -173,7 +217,37 @@ export function CreateMaintenanceDialog({
             </Select>
           </div>
 
-          {assetsForCategory.length > 0 && (
+          {assetsForCategory.length > 0 && forcePlan && (
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">
+                {isVehicleCategory ? "Vehículos (selecciona uno o varios)" : "Activos (selecciona uno o varios, opcional)"}
+              </label>
+              <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border p-2">
+                {assetsForCategory.map((a) => (
+                  <label key={a.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedAssetIds.includes(a.id)}
+                      onChange={(e) =>
+                        setSelectedAssetIds((prev) =>
+                          e.target.checked ? [...prev, a.id] : prev.filter((id) => id !== a.id),
+                        )
+                      }
+                    />
+                    {a.name}
+                    {a.licensePlate ? ` (${a.licensePlate})` : ""}
+                  </label>
+                ))}
+              </div>
+              {selectedAssetIds.length > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  Se creará un plan independiente para cada uno de los {selectedAssetIds.length} activos seleccionados.
+                </p>
+              )}
+            </div>
+          )}
+
+          {assetsForCategory.length > 0 && !forcePlan && (
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-muted-foreground">
                 {isVehicleCategory ? "Vehículo" : "Activo"}

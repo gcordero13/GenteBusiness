@@ -1,11 +1,13 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Camera, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_BY_KEY } from "../categories";
 import { setMaintenanceAssetStatus, type AssignableAppUser, type MaintenanceAssetRow } from "../actions";
 import { AssetFormDialog } from "./AssetFormDialog";
+import { AssetPhotoUploadDialog } from "./AssetPhotoUploadDialog";
 
 export function AssetsTable({
   assets,
@@ -18,6 +20,7 @@ export function AssetsTable({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [photoTarget, setPhotoTarget] = useState<MaintenanceAssetRow | null>(null);
 
   function toggleStatus(asset: MaintenanceAssetRow) {
     startTransition(async () => {
@@ -35,6 +38,7 @@ export function AssetsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left text-xs text-muted-foreground">
+            <th className="pb-2 pr-3 font-medium" />
             <th className="pb-2 pr-3 font-medium">Activo</th>
             <th className="pb-2 pr-3 font-medium">Categoría</th>
             <th className="pb-2 pr-3 font-medium">Marca / Especificación</th>
@@ -49,6 +53,25 @@ export function AssetsTable({
             const meta = CATEGORY_BY_KEY.get(a.category);
             return (
               <tr key={a.id} className={`border-b last:border-0 ${a.status === "inactivo" ? "opacity-50" : ""}`}>
+                <td className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() => setPhotoTarget(a)}
+                    title="Cambiar foto"
+                    className="flex size-10 items-center justify-center overflow-hidden rounded-lg border bg-muted hover:border-[#04B1AF]"
+                  >
+                    {a.photoDriveId && a.photoItemId ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/servicios-generales/asset-photo/${a.photoDriveId}/${a.photoItemId}`}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <ImageOff className="size-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </td>
                 <td className="py-2 pr-3 font-medium text-foreground">{a.name}</td>
                 <td className="py-2 pr-3">
                   <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ${meta?.badgeClass ?? ""}`}>
@@ -70,6 +93,10 @@ export function AssetsTable({
                 <td className="py-2 pr-3 text-muted-foreground">{a.assignedUserName ?? "—"}</td>
                 <td className="py-2">
                   <div className="flex justify-end gap-1.5">
+                    <Button size="sm" variant="outline" onClick={() => setPhotoTarget(a)} className="gap-1.5">
+                      <Camera className="size-3.5" />
+                      Foto
+                    </Button>
                     <AssetFormDialog asset={a} departments={departments} users={users} />
                     <Button
                       size="sm"
@@ -87,6 +114,7 @@ export function AssetsTable({
           })}
         </tbody>
       </table>
+      <AssetPhotoUploadDialog asset={photoTarget} open={photoTarget !== null} onOpenChange={(o) => !o && setPhotoTarget(null)} />
     </div>
   );
 }

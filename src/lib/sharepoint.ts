@@ -109,6 +109,40 @@ export async function uploadToSharePoint(
  * item. The download URL itself can't be persisted (it expires), so callers
  * should store driveId/itemId and call this on each request.
  */
+export const MAX_SHAREPOINT_PHOTO_BYTES = 10 * 1024 * 1024;
+
+export const ALLOWED_SHAREPOINT_PHOTO_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+export interface SharePointPhotoUploadResult {
+  url?: string;
+  driveId?: string;
+  itemId?: string;
+  error?: string;
+}
+
+// Shared photo-upload helper so every module stores photos the same way
+// (SharePoint, via uploadToSharePoint) instead of each one inventing its
+// own storage - confirmed with the user ("todos los proyectos quiero que
+// guarden la foto en esos lugares"). GoServices predates this helper and
+// keeps its own inline copy (plus document-upload support this doesn't
+// need) rather than being refactored to depend on it - new photo features
+// (e.g. Servicios Generales' asset photos) should call this one.
+export async function uploadSharePointPhoto(file: File): Promise<SharePointPhotoUploadResult> {
+  if (file.size > MAX_SHAREPOINT_PHOTO_BYTES) return { error: "El archivo no puede pesar más de 10 MB" };
+  if (!ALLOWED_SHAREPOINT_PHOTO_TYPES[file.type]) return { error: "El archivo debe ser JPG, PNG o WEBP" };
+  const bytes = await file.arrayBuffer();
+  try {
+    const result = await uploadToSharePoint(bytes, file.name, file.type || "application/octet-stream");
+    return { url: result.webUrl, driveId: result.driveId, itemId: result.itemId };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "No se pudo subir el archivo" };
+  }
+}
+
 export async function getSharePointDownloadUrl(driveId: string, itemId: string): Promise<string> {
   const accessToken = await getGraphAccessToken();
   const res = await fetch(

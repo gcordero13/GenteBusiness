@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CATEGORY_BY_KEY } from "./categories";
 import type { MaintenanceRecordRow } from "./actions";
@@ -12,6 +13,7 @@ const MONTH_NAMES = [
 
 interface DayCell {
   day: number;
+  dateIso: string;
   records: MaintenanceRecordRow[];
 }
 
@@ -30,9 +32,18 @@ function buildMonthGrid(year: number, month: number, records: MaintenanceRecordR
 
   const cells: (DayCell | null)[] = [];
   for (let i = 0; i < leadingBlanks; i++) cells.push(null);
-  for (let day = 1; day <= daysInMonth; day++) cells.push({ day, records: recordsByDay.get(day) ?? [] });
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateIso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    cells.push({ day, dateIso, records: recordsByDay.get(day) ?? [] });
+  }
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
+}
+
+// A record can only be dragged to a new day while it's still open - a
+// finished or cancelled ticket has nothing left to reschedule.
+function isReschedulable(r: MaintenanceRecordRow): boolean {
+  return r.status === "programado" || r.status === "vencido";
 }
 
 export function MaintenanceCalendar({
@@ -41,20 +52,33 @@ export function MaintenanceCalendar({
   records,
   onNavigate,
   onSelectRecord,
+  onCreateAtDate,
+  onRescheduleRecord,
 }: {
   year: number;
   month: number;
   records: MaintenanceRecordRow[];
   onNavigate: (year: number, month: number) => void;
   onSelectRecord: (record: MaintenanceRecordRow) => void;
+  onCreateAtDate: (dateIso: string) => void;
+  onRescheduleRecord: (recordId: string, newDateIso: string) => void;
 }) {
   const cells = buildMonthGrid(year, month, records);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
   function goPrev() {
     onNavigate(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1);
   }
   function goNext() {
     onNavigate(month === 12 ? year + 1 : year, month === 12 ? 1 : month + 1);
+  }
+
+  function handleDrop(dateIso: string) {
+    setDragOverDate(null);
+    const id = draggingId;
+    setDraggingId(null);
+    if (id) onRescheduleRecord(id, dateIso);
   }
 
   return (
@@ -81,6 +105,9 @@ export function MaintenanceCalendar({
           </button>
         </div>
       </div>
+      <p className="mb-2 text-[11px] text-muted-foreground">
+        Haz clic en un día para programar - arrastra un mantenimiento a otro día para reprogramarlo.
+      </p>
       <div className="grid grid-cols-7 gap-1 text-xs">
         {WEEKDAYS.map((w) => (
           <div key={w} className="px-1 pb-1 text-center font-semibold text-muted-foreground">
@@ -90,7 +117,21 @@ export function MaintenanceCalendar({
         {cells.map((cell, i) => (
           <div
             key={i}
-            className={`min-h-[72px] rounded-lg border p-1 ${cell ? "bg-background" : "border-transparent"}`}
+            onClick={() => cell && onCreateAtDate(cell.dateIso)}
+            onDragOver={(e) => {
+              if (!cell) return;
+              e.preventDefault();
+              if (dragOverDate !== cell.dateIso) setDragOverDate(cell.dateIso);
+            }}
+            onDragLeave={() => setDragOverDate((prev) => (cell && prev === cell.dateIso ? null : prev))}
+            onDrop={(e) => {
+              if (!cell) return;
+              e.preventDefault();
+              handleDrop(cell.dateIso);
+            }}
+            className={`min-h-[72px] rounded-lg border p-1 transition-colors ${
+              cell ? "cursor-pointer bg-background hover:border-[#04B1AF]/50" : "border-transparent"
+            } ${cell && dragOverDate === cell.dateIso ? "border-[#04B1AF] bg-[#04B1AF]/5 ring-2 ring-[#04B1AF]/30" : ""}`}
           >
             {cell && (
               <>
@@ -98,12 +139,25 @@ export function MaintenanceCalendar({
                 <div className="space-y-0.5">
                   {cell.records.slice(0, 3).map((r) => {
                     const meta = CATEGORY_BY_KEY.get(r.category);
+                    const draggable = isReschedulable(r);
                     return (
                       <button
                         key={r.id}
                         type="button"
-                        onClick={() => onSelectRecord(r)}
-                        className="flex w-full items-center gap-1 rounded hover:bg-muted"
+                        draggable={draggable}
+                        onDragStart={(e) => {
+                          e.stopPropagation();
+                          setDraggingId(r.id);
+                        }}
+                        onDragEnd={() => setDraggingId(null)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectRecord(r);
+                        }}
+                        title={draggable ? "Arrastra para reprogramar" : undefined}
+                        className={`flex w-full items-center gap-1 rounded hover:bg-muted ${
+                          draggable ? "cursor-grab active:cursor-grabbing" : ""
+                        } ${draggingId === r.id ? "opacity-40" : ""}`}
                       >
                         <span className={`size-1.5 shrink-0 rounded-full ${meta?.dotClass ?? "bg-muted-foreground"}`} />
                         <span className="truncate text-left text-[10px] text-foreground">

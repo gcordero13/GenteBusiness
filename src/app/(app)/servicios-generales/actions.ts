@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { uploadSharePointPhoto } from "@/lib/sharepoint";
 import { STATUS_LABELS, VEHICLE_SERVICE_TYPE_LABELS, type MaintenanceCategoryKey, type VehicleServiceType } from "./categories";
 
 interface ActionResult {
@@ -42,6 +43,8 @@ export interface MaintenanceAssetRow {
   departmentName: string | null;
   assignedAppUserId: string | null;
   assignedUserName: string | null;
+  photoDriveId: string | null;
+  photoItemId: string | null;
   status: "activo" | "inactivo";
 }
 
@@ -57,6 +60,8 @@ function toAssetRow(
     department_id: string | null;
     departments: { name: string } | { name: string }[] | null;
     assigned_app_user_id: string | null;
+    photo_drive_id: string | null;
+    photo_item_id: string | null;
     status: string;
   },
   emailByUserId: Map<string, string>,
@@ -74,12 +79,14 @@ function toAssetRow(
     departmentName: dept?.name ?? null,
     assignedAppUserId: r.assigned_app_user_id,
     assignedUserName: r.assigned_app_user_id ? (emailByUserId.get(r.assigned_app_user_id) ?? null) : null,
+    photoDriveId: r.photo_drive_id,
+    photoItemId: r.photo_item_id,
     status: r.status === "inactivo" ? "inactivo" : "activo",
   };
 }
 
 const ASSET_SELECT =
-  "id, category, name, brand, spec, license_plate, current_mileage, department_id, departments(name), assigned_app_user_id, status";
+  "id, category, name, brand, spec, license_plate, current_mileage, department_id, departments(name), assigned_app_user_id, photo_drive_id, photo_item_id, status";
 
 // general_maintenance_assets has two FKs into app_users (assigned_app_user_id
 // and created_by), which makes an embedded `app_users!assigned_app_user_id(email)`
@@ -198,6 +205,28 @@ export async function setMaintenanceAssetStatus(id: string, status: "activo" | "
   if (error) return { error: error.message };
 
   revalidatePath("/servicios-generales/activos");
+  return {};
+}
+
+// Uploads straight to SharePoint (same mechanism GoServices uses for its
+// photo attachments - see src/lib/sharepoint.ts) and persists the
+// resulting webUrl/driveId/itemId, instead of a separate storage bucket.
+export async function updateMaintenanceAssetPhoto(id: string, photo: File): Promise<ActionResult> {
+  if (!(await callerCanManage())) return { error: "No autorizado" };
+  if (photo.size === 0) return { error: "Selecciona una foto" };
+
+  const uploadResult = await uploadSharePointPhoto(photo);
+  if (uploadResult.error) return { error: uploadResult.error };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("general_maintenance_assets")
+    .update({ photo_url: uploadResult.url, photo_drive_id: uploadResult.driveId, photo_item_id: uploadResult.itemId })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/servicios-generales/activos");
+  revalidatePath("/servicios-generales");
   return {};
 }
 
@@ -604,6 +633,29 @@ export async function cancelMaintenanceRecord(id: string): Promise<ActionResult>
 
   const admin = createAdminClient();
   const { error } = await admin.from("general_maintenance_records").update({ status: "cancelado" }).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/servicios-generales");
+  return {};
+}
+
+// Drag-to-reschedule on the calendar - only moves the date (keeps whatever
+// time was set, if any) and only for records still open; a finished or
+// cancelled ticket has nothing left to reschedule.
+export async function rescheduleMaintenanceRecord(id: string, newDate: string): Promise<ActionResult> {
+  if (!(await callerCanManage())) return { error: "No autorizado" };
+
+  const admin = createAdminClient();
+  const { data: record } = await admin.from("general_maintenance_records").select("status").eq("id", id).maybeSingle();
+  if (!record) return { error: "No encontrado" };
+  if (record.status === "completado" || record.status === "cancelado") {
+    return { error: "Este registro ya está cerrado" };
+  }
+
+  const { error } = await admin
+    .from("general_maintenance_records")
+    .update({ status: "programado", scheduled_date: newDate })
+    .eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath("/servicios-generales");
