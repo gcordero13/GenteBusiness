@@ -143,6 +143,44 @@ export async function uploadSharePointPhoto(file: File): Promise<SharePointPhoto
   }
 }
 
+export const MAX_SHAREPOINT_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+
+export const ALLOWED_SHAREPOINT_ATTACHMENT_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+};
+
+export interface SharePointAttachmentUploadResult {
+  url?: string;
+  driveId?: string;
+  itemId?: string;
+  error?: string;
+}
+
+// Generalized sibling of uploadSharePointPhoto for features needing
+// multiple files per record and non-image types (Planificación's task
+// attachments) - same SharePoint-backed mechanism, wider type/size
+// allowance, never a new Supabase Storage bucket.
+export async function uploadSharePointAttachment(file: File): Promise<SharePointAttachmentUploadResult> {
+  if (file.size > MAX_SHAREPOINT_ATTACHMENT_BYTES) return { error: "El archivo no puede pesar más de 20 MB" };
+  if (!ALLOWED_SHAREPOINT_ATTACHMENT_TYPES[file.type]) {
+    return { error: "Tipo de archivo no permitido (usa imagen, PDF o Word/Excel)" };
+  }
+  const bytes = await file.arrayBuffer();
+  try {
+    const result = await uploadToSharePoint(bytes, file.name, file.type || "application/octet-stream");
+    return { url: result.webUrl, driveId: result.driveId, itemId: result.itemId };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "No se pudo subir el archivo" };
+  }
+}
+
 export async function getSharePointDownloadUrl(driveId: string, itemId: string): Promise<string> {
   const accessToken = await getGraphAccessToken();
   const res = await fetch(

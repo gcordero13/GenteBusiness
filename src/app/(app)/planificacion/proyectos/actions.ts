@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { uploadSharePointAttachment } from "@/lib/sharepoint";
 
 interface ActionResult {
   error?: string;
@@ -202,4 +203,214 @@ export async function listTareasDeProyecto(proyectoId: string): Promise<TareaLis
     .order("sort_order", { ascending: true });
 
   return (data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id));
+}
+
+export interface CreateTareaInput {
+  proyectoId: string;
+  parentTaskId: string | null;
+  title: string;
+  description: string;
+  estadoId: string | null;
+  priority: "alta" | "media" | "baja" | null;
+  labels: string[];
+  startDate: string | null;
+  dueDate: string | null;
+  assigneeId: string | null;
+  cicloId: string | null;
+  moduloIds: string[];
+}
+
+export async function createTarea(input: CreateTareaInput): Promise<ActionResult & { id?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+  if (!input.title.trim()) return { error: "El título es obligatorio" };
+
+  const { data: tarea, error } = await supabase
+    .from("plan_tareas")
+    .insert({
+      proyecto_id: input.proyectoId,
+      parent_task_id: input.parentTaskId,
+      title: input.title.trim(),
+      description: input.description.trim() || null,
+      estado_id: input.estadoId,
+      priority: input.priority,
+      labels: input.labels,
+      start_date: input.startDate,
+      due_date: input.dueDate,
+      assignee_id: input.assigneeId,
+      ciclo_id: input.cicloId,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (error || !tarea) return { error: error?.message ?? "No se pudo crear la tarea" };
+
+  if (input.moduloIds.length > 0) {
+    const { error: modError } = await supabase
+      .from("plan_tarea_modulos")
+      .insert(input.moduloIds.map((modulo_id) => ({ tarea_id: tarea.id, modulo_id })));
+    if (modError) return { error: modError.message };
+  }
+
+  revalidatePath("/planificacion");
+  revalidatePath(`/planificacion/proyectos/${input.proyectoId}`);
+  return { id: tarea.id };
+}
+
+export interface UpdateTareaInput {
+  id: string;
+  proyectoId: string;
+  title: string;
+  description: string;
+  estadoId: string | null;
+  priority: "alta" | "media" | "baja" | null;
+  labels: string[];
+  startDate: string | null;
+  dueDate: string | null;
+  assigneeId: string | null;
+  cicloId: string | null;
+  moduloIds: string[];
+}
+
+export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!input.title.trim()) return { error: "El título es obligatorio" };
+
+  const { error } = await supabase
+    .from("plan_tareas")
+    .update({
+      title: input.title.trim(),
+      description: input.description.trim() || null,
+      estado_id: input.estadoId,
+      priority: input.priority,
+      labels: input.labels,
+      start_date: input.startDate,
+      due_date: input.dueDate,
+      assignee_id: input.assigneeId,
+      ciclo_id: input.cicloId,
+    })
+    .eq("id", input.id);
+  if (error) return { error: error.message };
+
+  await supabase.from("plan_tarea_modulos").delete().eq("tarea_id", input.id);
+  if (input.moduloIds.length > 0) {
+    const { error: modError } = await supabase
+      .from("plan_tarea_modulos")
+      .insert(input.moduloIds.map((modulo_id) => ({ tarea_id: input.id, modulo_id })));
+    if (modError) return { error: modError.message };
+  }
+
+  revalidatePath("/planificacion");
+  revalidatePath(`/planificacion/proyectos/${input.proyectoId}`);
+  return {};
+}
+
+// proyectoId FIRST (unlike every other action in this file) so the project
+// detail page (a later task) can pass
+// `updateTareaEstado.bind(null, proyectoId)` down to the client-side
+// ProyectosWorkspace as a `(tareaId, estadoId) => Promise<ActionResult>`
+// bound Server Action - only a Server Action (not a plain async function)
+// can cross the server-to-client prop boundary, and `.bind` only partially
+// applies arguments from the front, which is why proyectoId is first here.
+export async function updateTareaEstado(proyectoId: string, tareaId: string, estadoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("plan_tareas").update({ estado_id: estadoId }).eq("id", tareaId);
+  if (error) return { error: error.message };
+  revalidatePath("/planificacion");
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export async function updateTareaFecha(tareaId: string, dueDate: string, proyectoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("plan_tareas").update({ due_date: dueDate }).eq("id", tareaId);
+  if (error) return { error: error.message };
+  revalidatePath("/planificacion");
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export async function deleteTarea(tareaId: string, proyectoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("plan_tareas").delete().eq("id", tareaId);
+  if (error) return { error: error.message };
+  revalidatePath("/planificacion");
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export interface TareaAdjuntoRow {
+  id: string;
+  fileName: string;
+  contentType: string | null;
+  driveId: string;
+  itemId: string;
+}
+
+export async function listAdjuntos(tareaId: string): Promise<TareaAdjuntoRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("plan_tarea_adjuntos")
+    .select("id, file_name, content_type, drive_id, item_id")
+    .eq("tarea_id", tareaId)
+    .order("created_at", { ascending: false });
+  return (data ?? []).map((a) => ({
+    id: a.id,
+    fileName: a.file_name,
+    contentType: a.content_type,
+    driveId: a.drive_id,
+    itemId: a.item_id,
+  }));
+}
+
+export async function addAdjunto(tareaId: string, proyectoId: string, file: File): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+  if (file.size === 0) return { error: "Selecciona un archivo" };
+
+  const uploadResult = await uploadSharePointAttachment(file);
+  if (uploadResult.error) return { error: uploadResult.error };
+
+  const { error } = await supabase.from("plan_tarea_adjuntos").insert({
+    tarea_id: tareaId,
+    file_name: file.name,
+    content_type: file.type || null,
+    drive_id: uploadResult.driveId,
+    item_id: uploadResult.itemId,
+    uploaded_by: user.id,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export async function removeAdjunto(adjuntoId: string, proyectoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("plan_tarea_adjuntos").delete().eq("id", adjuntoId);
+  if (error) return { error: error.message };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export interface EstadoOption {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+export async function listEstados(proyectoId: string): Promise<EstadoOption[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("plan_estados")
+    .select("id, name, color")
+    .eq("proyecto_id", proyectoId)
+    .order("sort_order");
+  return (data ?? []).map((e) => ({ id: e.id, name: e.name, color: e.color }));
 }
