@@ -414,3 +414,32 @@ export async function listEstados(proyectoId: string): Promise<EstadoOption[]> {
     .order("sort_order");
   return (data ?? []).map((e) => ({ id: e.id, name: e.name, color: e.color }));
 }
+
+export async function createEstado(proyectoId: string, name: string, color: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!name.trim()) return { error: "El nombre es obligatorio" };
+
+  const { data: existing } = await supabase
+    .from("plan_estados")
+    .select("sort_order")
+    .eq("proyecto_id", proyectoId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  const nextSort = (existing?.[0]?.sort_order ?? -1) + 1;
+
+  const { error } = await supabase
+    .from("plan_estados")
+    .insert({ proyecto_id: proyectoId, name: name.trim(), color: color || null, sort_order: nextSort });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export async function deleteEstado(estadoId: string, proyectoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("plan_estados").delete().eq("id", estadoId);
+  if (error) return { error: error.message };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
