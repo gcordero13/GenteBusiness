@@ -519,3 +519,133 @@ export async function deleteModulo(moduloId: string, proyectoId: string): Promis
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
+
+export interface CompartidoRow {
+  id: string;
+  appUserId: string;
+  userName: string;
+  accessLevel: "ver" | "editar";
+}
+
+async function buildUserNameMap(userIds: string[]): Promise<Map<string, string>> {
+  if (userIds.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data: users } = await supabase.from("app_users").select("id, email").in("id", userIds);
+  if (!users || users.length === 0) return new Map();
+  const emails = users.map((u) => u.email);
+  const { data: contacts } = await supabase.from("contacts").select("email, first_name, last_name").in("email", emails);
+  const nameByEmail = new Map((contacts ?? []).map((c) => [c.email, `${c.first_name} ${c.last_name}`]));
+  return new Map(users.map((u) => [u.id, nameByEmail.get(u.email) ?? u.email]));
+}
+
+export interface AssignableUser {
+  id: string;
+  name: string;
+}
+
+// Shared by the "Compartir" dialog (picking who to share with) and
+// TareaCreateDialog's responsable picker - every active app_user, with a
+// real display name resolved the same way as every other module this app
+// has built (app_users rarely has a populated name field; resolve via the
+// matching contacts row by email instead).
+export async function listAssignableUsers(): Promise<AssignableUser[]> {
+  const supabase = await createClient();
+  const { data: users } = await supabase.from("app_users").select("id, email").eq("status", "active").order("email");
+  if (!users || users.length === 0) return [];
+  const nameByUserId = await buildUserNameMap(users.map((u) => u.id));
+  return users.map((u) => ({ id: u.id, name: nameByUserId.get(u.id) ?? u.id }));
+}
+
+export async function listProyectoCompartidos(proyectoId: string): Promise<CompartidoRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("plan_proyecto_compartidos")
+    .select("id, shared_with_app_user_id, access_level")
+    .eq("proyecto_id", proyectoId);
+  const rows = data ?? [];
+  const nameByUserId = await buildUserNameMap(rows.map((r) => r.shared_with_app_user_id));
+  return rows.map((r) => ({
+    id: r.id,
+    appUserId: r.shared_with_app_user_id,
+    userName: nameByUserId.get(r.shared_with_app_user_id) ?? r.shared_with_app_user_id,
+    accessLevel: r.access_level as "ver" | "editar",
+  }));
+}
+
+export async function shareProyecto(
+  proyectoId: string,
+  appUserId: string,
+  accessLevel: "ver" | "editar",
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+
+  const { error } = await supabase.from("plan_proyecto_compartidos").upsert(
+    {
+      proyecto_id: proyectoId,
+      shared_with_app_user_id: appUserId,
+      access_level: accessLevel,
+      shared_by: user.id,
+    },
+    { onConflict: "proyecto_id,shared_with_app_user_id" },
+  );
+  if (error) return { error: error.message };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export async function revokeProyectoShare(shareId: string, proyectoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("plan_proyecto_compartidos").delete().eq("id", shareId);
+  if (error) return { error: error.message };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export async function listTareaCompartidos(tareaId: string): Promise<CompartidoRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("plan_tarea_compartidos")
+    .select("id, shared_with_app_user_id, access_level")
+    .eq("tarea_id", tareaId);
+  const rows = data ?? [];
+  const nameByUserId = await buildUserNameMap(rows.map((r) => r.shared_with_app_user_id));
+  return rows.map((r) => ({
+    id: r.id,
+    appUserId: r.shared_with_app_user_id,
+    userName: nameByUserId.get(r.shared_with_app_user_id) ?? r.shared_with_app_user_id,
+    accessLevel: r.access_level as "ver" | "editar",
+  }));
+}
+
+export async function shareTarea(
+  tareaId: string,
+  proyectoId: string,
+  appUserId: string,
+  accessLevel: "ver" | "editar",
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+
+  const { error } = await supabase.from("plan_tarea_compartidos").upsert(
+    { tarea_id: tareaId, shared_with_app_user_id: appUserId, access_level: accessLevel, shared_by: user.id },
+    { onConflict: "tarea_id,shared_with_app_user_id" },
+  );
+  if (error) return { error: error.message };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export async function revokeTareaShare(shareId: string, proyectoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("plan_tarea_compartidos").delete().eq("id", shareId);
+  if (error) return { error: error.message };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
