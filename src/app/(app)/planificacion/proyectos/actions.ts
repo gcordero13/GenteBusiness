@@ -443,3 +443,44 @@ export async function deleteEstado(estadoId: string, proyectoId: string): Promis
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
+
+export interface CicloRow {
+  id: string;
+  name: string;
+  startDate: string | null;
+  endDate: string | null;
+}
+
+export async function listCiclos(proyectoId: string): Promise<CicloRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("plan_ciclos")
+    .select("id, name, start_date, end_date")
+    .eq("proyecto_id", proyectoId)
+    .order("start_date", { ascending: true, nullsFirst: false });
+  return (data ?? []).map((c) => ({ id: c.id, name: c.name, startDate: c.start_date, endDate: c.end_date }));
+}
+
+export async function createCiclo(
+  proyectoId: string,
+  name: string,
+  startDate: string,
+  endDate: string,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!name.trim()) return { error: "El nombre es obligatorio" };
+  const { error } = await supabase
+    .from("plan_ciclos")
+    .insert({ proyecto_id: proyectoId, name: name.trim(), start_date: startDate || null, end_date: endDate || null });
+  if (error) return { error: error.message };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export async function deleteCiclo(cicloId: string, proyectoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("plan_ciclos").delete().eq("id", cicloId);
+  if (error) return { error: error.message };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
