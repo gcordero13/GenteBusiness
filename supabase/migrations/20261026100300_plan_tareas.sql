@@ -50,7 +50,48 @@ create trigger plan_tareas_set_ancestor_ids
   for each row
   execute function public.plan_set_tarea_ancestor_ids();
 
+-- Tables referenced by plan_can_see_tarea/plan_can_edit_tarea below must
+-- exist BEFORE those functions are created: unlike plpgsql, a `language
+-- sql` function's body is parsed and validated against the catalog at
+-- CREATE FUNCTION time, not deferred to first call - creating them before
+-- plan_tarea_compartidos existed is what caused
+-- "relation public.plan_tarea_compartidos does not exist" when this
+-- migration was first attempted. Tables (and their RLS enable, which has
+-- no such ordering constraint) come first now; the visibility functions
+-- and every policy that calls them come after.
+create table public.plan_tarea_modulos (
+  tarea_id uuid not null references public.plan_tareas(id) on delete cascade,
+  modulo_id uuid not null references public.plan_modulos(id) on delete cascade,
+  primary key (tarea_id, modulo_id)
+);
+
+-- Sharing/revoking a task requires editar on it - same "delegation
+-- requires meaningful access" rule as plan_proyecto_compartidos_write.
+create table public.plan_tarea_compartidos (
+  id uuid primary key default gen_random_uuid(),
+  tarea_id uuid not null references public.plan_tareas(id) on delete cascade,
+  shared_with_app_user_id uuid not null references public.app_users(id) on delete cascade,
+  access_level text not null check (access_level in ('ver', 'editar')),
+  shared_by uuid not null references public.app_users(id),
+  created_at timestamptz not null default now(),
+  unique (tarea_id, shared_with_app_user_id)
+);
+
+create table public.plan_tarea_adjuntos (
+  id uuid primary key default gen_random_uuid(),
+  tarea_id uuid not null references public.plan_tareas(id) on delete cascade,
+  file_name text not null,
+  content_type text,
+  drive_id text not null,
+  item_id text not null,
+  uploaded_by uuid not null references public.app_users(id),
+  created_at timestamptz not null default now()
+);
+
 alter table public.plan_tareas enable row level security;
+alter table public.plan_tarea_modulos enable row level security;
+alter table public.plan_tarea_compartidos enable row level security;
+alter table public.plan_tarea_adjuntos enable row level security;
 
 -- A task is visible if its project is visible at all (owner or any share
 -- level), OR the caller owns/is assigned to the task directly, OR the
@@ -135,45 +176,16 @@ create policy "plan_tareas_delete" on public.plan_tareas
   for delete
   using (public.plan_can_edit_tarea(id));
 
-create table public.plan_tarea_modulos (
-  tarea_id uuid not null references public.plan_tareas(id) on delete cascade,
-  modulo_id uuid not null references public.plan_modulos(id) on delete cascade,
-  primary key (tarea_id, modulo_id)
-);
-alter table public.plan_tarea_modulos enable row level security;
 create policy "plan_tarea_modulos_select" on public.plan_tarea_modulos
   for select using (public.plan_can_see_tarea(tarea_id));
 create policy "plan_tarea_modulos_write" on public.plan_tarea_modulos
   for all using (public.plan_can_edit_tarea(tarea_id)) with check (public.plan_can_edit_tarea(tarea_id));
 
--- Sharing/revoking a task requires editar on it - same "delegation
--- requires meaningful access" rule as plan_proyecto_compartidos_write.
-create table public.plan_tarea_compartidos (
-  id uuid primary key default gen_random_uuid(),
-  tarea_id uuid not null references public.plan_tareas(id) on delete cascade,
-  shared_with_app_user_id uuid not null references public.app_users(id) on delete cascade,
-  access_level text not null check (access_level in ('ver', 'editar')),
-  shared_by uuid not null references public.app_users(id),
-  created_at timestamptz not null default now(),
-  unique (tarea_id, shared_with_app_user_id)
-);
-alter table public.plan_tarea_compartidos enable row level security;
 create policy "plan_tarea_compartidos_select" on public.plan_tarea_compartidos
   for select using (public.plan_can_see_tarea(tarea_id));
 create policy "plan_tarea_compartidos_write" on public.plan_tarea_compartidos
   for all using (public.plan_can_edit_tarea(tarea_id)) with check (public.plan_can_edit_tarea(tarea_id));
 
-create table public.plan_tarea_adjuntos (
-  id uuid primary key default gen_random_uuid(),
-  tarea_id uuid not null references public.plan_tareas(id) on delete cascade,
-  file_name text not null,
-  content_type text,
-  drive_id text not null,
-  item_id text not null,
-  uploaded_by uuid not null references public.app_users(id),
-  created_at timestamptz not null default now()
-);
-alter table public.plan_tarea_adjuntos enable row level security;
 create policy "plan_tarea_adjuntos_select" on public.plan_tarea_adjuntos
   for select using (public.plan_can_see_tarea(tarea_id));
 create policy "plan_tarea_adjuntos_write" on public.plan_tarea_adjuntos
