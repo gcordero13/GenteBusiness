@@ -29,7 +29,12 @@ export async function createProyecto(name: string, description: string): Promise
     .insert({ name: name.trim(), description: description.trim() || null, created_by: user.id })
     .select("id")
     .single();
-  if (error || !data) return { error: error?.message ?? "No se pudo crear el proyecto" };
+  // TEMPORARY DIAGNOSTIC (remove once the RLS issue is confirmed/fixed): include
+  // the exact user.id this insert attempted, so it can be compared against
+  // auth.users/app_users directly instead of guessing blind.
+  if (error || !data) {
+    return { error: `${error?.message ?? "No se pudo crear el proyecto"} [debug: user.id=${user.id}, email=${user.email}]` };
+  }
 
   revalidatePath("/planificacion");
   return { id: data.id };
