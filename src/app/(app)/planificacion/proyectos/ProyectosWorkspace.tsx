@@ -194,7 +194,11 @@ export function ProyectosWorkspace({
         </div>
       </div>
 
-      {view === "lista" && <ListaView tasks={rootFilteredTasks} onSelect={setSelected} />}
+      {/* allTasks is the ORIGINAL unfiltered set, not filteredTasks - a
+          sub-task's own due date rarely matches its parent's, so if the
+          date filter excluded it there'd be nothing to expand into even
+          though the parent itself passed the filter. */}
+      {view === "lista" && <ListaView tasks={rootFilteredTasks} allTasks={tasks} onSelect={setSelected} />}
       {view === "tablero" && (
         <TableroView
           tasks={rootFilteredTasks}
