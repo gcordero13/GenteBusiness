@@ -28,13 +28,13 @@ const VIEW_OPTIONS: { key: ViewMode; label: string; icon: typeof List }[] = [
 export function ProyectosWorkspace({
   tasks,
   columns,
-  getColumnKey,
+  columnKeyBy,
   onDropEstado,
   defaultProyectoId,
 }: {
   tasks: TareaListRow[];
   columns: TableroColumn[];
-  getColumnKey: (t: TareaListRow) => string;
+  columnKeyBy: "estadoId" | "estadoName";
   onDropEstado?: (tareaId: string, estadoId: string) => Promise<{ error?: string }>;
   defaultProyectoId?: string;
 }) {
@@ -42,6 +42,11 @@ export function ProyectosWorkspace({
   const [, startTransition] = useTransition();
   const [view, setView] = useState<ViewMode>("lista");
   const [selected, setSelected] = useState<TareaListRow | null>(null);
+
+  const getColumnKey =
+    columnKeyBy === "estadoId"
+      ? (t: TareaListRow) => t.estadoId ?? "sin-estado"
+      : (t: TareaListRow) => t.estadoName ?? "sin-estado";
 
   function reschedule(taskId: string, newDateIso: string) {
     const task = tasks.find((t) => t.id === taskId);

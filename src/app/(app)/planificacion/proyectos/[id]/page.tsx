@@ -66,7 +66,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
         <ProyectosWorkspace
           tasks={tasks}
           columns={columns}
-          getColumnKey={(t) => t.estadoId ?? "sin-estado"}
+          columnKeyBy="estadoId"
           onDropEstado={updateTareaEstado.bind(null, id)}
           defaultProyectoId={id}
         />

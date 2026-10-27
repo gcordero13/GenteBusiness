@@ -46,7 +46,7 @@ export default async function PlanificacionPage() {
           <ProyectosWorkspace
             tasks={misTareas}
             columns={buildMixedColumns(misTareas)}
-            getColumnKey={(t) => t.estadoName ?? "sin-estado"}
+            columnKeyBy="estadoName"
           />
         </section>
 
@@ -55,7 +55,7 @@ export default async function PlanificacionPage() {
           <ProyectosWorkspace
             tasks={compartidoConmigo}
             columns={buildMixedColumns(compartidoConmigo)}
-            getColumnKey={(t) => t.estadoName ?? "sin-estado"}
+            columnKeyBy="estadoName"
           />
         </section>
       </div>
