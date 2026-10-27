@@ -150,6 +150,7 @@ export interface TareaListRow {
   description: string | null;
   estadoId: string | null;
   estadoName: string | null;
+  estadoColor: string | null;
   priority: "alta" | "media" | "baja" | null;
   labels: string[];
   startDate: string | null;
@@ -180,7 +181,7 @@ interface RawTareaRow {
   title: string;
   description: string | null;
   estado_id: string | null;
-  plan_estados: { name: string } | { name: string }[] | null;
+  plan_estados: { name: string; color: string | null } | { name: string; color: string | null }[] | null;
   priority: "alta" | "media" | "baja" | null;
   labels: string[] | null;
   start_date: string | null;
@@ -207,6 +208,7 @@ function toTareaListRow(t: RawTareaRow, callerId: string): TareaListRow {
     description: t.description,
     estadoId: t.estado_id,
     estadoName: estado?.name ?? null,
+    estadoColor: estado?.color ?? null,
     priority: t.priority,
     labels: t.labels ?? [],
     startDate: t.start_date,
@@ -234,7 +236,7 @@ function attachHasChildren(rows: TareaListRow[]): TareaListRow[] {
 }
 
 const TAREA_SELECT =
-  "id, proyecto_id, plan_proyectos(name), parent_task_id, title, description, estado_id, plan_estados(name), priority, labels, start_date, due_date, assignee_id, ciclo_id, created_by, plan_tarea_modulos(modulo_id), percent_complete, color";
+  "id, proyecto_id, plan_proyectos(name), parent_task_id, title, description, estado_id, plan_estados(name, color), priority, labels, start_date, due_date, assignee_id, ciclo_id, created_by, plan_tarea_modulos(modulo_id), percent_complete, color";
 
 // Every task RLS lets the caller see, across every project - the landing
 // screen (a later task) splits this into "Mis tareas" (relationship is
