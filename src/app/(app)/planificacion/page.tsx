@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { listCompartidoConmigo, listMisProyectos, listTareasVisibles } from "./proyectos/actions";
-import { ProyectosWorkspace } from "./proyectos/ProyectosWorkspace";
 import { NuevoProyectoDialog } from "./proyectos/NuevoProyectoDialog";
+import { TareasTabs } from "./proyectos/TareasTabs";
 import type { ProyectoListRow } from "./proyectos/actions";
 
 function ProyectoCard({ proyecto }: { proyecto: ProyectoListRow }) {
@@ -87,27 +87,14 @@ export default async function PlanificacionPage() {
           </section>
         )}
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">Mis tareas</h2>
-          <ProyectosWorkspace
-            tasks={misTareas}
-            columns={buildMixedColumns(misTareas)}
-            columnKeyBy="estadoName"
-            estados={[]}
-            assignees={[]}
-          />
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">Compartido conmigo</h2>
-          <ProyectosWorkspace
-            tasks={compartidoConmigo}
-            columns={buildMixedColumns(compartidoConmigo)}
-            columnKeyBy="estadoName"
-            estados={[]}
-            assignees={[]}
-          />
-        </section>
+        <TareasTabs
+          misTareas={misTareas}
+          misColumns={buildMixedColumns(misTareas)}
+          compartidoConmigo={compartidoConmigo}
+          compartidoColumns={buildMixedColumns(compartidoConmigo)}
+          estados={[]}
+          assignees={[]}
+        />
       </div>
     </div>
   );
