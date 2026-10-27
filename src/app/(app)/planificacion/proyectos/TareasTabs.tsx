@@ -36,6 +36,8 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoListRow }) {
 export function TareasTabs({
   misProyectos,
   proyectosCompartidos,
+  misTareasCreadas,
+  misTareasCreadasColumns,
   misTareas,
   misColumns,
   compartidoConmigo,
@@ -45,6 +47,8 @@ export function TareasTabs({
 }: {
   misProyectos: ProyectoListRow[];
   proyectosCompartidos: ProyectoListRow[];
+  misTareasCreadas: TareaListRow[];
+  misTareasCreadasColumns: TableroColumn[];
   misTareas: TareaListRow[];
   misColumns: TableroColumn[];
   compartidoConmigo: TareaListRow[];
@@ -95,6 +99,19 @@ export function TareasTabs({
                   <ProyectoCard key={p.id} proyecto={p} />
                 ))}
               </div>
+            </div>
+          )}
+
+          {misTareasCreadas.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground">Tareas que he creado</h3>
+              <ProyectosWorkspace
+                tasks={misTareasCreadas}
+                columns={misTareasCreadasColumns}
+                columnKeyBy="estadoName"
+                estados={estados}
+                assignees={assignees}
+              />
             </div>
           )}
         </div>

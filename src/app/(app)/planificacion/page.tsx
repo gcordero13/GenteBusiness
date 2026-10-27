@@ -16,7 +16,11 @@ export default async function PlanificacionPage() {
     listMisProyectos(),
     listCompartidoConmigo(),
   ]);
-  const misTareas = tasks.filter((t) => t.relationship === "mio" || t.relationship === "asignado");
+  // Confirmed with the user: "Mis tareas" is specifically what's assigned
+  // to me (relationship "asignado"); tasks I created myself show instead
+  // inside "Mis proyectos", alongside the project list they belong to.
+  const misTareasCreadas = tasks.filter((t) => t.relationship === "mio");
+  const misTareas = tasks.filter((t) => t.relationship === "asignado");
   const compartidoConmigo = tasks.filter((t) => t.relationship === "compartido");
 
   // Mixed-project Tablero columns: different projects have unrelated
@@ -48,6 +52,8 @@ export default async function PlanificacionPage() {
         <TareasTabs
           misProyectos={misProyectos}
           proyectosCompartidos={proyectosCompartidos}
+          misTareasCreadas={misTareasCreadas}
+          misTareasCreadasColumns={buildMixedColumns(misTareasCreadas)}
           misTareas={misTareas}
           misColumns={buildMixedColumns(misTareas)}
           compartidoConmigo={compartidoConmigo}

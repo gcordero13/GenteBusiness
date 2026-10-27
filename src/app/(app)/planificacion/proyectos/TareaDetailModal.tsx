@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   addAdjunto,
   addComentario,
@@ -26,8 +27,10 @@ import {
   type TareaAdjuntoRow,
   type TareaListRow,
 } from "./actions";
+import { AssigneePicker, initials } from "./AssigneePicker";
 import { CompartirDialog } from "./CompartirDialog";
 import { ESTADO_COLORS } from "./EstadosEditor";
+import { progressOpacity } from "./TableroView";
 import type { AssigneeOption } from "./TareaCreateDialog";
 
 export function TareaDetailModal({
@@ -237,7 +240,10 @@ export function TareaDetailModal({
           {tarea.hasChildren ? (
             <>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full bg-[#04B1AF]" style={{ width: `${tarea.percentComplete}%` }} />
+                <div
+                  className="h-full bg-[#04B1AF]"
+                  style={{ width: `${tarea.percentComplete}%`, opacity: progressOpacity(tarea.percentComplete) }}
+                />
               </div>
               <p className="text-[11px] text-muted-foreground">Calculado a partir de las subtareas</p>
             </>
@@ -314,18 +320,7 @@ export function TareaDetailModal({
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-muted-foreground">Responsable</label>
               {assignees.length > 0 ? (
-                <Select value={assigneeId} onValueChange={(v) => setAssigneeId(v || "")}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue>{() => assignees.find((a) => a.id === assigneeId)?.name ?? "Sin asignar"}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assignees.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AssigneePicker assignees={assignees} value={assigneeId} onChange={setAssigneeId} />
               ) : (
                 <p className="flex h-8 items-center text-xs text-muted-foreground">Sin asignar</p>
               )}
@@ -371,7 +366,12 @@ export function TareaDetailModal({
             <dl className="mb-4 grid grid-cols-2 gap-2 text-xs">
               <div>
                 <dt className="text-muted-foreground">Estado</dt>
-                <dd className="font-medium text-foreground">{tarea.estadoName ?? "—"}</dd>
+                <dd className="flex items-center gap-1.5 font-medium text-foreground">
+                  {tarea.estadoName && (
+                    <span className="size-1.5 rounded-full" style={{ backgroundColor: tarea.estadoColor ?? "#94a3b8" }} />
+                  )}
+                  {tarea.estadoName ?? "—"}
+                </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Prioridad</dt>
@@ -384,6 +384,16 @@ export function TareaDetailModal({
               <div>
                 <dt className="text-muted-foreground">Proyecto</dt>
                 <dd className="font-medium text-foreground">{tarea.proyectoName}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-muted-foreground">Responsable</dt>
+                <dd className="mt-0.5 flex items-center gap-1.5 font-medium text-foreground">
+                  <Avatar size="sm">
+                    {tarea.assigneePhotoUrl && <AvatarImage src={tarea.assigneePhotoUrl} alt="" />}
+                    <AvatarFallback>{tarea.assigneeName ? initials(tarea.assigneeName) : "—"}</AvatarFallback>
+                  </Avatar>
+                  {tarea.assigneeName ?? "Sin asignar"}
+                </dd>
               </div>
             </dl>
           </>

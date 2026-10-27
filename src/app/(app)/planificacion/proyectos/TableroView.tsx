@@ -3,6 +3,15 @@
 import { useState } from "react";
 import type { TareaListRow } from "./actions";
 
+// Progress bars across every view use this same ramp - confirmed with the
+// user: the fill should read as more "intense" the closer a task is to
+// done, not a flat color regardless of %. Opacity-only (not a hue shift)
+// so it stays readable in both themes and doesn't clash with estado/task
+// colors shown alongside it.
+export function progressOpacity(percent: number): number {
+  return 0.35 + (percent / 100) * 0.65;
+}
+
 export interface TableroColumn {
   key: string;
   label: string;
@@ -86,7 +95,10 @@ export function TableroView({
                   <p className="truncate text-muted-foreground">{t.proyectoName}</p>
                   <div className="mt-1.5 flex items-center gap-1.5">
                     <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-[#04B1AF]" style={{ width: `${t.percentComplete}%` }} />
+                      <div
+                        className="h-full bg-[#04B1AF]"
+                        style={{ width: `${t.percentComplete}%`, opacity: progressOpacity(t.percentComplete) }}
+                      />
                     </div>
                     <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{t.percentComplete}%</span>
                   </div>

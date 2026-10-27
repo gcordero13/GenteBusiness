@@ -156,8 +156,12 @@ export interface TareaListRow {
   startDate: string | null;
   dueDate: string | null;
   assigneeId: string | null;
+  assigneeName: string | null;
+  assigneePhotoUrl: string | null;
   cicloId: string | null;
   createdBy: string;
+  creatorName: string;
+  creatorPhotoUrl: string | null;
   moduloIds: string[];
   relationship: "mio" | "asignado" | "compartido";
   percentComplete: number;
@@ -214,8 +218,12 @@ function toTareaListRow(t: RawTareaRow, callerId: string): TareaListRow {
     startDate: t.start_date,
     dueDate: t.due_date,
     assigneeId: t.assignee_id,
+    assigneeName: null,
+    assigneePhotoUrl: null,
     cicloId: t.ciclo_id,
     createdBy: t.created_by,
+    creatorName: t.created_by,
+    creatorPhotoUrl: null,
     moduloIds: (t.plan_tarea_modulos ?? []).map((m) => m.modulo_id),
     relationship,
     percentComplete: t.percent_complete,
@@ -256,7 +264,8 @@ export async function listTareasVisibles(): Promise<TareaListRow[]> {
     .select(TAREA_SELECT)
     .order("created_at", { ascending: false });
 
-  return attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));
+  const rows = attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));
+  return attachProfiles(rows);
 }
 
 // One project's full tree - used by the project detail screen (a later task).
@@ -273,7 +282,8 @@ export async function listTareasDeProyecto(proyectoId: string): Promise<TareaLis
     .eq("proyecto_id", proyectoId)
     .order("sort_order", { ascending: true });
 
-  return attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));
+  const rows = attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));
+  return attachProfiles(rows);
 }
 
 export interface CreateTareaInput {
@@ -857,22 +867,92 @@ async function buildUserNameMap(userIds: string[]): Promise<Map<string, string>>
   return new Map(users.map((u) => [u.id, nameByEmail.get(u.email) ?? u.email]));
 }
 
+interface UserProfile {
+  name: string;
+  photoUrl: string | null;
+}
+
+// Same join as buildUserNameMap, with photo_url added - used to show who's
+// assigned/who created a task (avatar + name) in the Jerarquía/Lista views
+// and the task detail modal. Unlike listAssignableUsers, this is for
+// already-recorded assignments, so an email fallback (not an active-only
+// filter) is kept - someone who left is still a real past assignee worth
+// identifying.
+async function buildUserProfileMap(userIds: string[]): Promise<Map<string, UserProfile>> {
+  if (userIds.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data: users } = await supabase.from("app_users").select("id, email").in("id", userIds);
+  if (!users || users.length === 0) return new Map();
+  const emails = users.map((u) => u.email);
+  const { data: contacts } = await supabase
+    .from("contacts")
+    .select("email, first_name, last_name, photo_url")
+    .in("email", emails);
+  const profileByEmail = new Map(
+    (contacts ?? []).map((c) => [c.email, { name: `${c.first_name} ${c.last_name}`, photoUrl: c.photo_url }]),
+  );
+  return new Map(users.map((u) => [u.id, profileByEmail.get(u.email) ?? { name: u.email, photoUrl: null }]));
+}
+
+// Attaches assignee/creator display profiles once the whole fetched batch is
+// in hand, mirroring attachHasChildren's two-pass shape (one query to
+// resolve every distinct id in the batch, rather than one per row).
+async function attachProfiles(rows: TareaListRow[]): Promise<TareaListRow[]> {
+  const ids = new Set<string>();
+  for (const row of rows) {
+    if (row.assigneeId) ids.add(row.assigneeId);
+    ids.add(row.createdBy);
+  }
+  const profileById = await buildUserProfileMap(Array.from(ids));
+  return rows.map((row) => ({
+    ...row,
+    assigneeName: row.assigneeId ? (profileById.get(row.assigneeId)?.name ?? null) : null,
+    assigneePhotoUrl: row.assigneeId ? (profileById.get(row.assigneeId)?.photoUrl ?? null) : null,
+    creatorName: profileById.get(row.createdBy)?.name ?? row.createdBy,
+    creatorPhotoUrl: profileById.get(row.createdBy)?.photoUrl ?? null,
+  }));
+}
+
 export interface AssignableUser {
   id: string;
   name: string;
 }
 
-// Shared by the "Compartir" dialog (picking who to share with) and
-// TareaCreateDialog's responsable picker - every active app_user, with a
-// real display name resolved the same way as every other module this app
-// has built (app_users rarely has a populated name field; resolve via the
-// matching contacts row by email instead).
+// Used by CompartirDialog to exclude the current user from the "share
+// with" picker - sharing with yourself is meaningless and the RLS policy
+// rejects it outright.
+export async function getCurrentAppUserId(): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
+// Shared by the "Compartir" dialog (picking who to share with) and the
+// responsable picker - every active app_user, with a real display name
+// resolved via the matching contacts row by email. Confirmed with the user:
+// no raw emails should ever show here, and a user with no active contacts
+// record (inactive/terminated employee, or no linked contact at all) must
+// be excluded entirely rather than falling back to their email - unlike
+// buildUserNameMap (used for already-recorded things like comment authors,
+// where showing SOME identifier for history is more useful than hiding it),
+// this list is for picking someone NEW, so only real, active people belong.
 export async function listAssignableUsers(): Promise<AssignableUser[]> {
   const supabase = await createClient();
-  const { data: users } = await supabase.from("app_users").select("id, email").eq("status", "active").order("email");
+  const { data: users } = await supabase.from("app_users").select("id, email").eq("status", "active");
   if (!users || users.length === 0) return [];
-  const nameByUserId = await buildUserNameMap(users.map((u) => u.id));
-  return users.map((u) => ({ id: u.id, name: nameByUserId.get(u.id) ?? u.id }));
+  const emails = users.map((u) => u.email);
+  const { data: contacts } = await supabase
+    .from("contacts")
+    .select("email, first_name, last_name")
+    .in("email", emails)
+    .eq("status", "active");
+  const nameByEmail = new Map((contacts ?? []).map((c) => [c.email, `${c.first_name} ${c.last_name}`]));
+  return users
+    .map((u) => ({ id: u.id, name: nameByEmail.get(u.email) ?? null }))
+    .filter((u): u is AssignableUser => u.name !== null)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function listProyectoCompartidos(proyectoId: string): Promise<CompartidoRow[]> {
@@ -901,6 +981,11 @@ export async function shareProyecto(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autorizado" };
+  // The RLS policy's WITH CHECK rejects shared_with_app_user_id = auth.uid()
+  // (sharing with yourself) - caught here first for a message that actually
+  // explains what went wrong instead of the raw "violates row-level
+  // security policy" error.
+  if (appUserId === user.id) return { error: "No puedes compartir el proyecto contigo mismo" };
 
   const { data, error } = await supabase
     .from("plan_proyecto_compartidos")
@@ -956,6 +1041,7 @@ export async function shareTarea(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autorizado" };
+  if (appUserId === user.id) return { error: "No puedes compartir la tarea contigo mismo" };
 
   const { data, error } = await supabase
     .from("plan_tarea_compartidos")

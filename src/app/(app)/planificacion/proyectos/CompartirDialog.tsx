@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Share2, X } from "lucide-react";
+import { CheckCircle2, Share2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  getCurrentAppUserId,
   listAssignableUsers,
   listProyectoCompartidos,
   listTareaCompartidos,
@@ -44,18 +45,31 @@ export function CompartirDialog({ proyectoId, tareaId, parentProyectoId }: Compa
   const [userId, setUserId] = useState("");
   const [accessLevel, setAccessLevel] = useState<"ver" | "editar">("ver");
   const [error, setError] = useState<string | null>(null);
+  const [sharedWithName, setSharedWithName] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (!open) return;
-    listAssignableUsers().then(setUsers);
+    Promise.all([listAssignableUsers(), getCurrentAppUserId()]).then(([allUsers, currentUserId]) => {
+      setUsers(allUsers.filter((u) => u.id !== currentUserId));
+    });
     if (proyectoId) listProyectoCompartidos(proyectoId).then(setShares);
     if (tareaId) listTareaCompartidos(tareaId).then(setShares);
   }, [open, proyectoId, tareaId]);
 
+  // Fades out on its own after a couple of seconds rather than needing a
+  // dismiss click - confirmed with the user: they want visible feedback
+  // that the share actually went through.
+  useEffect(() => {
+    if (!sharedWithName) return;
+    const timer = setTimeout(() => setSharedWithName(null), 2500);
+    return () => clearTimeout(timer);
+  }, [sharedWithName]);
+
   function add() {
     if (!userId) return;
     setError(null);
+    const name = users.find((u) => u.id === userId)?.name ?? "";
     startTransition(async () => {
       const result = proyectoId
         ? await shareProyecto(proyectoId, userId, accessLevel)
@@ -65,6 +79,8 @@ export function CompartirDialog({ proyectoId, tareaId, parentProyectoId }: Compa
         return;
       }
       setShares(proyectoId ? await listProyectoCompartidos(proyectoId) : await listTareaCompartidos(tareaId!));
+      setUserId("");
+      setSharedWithName(name);
       router.refresh();
     });
   }
@@ -83,7 +99,16 @@ export function CompartirDialog({ proyectoId, tareaId, parentProyectoId }: Compa
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          setSharedWithName(null);
+          setError(null);
+        }
+      }}
+    >
       <DialogTrigger render={<Button size="sm" variant="outline" className="gap-1.5" />}>
         <Share2 className="size-3.5" />
         Compartir
@@ -94,6 +119,12 @@ export function CompartirDialog({ proyectoId, tareaId, parentProyectoId }: Compa
         </DialogHeader>
         <div className="space-y-3">
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {sharedWithName && (
+            <div className="flex animate-in items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-700 fade-in zoom-in-95 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
+              <CheckCircle2 className="size-4 shrink-0" />
+              Compartido con {sharedWithName}
+            </div>
+          )}
           {shares.map((s) => (
             <div key={s.id} className="flex items-center justify-between rounded-lg border p-2 text-xs">
               <span>

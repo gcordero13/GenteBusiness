@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { TareaListRow } from "./actions";
+import { progressOpacity } from "./TableroView";
 
 // Soft background tint for a task's own color tag - same hue, low opacity,
 // so it reads as a subtle wash behind the row rather than a solid block.
@@ -107,7 +108,10 @@ export function ListaView({ tasks, onSelect }: { tasks: TareaListRow[]; onSelect
                   <td className="cursor-pointer p-3" onClick={() => onSelect(t)}>
                     <div className="flex items-center gap-1.5">
                       <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full bg-[#04B1AF]" style={{ width: `${t.percentComplete}%` }} />
+                        <div
+                          className="h-full bg-[#04B1AF]"
+                          style={{ width: `${t.percentComplete}%`, opacity: progressOpacity(t.percentComplete) }}
+                        />
                       </div>
                       <span className="text-xs font-semibold text-muted-foreground">{t.percentComplete}%</span>
                     </div>

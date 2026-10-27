@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createTarea, type EstadoOption } from "./actions";
+import { AssigneePicker } from "./AssigneePicker";
 import { ESTADO_COLORS } from "./EstadosEditor";
 
 export interface AssigneeOption {
@@ -155,18 +156,7 @@ export function TareaCreateDialog({
           </div>
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-muted-foreground">Responsable</label>
-            <Select value={assigneeId} onValueChange={(v) => setAssigneeId(v || "")}>
-              <SelectTrigger className="w-full">
-                <SelectValue>{() => assignees.find((a) => a.id === assigneeId)?.name ?? "Sin asignar"}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {assignees.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AssigneePicker assignees={assignees} value={assigneeId} onChange={setAssigneeId} />
           </div>
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-muted-foreground">Color de la tarea</label>
