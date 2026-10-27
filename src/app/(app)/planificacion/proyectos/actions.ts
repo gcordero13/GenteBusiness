@@ -330,6 +330,28 @@ export async function listSubtareas(parentTaskId: string): Promise<TareaListRow[
   return attachProfiles(rows);
 }
 
+// Fetches one task fresh, with an authoritative (DB-checked, not
+// batch-local) hasChildren. Used by TareaDetailModal to refresh the
+// currently-open task after adding/toggling one of its sub-tasks, since
+// that changes THIS task's own rollup-computed percent/estado server-side,
+// but the already-rendered `tarea` prop the modal was opened with has no
+// way to know that on its own.
+export async function getTarea(id: string): Promise<TareaListRow | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase.from("plan_tareas").select(TAREA_SELECT).eq("id", id).maybeSingle();
+  if (!data) return null;
+
+  const row = toTareaListRow(data as unknown as RawTareaRow, user.id);
+  row.hasChildren = await taskHasChildren(supabase, id);
+  const [withProfile] = await attachProfiles([row]);
+  return withProfile;
+}
+
 export interface CreateTareaInput {
   proyectoId: string;
   parentTaskId: string | null;

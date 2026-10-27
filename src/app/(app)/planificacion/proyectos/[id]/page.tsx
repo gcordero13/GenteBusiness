@@ -8,6 +8,7 @@ import { ProyectosWorkspace } from "../ProyectosWorkspace";
 import { TareaCreateDialog } from "../TareaCreateDialog";
 import { CompartirDialog } from "../CompartirDialog";
 import { EstadosEditor } from "../EstadosEditor";
+import { progressOpacity } from "../TableroView";
 
 export default async function ProyectoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,6 +29,15 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
 
   const columns = estados.map((e) => ({ key: e.id, label: e.name, color: e.color }));
 
+  // Overall project progress: the average of ROOT-level tasks' percent, not
+  // every row - a root task's own percent already folds in its whole
+  // subtree via the rollup trigger, so averaging every row too would
+  // double-count subtrees and skew the number toward whoever has the most
+  // sub-tasks.
+  const rootTasks = tasks.filter((t) => !t.parentTaskId);
+  const proyectoPercent =
+    rootTasks.length > 0 ? Math.round(rootTasks.reduce((sum, t) => sum + t.percentComplete, 0) / rootTasks.length) : 0;
+
   return (
     <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
       <div className="w-full min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
@@ -39,9 +49,20 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           Volver a Planificación
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
+          <div className="min-w-[14rem] space-y-1">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">{proyecto.name}</h1>
             {proyecto.description && <p className="text-sm text-muted-foreground">{proyecto.description}</p>}
+            {rootTasks.length > 0 && (
+              <div className="flex items-center gap-2 pt-1">
+                <div className="h-1.5 w-40 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-[#04B1AF]"
+                    style={{ width: `${proyectoPercent}%`, opacity: progressOpacity(proyectoPercent) }}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-muted-foreground">{proyectoPercent}% completado</span>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <CompartirDialog proyectoId={id} parentProyectoId={id} />

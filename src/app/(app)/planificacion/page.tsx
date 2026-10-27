@@ -31,6 +31,27 @@ export default async function PlanificacionPage() {
   const misTareas = tasks.filter((t) => t.relationship === "asignado");
   const compartidoConmigo = tasks.filter((t) => t.relationship === "compartido");
 
+  // Per-project overall progress for the "Mis proyectos" cards - same
+  // root-tasks-only average as the project detail page, computed here from
+  // whichever root tasks are visible to me (RLS may hide some on a project
+  // I'm only partially shared into, which is the best approximation
+  // available without an extra privileged query).
+  const rootTasksByProyecto = new Map<string, number[]>();
+  for (const t of tasks) {
+    if (t.parentTaskId) continue;
+    if (!rootTasksByProyecto.has(t.proyectoId)) rootTasksByProyecto.set(t.proyectoId, []);
+    rootTasksByProyecto.get(t.proyectoId)!.push(t.percentComplete);
+  }
+  // A plain object, not a Map - Server->Client component props cross the
+  // RSC boundary as serialized data, and Map isn't one of the types that
+  // survives that trip.
+  const percentByProyecto: Record<string, number> = Object.fromEntries(
+    Array.from(rootTasksByProyecto.entries()).map(([proyectoId, percents]) => [
+      proyectoId,
+      Math.round(percents.reduce((sum, p) => sum + p, 0) / percents.length),
+    ]),
+  );
+
   // Mixed-project Tablero columns: different projects have unrelated
   // estado catalogs, so columns here are deduped by estado NAME (not id)
   // rather than one project's real plan_estados - and dragging is
@@ -60,6 +81,7 @@ export default async function PlanificacionPage() {
         <TareasTabs
           misProyectos={misProyectos}
           proyectosCompartidos={proyectosCompartidos}
+          percentByProyecto={percentByProyecto}
           misTareasCreadas={misTareasCreadas}
           misTareasCreadasColumns={buildMixedColumns(misTareasCreadas)}
           misTareas={misTareas}

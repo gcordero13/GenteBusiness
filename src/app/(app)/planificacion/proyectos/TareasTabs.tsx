@@ -5,7 +5,7 @@ import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 import type { EstadoOption, ProyectoListRow, TareaListRow } from "./actions";
 import { ProyectosWorkspace } from "./ProyectosWorkspace";
-import type { TableroColumn } from "./TableroView";
+import { progressOpacity, type TableroColumn } from "./TableroView";
 import type { AssigneeOption } from "./TareaCreateDialog";
 
 type TareasTab = "proyectos" | "mias" | "compartidas";
@@ -16,7 +16,7 @@ const TAB_OPTIONS: { key: TareasTab; label: string }[] = [
   { key: "compartidas", label: "Compartido conmigo" },
 ];
 
-function ProyectoCard({ proyecto }: { proyecto: ProyectoListRow }) {
+function ProyectoCard({ proyecto, percent }: { proyecto: ProyectoListRow; percent?: number }) {
   return (
     <Link
       href={`/planificacion/proyectos/${proyecto.id}`}
@@ -25,6 +25,14 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoListRow }) {
       <p className="font-semibold text-foreground">{proyecto.name}</p>
       {proyecto.description && (
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{proyecto.description}</p>
+      )}
+      {percent !== undefined && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+            <div className="h-full bg-[#04B1AF]" style={{ width: `${percent}%`, opacity: progressOpacity(percent) }} />
+          </div>
+          <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{percent}%</span>
+        </div>
       )}
     </Link>
   );
@@ -37,6 +45,7 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoListRow }) {
 export function TareasTabs({
   misProyectos,
   proyectosCompartidos,
+  percentByProyecto,
   misTareasCreadas,
   misTareasCreadasColumns,
   misTareas,
@@ -50,6 +59,7 @@ export function TareasTabs({
 }: {
   misProyectos: ProyectoListRow[];
   proyectosCompartidos: ProyectoListRow[];
+  percentByProyecto: Record<string, number>;
   misTareasCreadas: TareaListRow[];
   misTareasCreadasColumns: TableroColumn[];
   misTareas: TareaListRow[];
@@ -86,7 +96,7 @@ export function TareasTabs({
             {misProyectos.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {misProyectos.map((p) => (
-                  <ProyectoCard key={p.id} proyecto={p} />
+                  <ProyectoCard key={p.id} proyecto={p} percent={percentByProyecto[p.id]} />
                 ))}
               </div>
             ) : (
@@ -101,7 +111,7 @@ export function TareasTabs({
               <h3 className="text-sm font-semibold text-muted-foreground">Compartidos conmigo</h3>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {proyectosCompartidos.map((p) => (
-                  <ProyectoCard key={p.id} proyecto={p} />
+                  <ProyectoCard key={p.id} proyecto={p} percent={percentByProyecto[p.id]} />
                 ))}
               </div>
             </div>

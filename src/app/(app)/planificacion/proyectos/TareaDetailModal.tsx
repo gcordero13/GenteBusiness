@@ -2,7 +2,21 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, Download, ListTodo, MessageSquare, Paperclip, Pencil, Plus, Square, Trash2, Upload, X } from "lucide-react";
+import {
+  CheckSquare,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  ListTodo,
+  MessageSquare,
+  Paperclip,
+  Pencil,
+  Plus,
+  Square,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +32,7 @@ import {
   addComentario,
   createTarea,
   deleteTarea,
+  getTarea,
   listAdjuntos,
   listComentarios,
   listSubtareas,
@@ -55,6 +70,7 @@ export function TareaDetailModal({
   const [comentarios, setComentarios] = useState<ComentarioRow[]>([]);
   const [newComment, setNewComment] = useState("");
   const [subtareas, setSubtareas] = useState<TareaListRow[]>([]);
+  const [subtareasExpanded, setSubtareasExpanded] = useState(true);
   const [viewingAdjunto, setViewingAdjunto] = useState<TareaAdjuntoRow | null>(null);
   const [newSubtarea, setNewSubtarea] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -205,6 +221,17 @@ export function TareaDetailModal({
   // Quick To-Do-style add: just a title, everything else defaults (no
   // estado/assignee/dates) - confirmed with the user, who wanted a simple
   // checklist rather than the full task-create form for this.
+  // A sub-task change can move THIS task's own rollup-computed
+  // percent/estado server-side (via plan_recompute_ancestor_percent) -
+  // re-fetch it and hand the fresh copy back up through onSelectTarea so
+  // the already-open modal actually shows the new numbers instead of the
+  // stale object it was opened with.
+  async function refreshTarea() {
+    if (!tarea) return;
+    const fresh = await getTarea(tarea.id);
+    if (fresh) onSelectTarea?.(fresh);
+  }
+
   function addSubtarea() {
     if (!tarea || !newSubtarea.trim()) return;
     setError(null);
@@ -230,6 +257,7 @@ export function TareaDetailModal({
       }
       setNewSubtarea("");
       setSubtareas(await listSubtareas(tarea.id));
+      await refreshTarea();
       router.refresh();
     });
   }
@@ -248,6 +276,7 @@ export function TareaDetailModal({
         return;
       }
       setSubtareas(await listSubtareas(tarea.id));
+      await refreshTarea();
       router.refresh();
     });
   }
@@ -463,48 +492,57 @@ export function TareaDetailModal({
         )}
 
         <div className="mb-4 space-y-2">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => setSubtareasExpanded((e) => !e)}
+            className="flex w-full items-center gap-1.5 text-left text-xs font-semibold text-muted-foreground"
+          >
+            {subtareasExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
             <ListTodo className="size-3.5" />
-            Subtareas
-          </p>
-          <div className="space-y-1">
-            {subtareas.map((sub) => (
-              <div key={sub.id} className="flex items-center gap-2 rounded-lg border p-2 text-xs">
-                <button type="button" disabled={isPending} onClick={() => toggleSubtarea(sub)} className="shrink-0 text-muted-foreground">
-                  {sub.percentComplete === 100 ? (
-                    <CheckSquare className="size-4 text-[#04B1AF]" />
-                  ) : (
-                    <Square className="size-4" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSelectTarea?.(sub)}
-                  className={`min-w-0 flex-1 truncate text-left ${sub.percentComplete === 100 ? "text-muted-foreground line-through" : "text-foreground"}`}
-                >
-                  {sub.title}
-                </button>
-                {sub.percentComplete > 0 && sub.percentComplete < 100 && (
-                  <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{sub.percentComplete}%</span>
+            Subtareas {subtareas.length > 0 && `(${subtareas.length})`}
+          </button>
+          {subtareasExpanded && (
+            <>
+              <div className="space-y-1">
+                {subtareas.map((sub) => (
+                  <div key={sub.id} className="flex items-center gap-2 rounded-lg border p-2 text-xs">
+                    <button type="button" disabled={isPending} onClick={() => toggleSubtarea(sub)} className="shrink-0 text-muted-foreground">
+                      {sub.percentComplete === 100 ? (
+                        <CheckSquare className="size-4 text-[#04B1AF]" />
+                      ) : (
+                        <Square className="size-4" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSelectTarea?.(sub)}
+                      className={`min-w-0 flex-1 truncate text-left ${sub.percentComplete === 100 ? "text-muted-foreground line-through" : "text-foreground"}`}
+                    >
+                      {sub.title}
+                    </button>
+                    {sub.percentComplete > 0 && sub.percentComplete < 100 && (
+                      <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{sub.percentComplete}%</span>
+                    )}
+                  </div>
+                ))}
+                {subtareas.length === 0 && (
+                  <p className="py-1 text-xs text-muted-foreground">Todavía no hay subtareas.</p>
                 )}
               </div>
-            ))}
-            {subtareas.length === 0 && (
-              <p className="py-1 text-xs text-muted-foreground">Todavía no hay subtareas.</p>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Agregar subtarea..."
-              value={newSubtarea}
-              onChange={(e) => setNewSubtarea(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addSubtarea()}
-              className="h-8 text-xs"
-            />
-            <Button size="sm" disabled={isPending || !newSubtarea.trim()} onClick={addSubtarea} className="h-8 gap-1.5 px-2.5">
-              <Plus className="size-3.5" />
-            </Button>
-          </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Agregar subtarea..."
+                  value={newSubtarea}
+                  onChange={(e) => setNewSubtarea(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addSubtarea()}
+                  className="h-8 text-xs"
+                />
+                <Button size="sm" disabled={isPending || !newSubtarea.trim()} onClick={addSubtarea} className="h-8 gap-1.5 px-2.5">
+                  <Plus className="size-3.5" />
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="space-y-2">
