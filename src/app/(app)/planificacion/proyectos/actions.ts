@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { uploadSharePointAttachment } from "@/lib/sharepoint";
 import { sendTareaAsignadaEmail } from "@/lib/sendTareaAsignadaEmail";
+import { sendTareaCompletadaEmail } from "@/lib/sendTareaCompletadaEmail";
 import { getSiteUrl } from "@/lib/siteUrl";
 
 interface ActionResult {
@@ -374,6 +375,49 @@ async function notifyTareaAsignada(
   }
 }
 
+// Notifies the task's creator when it transitions INTO the project's
+// completado estado - confirmed with the user ("enviarle una notificación
+// ... a la persona que asignó la tarea para cuando se complete"); the
+// task's creator is the closest equivalent this schema tracks to "who
+// assigned it". Only fires on a genuine transition (previousEstadoId !==
+// newEstadoId), not on every save of an already-completed task, and skips
+// notifying someone of their own action, same as notifyTareaAsignada.
+async function notifyTareaCompletada(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  actorId: string,
+  tareaId: string,
+  tareaTitle: string,
+  proyectoId: string,
+  previousEstadoId: string | null,
+  newEstadoId: string | null,
+): Promise<void> {
+  if (!newEstadoId || newEstadoId === previousEstadoId) return;
+  try {
+    const { data: estado } = await supabase.from("plan_estados").select("kind").eq("id", newEstadoId).maybeSingle();
+    if (estado?.kind !== "completado") return;
+
+    const { data: tarea } = await supabase.from("plan_tareas").select("created_by").eq("id", tareaId).maybeSingle();
+    if (!tarea || tarea.created_by === actorId) return;
+
+    const [{ data: creator }, { data: proyecto }, nameByUserId, siteUrl] = await Promise.all([
+      supabase.from("app_users").select("email").eq("id", tarea.created_by).maybeSingle(),
+      supabase.from("plan_proyectos").select("name").eq("id", proyectoId).maybeSingle(),
+      buildUserNameMap([actorId]),
+      getSiteUrl(),
+    ]);
+    if (!creator?.email) return;
+    await sendTareaCompletadaEmail({
+      creatorEmail: creator.email,
+      tareaTitle,
+      proyectoName: proyecto?.name ?? "",
+      completedByName: nameByUserId.get(actorId) ?? "Alguien",
+      proyectoUrl: `${siteUrl}/planificacion/proyectos/${proyectoId}`,
+    });
+  } catch {
+    // Never block the save on an email delivery failure.
+  }
+}
+
 export async function createTarea(input: CreateTareaInput): Promise<ActionResult & { id?: string }> {
   const supabase = await createClient();
   const {
@@ -459,7 +503,7 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
 
   const { data: current } = await supabase
     .from("plan_tareas")
-    .select("percent_complete, assignee_id")
+    .select("percent_complete, assignee_id, estado_id")
     .eq("id", input.id)
     .maybeSingle();
   if (!current) return { error: "No autorizado o el registro ya no existe" };
@@ -507,6 +551,7 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
   if (input.assigneeId && input.assigneeId !== current.assignee_id) {
     await notifyTareaAsignada(supabase, user.id, input.assigneeId, input.title.trim(), input.proyectoId);
   }
+  await notifyTareaCompletada(supabase, user.id, input.id, input.title.trim(), input.proyectoId, current.estado_id, input.estadoId);
 
   revalidatePath("/planificacion");
   revalidatePath(`/planificacion/proyectos/${input.proyectoId}`);
@@ -522,19 +567,30 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
 // applies arguments from the front, which is why proyectoId is first here.
 export async function updateTareaEstado(proyectoId: string, tareaId: string, estadoId: string): Promise<ActionResult> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+
+  const { data: current } = await supabase
+    .from("plan_tareas")
+    .select("percent_complete, estado_id, title")
+    .eq("id", tareaId)
+    .maybeSingle();
+  if (!current) return { error: "No autorizado o el registro ya no existe" };
 
   const update: { estado_id: string; percent_complete?: number } = { estado_id: estadoId };
   if (!(await taskHasChildren(supabase, tareaId))) {
-    const { data: current } = await supabase.from("plan_tareas").select("percent_complete").eq("id", tareaId).maybeSingle();
-    if (current) {
-      const forcedPercent = await resolveEstadoPercentSideEffects(supabase, current.percent_complete, estadoId);
-      if (forcedPercent !== null) update.percent_complete = forcedPercent;
-    }
+    const forcedPercent = await resolveEstadoPercentSideEffects(supabase, current.percent_complete, estadoId);
+    if (forcedPercent !== null) update.percent_complete = forcedPercent;
   }
 
   const { data, error } = await supabase.from("plan_tareas").update(update).eq("id", tareaId).select("id");
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
+
+  await notifyTareaCompletada(supabase, user.id, tareaId, current.title, proyectoId, current.estado_id, estadoId);
+
   revalidatePath("/planificacion");
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
@@ -547,11 +603,19 @@ export async function updateTareaEstado(proyectoId: string, tareaId: string, est
 // server-side half of that same defense-in-depth enforcement).
 export async function updateTareaPercent(tareaId: string, percent: number, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
   if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
     return { error: "El porcentaje debe ser un entero entre 0 y 100" };
   }
 
-  const { data: tarea } = await supabase.from("plan_tareas").select("proyecto_id, estado_id").eq("id", tareaId).maybeSingle();
+  const { data: tarea } = await supabase
+    .from("plan_tareas")
+    .select("proyecto_id, estado_id, title")
+    .eq("id", tareaId)
+    .maybeSingle();
   if (!tarea) return { error: "No autorizado o el registro ya no existe" };
 
   if (await taskHasChildren(supabase, tareaId)) {
@@ -587,6 +651,11 @@ export async function updateTareaPercent(tareaId: string, percent: number, proye
   const { data, error } = await supabase.from("plan_tareas").update(update).eq("id", tareaId).select("id");
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
+
+  if (update.estado_id) {
+    await notifyTareaCompletada(supabase, user.id, tareaId, tarea.title, proyectoId, tarea.estado_id, update.estado_id);
+  }
+
   revalidatePath("/planificacion");
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};

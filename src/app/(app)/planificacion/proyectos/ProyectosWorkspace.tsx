@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, LayoutGrid, List, Network } from "lucide-react";
+import { Calendar, Download, LayoutGrid, List, Network } from "lucide-react";
 import { updateTareaFecha, type EstadoOption, type TareaListRow } from "./actions";
 import { ListaView } from "./ListaView";
 import { TableroView, type TableroColumn } from "./TableroView";
@@ -19,6 +19,36 @@ const VIEW_OPTIONS: { key: ViewMode; label: string; icon: typeof List }[] = [
   { key: "calendario", label: "Calendario", icon: Calendar },
   { key: "jerarquia", label: "Jerarquía", icon: Network },
 ];
+
+function csvCell(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+// Client-side CSV export of whatever's currently in view (respects the
+// date-range filter below) - confirmed with the user: "exportar los
+// avances", so progress % is the headline column.
+function exportAvancesCsv(tasks: TareaListRow[]) {
+  const header = ["Título", "Proyecto", "Estado", "Progreso %", "Prioridad", "Responsable", "Fecha límite"];
+  const rows = tasks.map((t) => [
+    t.title,
+    t.proyectoName,
+    t.estadoName ?? "",
+    String(t.percentComplete),
+    t.priority ?? "",
+    t.assigneeName ?? "",
+    t.dueDate ?? "",
+  ]);
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+  // Leading BOM so Excel (the realistic consumer here) reads accented
+  // characters correctly instead of mangling UTF-8 as Latin-1.
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `avance-tareas-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // Reused by both the landing screen (one instance per "Mis tareas"/
 // "Compartido conmigo" section, tasks spanning many projects, drag-to-
@@ -50,6 +80,22 @@ export function ProyectosWorkspace({
   const [, startTransition] = useTransition();
   const [view, setView] = useState<ViewMode>("lista");
   const [selected, setSelected] = useState<TareaListRow | null>(null);
+  // Lives at this shared level (not inside any one view) so it applies
+  // uniformly across Lista/Tablero/Calendario/Jerarquía - confirmed with
+  // the user: "no como un tab", positioned at the bottom-right of the
+  // whole card rather than as its own section.
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  const filteredTasks = useMemo(() => {
+    if (!fromDate && !toDate) return tasks;
+    return tasks.filter((t) => {
+      if (!t.dueDate) return false;
+      if (fromDate && t.dueDate < fromDate) return false;
+      if (toDate && t.dueDate > toDate) return false;
+      return true;
+    });
+  }, [tasks, fromDate, toDate]);
 
   const getColumnKey =
     columnKeyBy === "estadoId"
@@ -90,18 +136,65 @@ export function ProyectosWorkspace({
         ))}
       </div>
 
-      {view === "lista" && <ListaView tasks={tasks} onSelect={setSelected} />}
+      {view === "lista" && <ListaView tasks={filteredTasks} onSelect={setSelected} />}
       {view === "tablero" && (
         <TableroView
-          tasks={tasks}
+          tasks={filteredTasks}
           columns={columns}
           getColumnKey={getColumnKey}
           onSelect={setSelected}
           onDrop={onDropEstado ? dropEstado : undefined}
         />
       )}
-      {view === "calendario" && <CalendarioView tasks={tasks} onSelect={setSelected} onReschedule={reschedule} />}
-      {view === "jerarquia" && <JerarquiaView tasks={tasks} onSelect={setSelected} />}
+      {view === "calendario" && <CalendarioView tasks={filteredTasks} onSelect={setSelected} onReschedule={reschedule} />}
+      {view === "jerarquia" && <JerarquiaView tasks={filteredTasks} onSelect={setSelected} />}
+
+      <div className="flex flex-wrap items-end justify-end gap-2 text-right">
+        {(fromDate || toDate) && (
+          <span className="text-xs text-muted-foreground">
+            {filteredTasks.length} de {tasks.length} tareas en ese rango
+          </span>
+        )}
+        <div className="space-y-1">
+          <label className="block text-[11px] font-semibold text-muted-foreground">Fecha límite desde</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="block text-[11px] font-semibold text-muted-foreground">hasta</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          />
+        </div>
+        {(fromDate || toDate) && (
+          <button
+            type="button"
+            onClick={() => {
+              setFromDate("");
+              setToDate("");
+            }}
+            className="h-8 px-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            Limpiar
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => exportAvancesCsv(filteredTasks)}
+          title="Exportar avances a CSV"
+          className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Download className="size-3.5" />
+          Exportar
+        </button>
+      </div>
 
       <TareaDetailModal
         tarea={selected}
