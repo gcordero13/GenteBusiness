@@ -42,6 +42,19 @@ export async function createProyecto(name: string, description: string): Promise
     .insert({ id: newId, name: name.trim(), description: description.trim() || null, created_by: user.id });
   if (insertError) return { error: insertError.message };
 
+  // Every new project starts with these three estados already in place -
+  // confirmed with the user ("quiero que siempre se carguen los estados
+  // que debería de estar: en espera, en proceso, completado"). Not
+  // self-referential (plan_estados_select checks plan_can_see_proyecto,
+  // which queries plan_proyectos - a different, already-committed row),
+  // so no chained .select() issue here.
+  const { error: estadosError } = await supabase.from("plan_estados").insert([
+    { proyecto_id: newId, name: "En espera", color: "#94a3b8", sort_order: 0 },
+    { proyecto_id: newId, name: "En proceso", color: "#3b82f6", sort_order: 1 },
+    { proyecto_id: newId, name: "Completado", color: "#10b981", sort_order: 2 },
+  ]);
+  if (estadosError) return { error: estadosError.message };
+
   revalidatePath("/planificacion");
   return { id: newId };
 }

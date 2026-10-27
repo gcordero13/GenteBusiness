@@ -1,24 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { listCompartidoConmigo, listMisProyectos, listTareasVisibles } from "./proyectos/actions";
 import { NuevoProyectoDialog } from "./proyectos/NuevoProyectoDialog";
 import { TareasTabs } from "./proyectos/TareasTabs";
-import type { ProyectoListRow } from "./proyectos/actions";
-
-function ProyectoCard({ proyecto }: { proyecto: ProyectoListRow }) {
-  return (
-    <Link
-      href={`/planificacion/proyectos/${proyecto.id}`}
-      className="block rounded-xl border p-3 text-sm transition-colors hover:border-[#04B1AF] hover:bg-[#04B1AF]/5"
-    >
-      <p className="font-semibold text-foreground">{proyecto.name}</p>
-      {proyecto.description && (
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{proyecto.description}</p>
-      )}
-    </Link>
-  );
-}
 
 export default async function PlanificacionPage() {
   const supabase = await createClient();
@@ -61,33 +45,9 @@ export default async function PlanificacionPage() {
           <NuevoProyectoDialog />
         </div>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">Mis proyectos</h2>
-          {misProyectos.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {misProyectos.map((p) => (
-                <ProyectoCard key={p.id} proyecto={p} />
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-              Todavía no has creado ningún proyecto.
-            </p>
-          )}
-        </section>
-
-        {proyectosCompartidos.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold text-foreground">Proyectos compartidos conmigo</h2>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {proyectosCompartidos.map((p) => (
-                <ProyectoCard key={p.id} proyecto={p} />
-              ))}
-            </div>
-          </section>
-        )}
-
         <TareasTabs
+          misProyectos={misProyectos}
+          proyectosCompartidos={proyectosCompartidos}
           misTareas={misTareas}
           misColumns={buildMixedColumns(misTareas)}
           compartidoConmigo={compartidoConmigo}
