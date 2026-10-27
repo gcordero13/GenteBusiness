@@ -322,6 +322,16 @@ export async function createTarea(input: CreateTareaInput): Promise<ActionResult
   // need to re-query plan_tareas for this very row, which isn't visible yet
   // within the same INSERT command. The id is generated client-side so
   // nothing needs to be read back.
+  // Assigning a task bumps it to 5% (confirmed with the user) - applies at
+  // creation the same as it does in updateTarea. Then re-checked against
+  // the chosen initial estado: picking a completado-kind estado up front
+  // (e.g. logging already-finished work) must still force 100%, the same
+  // as it would via updateTarea/updateTareaEstado - resolveEstadoPercentSideEffects
+  // can't downgrade a freshly-created task to 99 here (the base value is
+  // never 100), so only the forcing-to-100 branch can apply.
+  const basePercent = input.assigneeId ? 5 : 0;
+  const percentComplete = (await resolveEstadoPercentSideEffects(supabase, basePercent, input.estadoId)) ?? basePercent;
+
   const newId = crypto.randomUUID();
   const { error } = await supabase.from("plan_tareas").insert({
     id: newId,
@@ -337,9 +347,7 @@ export async function createTarea(input: CreateTareaInput): Promise<ActionResult
     assignee_id: input.assigneeId,
     ciclo_id: input.cicloId,
     color: input.color,
-    // Assigning a task bumps it to 5% (confirmed with the user) - applies
-    // at creation the same as it does in updateTarea.
-    percent_complete: input.assigneeId ? 5 : 0,
+    percent_complete: percentComplete,
     created_by: user.id,
   });
   if (error) return { error: error.message };
@@ -466,7 +474,7 @@ export async function updateTareaPercent(tareaId: string, percent: number, proye
     return { error: "El porcentaje debe ser un entero entre 0 y 100" };
   }
 
-  const { data: tarea } = await supabase.from("plan_tareas").select("proyecto_id").eq("id", tareaId).maybeSingle();
+  const { data: tarea } = await supabase.from("plan_tareas").select("proyecto_id, estado_id").eq("id", tareaId).maybeSingle();
   if (!tarea) return { error: "No autorizado o el registro ya no existe" };
 
   if (await taskHasChildren(supabase, tareaId)) {
@@ -482,6 +490,21 @@ export async function updateTareaPercent(tareaId: string, percent: number, proye
       .eq("kind", "completado")
       .maybeSingle();
     if (completado) update.estado_id = completado.id;
+  } else if (tarea.estado_id) {
+    // Mirror image of the 100%<->completado forcing rule: a leaf task can't
+    // be left showing Completado while sitting below 100% either, so
+    // dragging the slider back down moves it off completado into the
+    // project's en_proceso estado (when one exists).
+    const { data: currentEstado } = await supabase.from("plan_estados").select("kind").eq("id", tarea.estado_id).maybeSingle();
+    if (currentEstado?.kind === "completado") {
+      const { data: enProceso } = await supabase
+        .from("plan_estados")
+        .select("id")
+        .eq("proyecto_id", tarea.proyecto_id)
+        .eq("kind", "en_proceso")
+        .maybeSingle();
+      if (enProceso) update.estado_id = enProceso.id;
+    }
   }
 
   const { data, error } = await supabase.from("plan_tareas").update(update).eq("id", tareaId).select("id");
