@@ -6,7 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from "@/components/ui/avatar";
 import type { TareaListRow } from "./actions";
 import { initials } from "./AssigneePicker";
-import { progressOpacity } from "./TableroView";
+import { progressOpacity } from "./progress";
 
 // Soft background tint for a task's own color tag - same hue, low opacity,
 // so it reads as a subtle wash behind the row rather than a solid block.

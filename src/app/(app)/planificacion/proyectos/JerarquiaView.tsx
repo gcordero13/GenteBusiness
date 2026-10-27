@@ -5,7 +5,7 @@ import { Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { TareaListRow } from "./actions";
 import { initials } from "./AssigneePicker";
-import { progressOpacity } from "./TableroView";
+import { progressOpacity } from "./progress";
 
 function TreeNode({
   task,

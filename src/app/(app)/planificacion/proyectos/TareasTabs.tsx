@@ -5,7 +5,8 @@ import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 import type { EstadoOption, ProyectoListRow, TareaListRow } from "./actions";
 import { ProyectosWorkspace } from "./ProyectosWorkspace";
-import { progressOpacity, type TableroColumn } from "./TableroView";
+import type { TableroColumn } from "./TableroView";
+import { progressOpacity } from "./progress";
 import type { AssigneeOption } from "./TareaCreateDialog";
 
 type TareasTab = "proyectos" | "mias" | "compartidas";

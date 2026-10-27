@@ -47,7 +47,7 @@ import {
 import { AssigneePicker, initials } from "./AssigneePicker";
 import { CompartirDialog } from "./CompartirDialog";
 import { ESTADO_COLORS } from "./EstadosEditor";
-import { progressOpacity } from "./TableroView";
+import { progressOpacity } from "./progress";
 import type { AssigneeOption } from "./TareaCreateDialog";
 
 export function TareaDetailModal({
@@ -101,17 +101,48 @@ export function TareaDetailModal({
     setPercentDraft(tarea?.percentComplete ?? 0);
   }
 
-  useEffect(() => {
-    if (tarea) listAdjuntos(tarea.id).then(setAdjuntos);
-  }, [tarea]);
+  // Keyed on the id (not the whole `tarea` object) so refreshTarea()
+  // handing back a new object for the SAME task - after toggling one of
+  // its own sub-tasks - doesn't re-fetch these. The `cancelled` guard fixes
+  // a real bug: clicking from task A to task B fast enough that A's
+  // listAdjuntos/listComentarios/listSubtareas call resolves AFTER B's
+  // (out-of-order network timing) used to let A's stale data briefly
+  // overwrite B's correct one, flashing a wrong sub-task/comment/adjunto
+  // before the next re-render fixed it.
+  const tareaId = tarea?.id ?? null;
 
   useEffect(() => {
-    if (tarea) listComentarios(tarea.id).then(setComentarios);
-  }, [tarea]);
+    if (!tareaId) return;
+    let cancelled = false;
+    listAdjuntos(tareaId).then((data) => {
+      if (!cancelled) setAdjuntos(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tareaId]);
 
   useEffect(() => {
-    if (tarea) listSubtareas(tarea.id).then(setSubtareas);
-  }, [tarea]);
+    if (!tareaId) return;
+    let cancelled = false;
+    listComentarios(tareaId).then((data) => {
+      if (!cancelled) setComentarios(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tareaId]);
+
+  useEffect(() => {
+    if (!tareaId) return;
+    let cancelled = false;
+    listSubtareas(tareaId).then((data) => {
+      if (!cancelled) setSubtareas(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tareaId]);
 
   if (!tarea) return null;
 

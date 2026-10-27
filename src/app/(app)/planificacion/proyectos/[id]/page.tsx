@@ -8,7 +8,7 @@ import { ProyectosWorkspace } from "../ProyectosWorkspace";
 import { TareaCreateDialog } from "../TareaCreateDialog";
 import { CompartirDialog } from "../CompartirDialog";
 import { EstadosEditor } from "../EstadosEditor";
-import { progressOpacity } from "../TableroView";
+import { progressOpacity } from "../progress";
 
 export default async function ProyectoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

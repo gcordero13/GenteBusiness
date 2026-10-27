@@ -4,15 +4,7 @@ import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { TareaListRow } from "./actions";
 import { initials } from "./AssigneePicker";
-
-// Progress bars across every view use this same ramp - confirmed with the
-// user: the fill should read as more "intense" the closer a task is to
-// done, not a flat color regardless of %. Opacity-only (not a hue shift)
-// so it stays readable in both themes and doesn't clash with estado/task
-// colors shown alongside it.
-export function progressOpacity(percent: number): number {
-  return 0.35 + (percent / 100) * 0.65;
-}
+import { progressOpacity } from "./progress";
 
 export interface TableroColumn {
   key: string;
