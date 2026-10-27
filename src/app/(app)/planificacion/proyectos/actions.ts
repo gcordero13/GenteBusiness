@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { uploadSharePointAttachment } from "@/lib/sharepoint";
+import { sendTareaAsignadaEmail } from "@/lib/sendTareaAsignadaEmail";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 interface ActionResult {
   error?: string;
@@ -324,6 +326,42 @@ async function resolveEstadoPercentSideEffects(
   return null;
 }
 
+// Fires whenever a task gets a new assignee - both at creation and via
+// updateTarea's edit form (confirmed with the user: "cada vez que se
+// asigne una tarea... le llegue la notificación"). Skipped when assigning
+// to yourself (no point notifying someone of their own action) and never
+// allowed to fail the assignment itself - email delivery problems (bad
+// SMTP config, a user with no email on file) are swallowed, not surfaced
+// as an error on the save.
+async function notifyTareaAsignada(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  assignerId: string,
+  assigneeId: string,
+  tareaTitle: string,
+  proyectoId: string,
+): Promise<void> {
+  if (assigneeId === assignerId) return;
+  try {
+    const [{ data: assignee }, { data: proyecto }, nameByUserId, siteUrl] = await Promise.all([
+      supabase.from("app_users").select("email").eq("id", assigneeId).maybeSingle(),
+      supabase.from("plan_proyectos").select("name").eq("id", proyectoId).maybeSingle(),
+      buildUserNameMap([assigneeId, assignerId]),
+      getSiteUrl(),
+    ]);
+    if (!assignee?.email) return;
+    await sendTareaAsignadaEmail({
+      assigneeEmail: assignee.email,
+      assigneeName: nameByUserId.get(assigneeId) ?? assignee.email,
+      tareaTitle,
+      proyectoName: proyecto?.name ?? "",
+      assignedByName: nameByUserId.get(assignerId) ?? "Alguien",
+      proyectoUrl: `${siteUrl}/planificacion/proyectos/${proyectoId}`,
+    });
+  } catch {
+    // Never block the assignment on an email delivery failure.
+  }
+}
+
 export async function createTarea(input: CreateTareaInput): Promise<ActionResult & { id?: string }> {
   const supabase = await createClient();
   const {
@@ -374,6 +412,10 @@ export async function createTarea(input: CreateTareaInput): Promise<ActionResult
     if (modError) return { error: modError.message };
   }
 
+  if (input.assigneeId) {
+    await notifyTareaAsignada(supabase, user.id, input.assigneeId, input.title.trim(), input.proyectoId);
+  }
+
   revalidatePath("/planificacion");
   revalidatePath(`/planificacion/proyectos/${input.proyectoId}`);
   return { id: newId };
@@ -397,6 +439,10 @@ export interface UpdateTareaInput {
 
 export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
   if (!input.title.trim()) return { error: "El título es obligatorio" };
 
   const { data: current } = await supabase
@@ -444,6 +490,10 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
       .from("plan_tarea_modulos")
       .insert(input.moduloIds.map((modulo_id) => ({ tarea_id: input.id, modulo_id })));
     if (modError) return { error: modError.message };
+  }
+
+  if (input.assigneeId && input.assigneeId !== current.assignee_id) {
+    await notifyTareaAsignada(supabase, user.id, input.assigneeId, input.title.trim(), input.proyectoId);
   }
 
   revalidatePath("/planificacion");
