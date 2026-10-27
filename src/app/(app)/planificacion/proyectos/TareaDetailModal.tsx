@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, ListTodo, MessageSquare, Paperclip, Pencil, Plus, Square, Trash2, Upload, X } from "lucide-react";
+import { CheckSquare, Download, ListTodo, MessageSquare, Paperclip, Pencil, Plus, Square, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,6 +55,7 @@ export function TareaDetailModal({
   const [comentarios, setComentarios] = useState<ComentarioRow[]>([]);
   const [newComment, setNewComment] = useState("");
   const [subtareas, setSubtareas] = useState<TareaListRow[]>([]);
+  const [viewingAdjunto, setViewingAdjunto] = useState<TareaAdjuntoRow | null>(null);
   const [newSubtarea, setNewSubtarea] = useState("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -513,14 +514,13 @@ export function TareaDetailModal({
           </p>
           {adjuntos.map((a) => (
             <div key={a.id} className="flex items-center justify-between rounded-lg border p-2 text-xs">
-              <a
-                href={`/api/planificacion/adjunto/${a.driveId}/${a.itemId}`}
-                target="_blank"
-                rel="noreferrer"
-                className="truncate text-[#04B1AF] hover:underline"
+              <button
+                type="button"
+                onClick={() => setViewingAdjunto(a)}
+                className="min-w-0 flex-1 truncate text-left text-[#04B1AF] hover:underline"
               >
                 {a.fileName}
-              </a>
+              </button>
               <Button size="icon-sm" variant="ghost" disabled={isPending} onClick={() => remove(a.id)}>
                 <Trash2 className="size-3.5 text-red-600" />
               </Button>
@@ -592,6 +592,56 @@ export function TareaDetailModal({
           </Button>
         </div>
       </div>
+
+      {viewingAdjunto && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setViewingAdjunto(null)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col gap-2 rounded-2xl bg-card p-3 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="min-w-0 truncate text-sm font-semibold text-foreground">{viewingAdjunto.fileName}</p>
+              <div className="flex shrink-0 items-center gap-1">
+                <a
+                  href={`/api/planificacion/adjunto/${viewingAdjunto.driveId}/${viewingAdjunto.itemId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Descargar"
+                  className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+                >
+                  <Download className="size-4" />
+                </a>
+                <Button size="icon-sm" variant="ghost" onClick={() => setViewingAdjunto(null)}>
+                  <X className="size-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-1 items-center justify-center overflow-auto rounded-lg bg-muted/40">
+              {viewingAdjunto.contentType?.startsWith("image/") ? (
+                // eslint-disable-next-line @next/next/no-img-element -- dynamic authenticated SharePoint redirect, not a static/known-domain asset
+                <img
+                  src={`/api/planificacion/adjunto/${viewingAdjunto.driveId}/${viewingAdjunto.itemId}`}
+                  alt={viewingAdjunto.fileName}
+                  className="max-h-[75vh] max-w-full object-contain"
+                />
+              ) : viewingAdjunto.contentType === "application/pdf" ? (
+                <iframe
+                  src={`/api/planificacion/adjunto/${viewingAdjunto.driveId}/${viewingAdjunto.itemId}`}
+                  title={viewingAdjunto.fileName}
+                  className="h-[75vh] w-full rounded-lg"
+                />
+              ) : (
+                <p className="p-8 text-center text-sm text-muted-foreground">
+                  Este tipo de archivo no se puede previsualizar aquí. Usa el botón de descarga.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { TareaListRow } from "./actions";
+import { initials } from "./AssigneePicker";
 
 // Progress bars across every view use this same ramp - confirmed with the
 // user: the fill should read as more "intense" the closer a task is to
@@ -90,7 +92,11 @@ export function TableroView({
                 >
                   <div className="flex items-center gap-1.5">
                     {t.color && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: t.color }} />}
-                    <p className="truncate font-semibold text-foreground">{t.title}</p>
+                    <p className="min-w-0 flex-1 truncate font-semibold text-foreground">{t.title}</p>
+                    <Avatar size="sm" className="size-5 shrink-0" title={t.assigneeName ?? "Sin asignar"}>
+                      {t.assigneePhotoUrl && <AvatarImage src={t.assigneePhotoUrl} alt="" />}
+                      <AvatarFallback className="text-[9px]">{t.assigneeName ? initials(t.assigneeName) : "—"}</AvatarFallback>
+                    </Avatar>
                   </div>
                   <p className="truncate text-muted-foreground">{t.proyectoName}</p>
                   <div className="mt-1.5 flex items-center gap-1.5">

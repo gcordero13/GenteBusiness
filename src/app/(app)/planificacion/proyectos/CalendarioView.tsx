@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { TareaListRow } from "./actions";
+import { initials } from "./AssigneePicker";
 
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MONTH_NAMES = [
@@ -133,11 +135,15 @@ export function CalendarioView({
                       }}
                       onDragEnd={() => setDraggingId(null)}
                       onClick={() => onSelect(t)}
-                      className={`w-full truncate rounded px-1 text-left text-[10px] hover:bg-muted ${
+                      className={`flex w-full items-center gap-1 rounded px-1 text-left text-[10px] hover:bg-muted ${
                         draggingId === t.id ? "opacity-40" : ""
                       }`}
                     >
-                      {t.title}
+                      <Avatar className="size-3.5 shrink-0" title={t.assigneeName ?? "Sin asignar"}>
+                        {t.assigneePhotoUrl && <AvatarImage src={t.assigneePhotoUrl} alt="" />}
+                        <AvatarFallback className="text-[7px]">{t.assigneeName ? initials(t.assigneeName) : "—"}</AvatarFallback>
+                      </Avatar>
+                      <span className="truncate">{t.title}</span>
                     </button>
                   ))}
                   {cell.tasks.length > 3 && (

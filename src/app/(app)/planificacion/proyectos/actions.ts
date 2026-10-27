@@ -46,17 +46,19 @@ export async function createProyecto(name: string, description: string): Promise
     .insert({ id: newId, name: name.trim(), description: description.trim() || null, created_by: user.id });
   if (insertError) return { error: insertError.message };
 
-  // Every new project starts with these four estados already in place and
+  // Every new project starts with these five estados already in place and
   // marked as default (is_default = true, non-deletable) - confirmed with
-  // the user that En espera/En proceso/Completado/Cancelado must always
-  // exist. Not self-referential (plan_estados_select checks
-  // plan_can_see_proyecto, which queries plan_proyectos - a different,
-  // already-committed row), so no chained .select() issue here.
+  // the user that Asignado/En proceso/En espera/Completado/Cancelado must
+  // always exist, in that exact order. Not self-referential
+  // (plan_estados_select checks plan_can_see_proyecto, which queries
+  // plan_proyectos - a different, already-committed row), so no chained
+  // .select() issue here.
   const { error: estadosError } = await supabase.from("plan_estados").insert([
-    { proyecto_id: newId, name: "En espera", color: "#94a3b8", kind: "en_espera", is_default: true, sort_order: 0 },
+    { proyecto_id: newId, name: "Asignado", color: "#8b5cf6", kind: "asignado", is_default: true, sort_order: 0 },
     { proyecto_id: newId, name: "En proceso", color: "#3b82f6", kind: "en_proceso", is_default: true, sort_order: 1 },
-    { proyecto_id: newId, name: "Completado", color: "#10b981", kind: "completado", is_default: true, sort_order: 2 },
-    { proyecto_id: newId, name: "Cancelado", color: "#ef4444", kind: "cancelado", is_default: true, sort_order: 3 },
+    { proyecto_id: newId, name: "En espera", color: "#94a3b8", kind: "en_espera", is_default: true, sort_order: 2 },
+    { proyecto_id: newId, name: "Completado", color: "#10b981", kind: "completado", is_default: true, sort_order: 3 },
+    { proyecto_id: newId, name: "Cancelado", color: "#ef4444", kind: "cancelado", is_default: true, sort_order: 4 },
   ]);
   if (estadosError) return { error: estadosError.message };
 
@@ -380,6 +382,30 @@ async function resolveEstadoPercentSideEffects(
   return null;
 }
 
+// Confirmed with the user: "es asignado cuando se selecciona el nombre de
+// la persona que realizará la tarea" - picking a NEW assignee always moves
+// the task to the project's asignado-kind estado, except when the estado
+// it's about to be saved with is already completado (marking something
+// done and handing it to someone at the same time shouldn't un-complete
+// it). The person then moves it to En proceso/En espera/etc. themselves.
+async function resolveAsignadoOverride(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  proyectoId: string,
+  resultingEstadoId: string | null,
+): Promise<string | null> {
+  if (resultingEstadoId) {
+    const { data: estado } = await supabase.from("plan_estados").select("kind").eq("id", resultingEstadoId).maybeSingle();
+    if (estado?.kind === "completado") return null;
+  }
+  const { data: asignado } = await supabase
+    .from("plan_estados")
+    .select("id")
+    .eq("proyecto_id", proyectoId)
+    .eq("kind", "asignado")
+    .maybeSingle();
+  return asignado?.id ?? null;
+}
+
 // Fires whenever a task gets a new assignee - both at creation and via
 // updateTarea's edit form (confirmed with the user: "cada vez que se
 // asigne una tarea... le llegue la notificación"). Skipped when assigning
@@ -487,6 +513,11 @@ export async function createTarea(input: CreateTareaInput): Promise<ActionResult
   const basePercent = input.assigneeId ? 5 : 0;
   const percentComplete = (await resolveEstadoPercentSideEffects(supabase, basePercent, input.estadoId)) ?? basePercent;
 
+  let estadoId = input.estadoId;
+  if (input.assigneeId) {
+    estadoId = (await resolveAsignadoOverride(supabase, input.proyectoId, estadoId)) ?? estadoId;
+  }
+
   const newId = crypto.randomUUID();
   const { error } = await supabase.from("plan_tareas").insert({
     id: newId,
@@ -494,7 +525,7 @@ export async function createTarea(input: CreateTareaInput): Promise<ActionResult
     parent_task_id: input.parentTaskId,
     title: input.title.trim(),
     description: input.description.trim() || null,
-    estado_id: input.estadoId,
+    estado_id: estadoId,
     priority: input.priority,
     labels: input.labels,
     start_date: input.startDate,
@@ -566,12 +597,17 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
     if (forcedPercent !== null) percentComplete = forcedPercent;
   }
 
+  const reassigned = input.assigneeId !== null && input.assigneeId !== current.assignee_id;
+  const estadoId = reassigned
+    ? ((await resolveAsignadoOverride(supabase, input.proyectoId, input.estadoId)) ?? input.estadoId)
+    : input.estadoId;
+
   const { data, error } = await supabase
     .from("plan_tareas")
     .update({
       title: input.title.trim(),
       description: input.description.trim() || null,
-      estado_id: input.estadoId,
+      estado_id: estadoId,
       priority: input.priority,
       labels: input.labels,
       start_date: input.startDate,
@@ -594,10 +630,10 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
     if (modError) return { error: modError.message };
   }
 
-  if (input.assigneeId && input.assigneeId !== current.assignee_id) {
-    await notifyTareaAsignada(supabase, user.id, input.assigneeId, input.title.trim(), input.proyectoId);
+  if (reassigned) {
+    await notifyTareaAsignada(supabase, user.id, input.assigneeId as string, input.title.trim(), input.proyectoId);
   }
-  await notifyTareaCompletada(supabase, user.id, input.id, input.title.trim(), input.proyectoId, current.estado_id, input.estadoId);
+  await notifyTareaCompletada(supabase, user.id, input.id, input.title.trim(), input.proyectoId, current.estado_id, estadoId);
 
   revalidatePath("/planificacion");
   revalidatePath(`/planificacion/proyectos/${input.proyectoId}`);
@@ -882,6 +918,22 @@ export async function deleteEstado(estadoId: string, proyectoId: string): Promis
   const { data, error } = await supabase.from("plan_estados").delete().eq("id", estadoId).select("id");
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+// Drag-to-reorder the estado chips/Tablero columns - confirmed with the
+// user: a fully custom order, not just the seeded default. orderedIds is
+// the complete list in its new order; sort_order is rewritten to match
+// each one's index. plan_estados_update's RLS (plan_can_edit_proyecto)
+// still gates every one of these writes.
+export async function reorderEstados(proyectoId: string, orderedIds: string[]): Promise<ActionResult> {
+  const supabase = await createClient();
+  const results = await Promise.all(
+    orderedIds.map((id, index) => supabase.from("plan_estados").update({ sort_order: index }).eq("id", id)),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { error: failed.error.message };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
