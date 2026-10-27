@@ -96,6 +96,13 @@ export function ProyectosWorkspace({
     });
   }, [tasks, fromDate, toDate]);
 
+  // Sub-tasks are a checklist that lives inside their parent task's detail
+  // view (and the nested Jerarquía tree) - confirmed with the user: they
+  // must not also show up as their own independent cards/rows in the
+  // estado-driven views, which would just be clutter. Jerarquía is the one
+  // view that needs the full set, including sub-tasks, to nest correctly.
+  const rootFilteredTasks = useMemo(() => filteredTasks.filter((t) => !t.parentTaskId), [filteredTasks]);
+
   const getColumnKey =
     columnKeyBy === "estadoId"
       ? (t: TareaListRow) => t.estadoId ?? "sin-estado"
@@ -142,7 +149,7 @@ export function ProyectosWorkspace({
         <div className="flex flex-wrap items-center gap-1.5">
           {(fromDate || toDate) && (
             <span className="text-xs text-muted-foreground">
-              {filteredTasks.length} de {tasks.length}
+              {rootFilteredTasks.length} de {tasks.filter((t) => !t.parentTaskId).length}
             </span>
           )}
           <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
@@ -177,7 +184,7 @@ export function ProyectosWorkspace({
           )}
           <button
             type="button"
-            onClick={() => exportAvancesCsv(filteredTasks)}
+            onClick={() => exportAvancesCsv(rootFilteredTasks)}
             title="Exportar avances a CSV"
             className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
           >
@@ -187,17 +194,17 @@ export function ProyectosWorkspace({
         </div>
       </div>
 
-      {view === "lista" && <ListaView tasks={filteredTasks} onSelect={setSelected} />}
+      {view === "lista" && <ListaView tasks={rootFilteredTasks} onSelect={setSelected} />}
       {view === "tablero" && (
         <TableroView
-          tasks={filteredTasks}
+          tasks={rootFilteredTasks}
           columns={columns}
           getColumnKey={getColumnKey}
           onSelect={setSelected}
           onDrop={onDropEstado ? dropEstado : undefined}
         />
       )}
-      {view === "calendario" && <CalendarioView tasks={filteredTasks} onSelect={setSelected} onReschedule={reschedule} />}
+      {view === "calendario" && <CalendarioView tasks={rootFilteredTasks} onSelect={setSelected} onReschedule={reschedule} />}
       {view === "jerarquia" && <JerarquiaView tasks={filteredTasks} onSelect={setSelected} />}
 
       <TareaDetailModal
