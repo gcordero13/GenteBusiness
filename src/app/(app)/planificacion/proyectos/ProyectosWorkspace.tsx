@@ -82,8 +82,7 @@ export function ProyectosWorkspace({
   const [selected, setSelected] = useState<TareaListRow | null>(null);
   // Lives at this shared level (not inside any one view) so it applies
   // uniformly across Lista/Tablero/Calendario/Jerarquía - confirmed with
-  // the user: "no como un tab", positioned at the bottom-right of the
-  // whole card rather than as its own section.
+  // the user: "no como un tab", shown next to the view switcher.
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -120,20 +119,72 @@ export function ProyectosWorkspace({
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
-        {VIEW_OPTIONS.map((v) => (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+          {VIEW_OPTIONS.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              onClick={() => setView(v.key)}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${
+                view === v.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <v.icon className="size-3.5" />
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Lives here (not inside any one view, not a tab of its own) so it
+            applies uniformly across all four views - confirmed with the
+            user: next to the view switcher, not tucked below the table. */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(fromDate || toDate) && (
+            <span className="text-xs text-muted-foreground">
+              {filteredTasks.length} de {tasks.length}
+            </span>
+          )}
+          <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+            Desde
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+            Hasta
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+            />
+          </label>
+          {(fromDate || toDate) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFromDate("");
+                setToDate("");
+              }}
+              className="h-8 px-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              Limpiar
+            </button>
+          )}
           <button
-            key={v.key}
             type="button"
-            onClick={() => setView(v.key)}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${
-              view === v.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
+            onClick={() => exportAvancesCsv(filteredTasks)}
+            title="Exportar avances a CSV"
+            className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            <v.icon className="size-3.5" />
-            {v.label}
+            <Download className="size-3.5" />
+            Exportar
           </button>
-        ))}
+        </div>
       </div>
 
       {view === "lista" && <ListaView tasks={filteredTasks} onSelect={setSelected} />}
@@ -148,53 +199,6 @@ export function ProyectosWorkspace({
       )}
       {view === "calendario" && <CalendarioView tasks={filteredTasks} onSelect={setSelected} onReschedule={reschedule} />}
       {view === "jerarquia" && <JerarquiaView tasks={filteredTasks} onSelect={setSelected} />}
-
-      <div className="flex flex-wrap items-end justify-end gap-2 text-right">
-        {(fromDate || toDate) && (
-          <span className="text-xs text-muted-foreground">
-            {filteredTasks.length} de {tasks.length} tareas en ese rango
-          </span>
-        )}
-        <div className="space-y-1">
-          <label className="block text-[11px] font-semibold text-muted-foreground">Fecha límite desde</label>
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="block text-[11px] font-semibold text-muted-foreground">hasta</label>
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-          />
-        </div>
-        {(fromDate || toDate) && (
-          <button
-            type="button"
-            onClick={() => {
-              setFromDate("");
-              setToDate("");
-            }}
-            className="h-8 px-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
-          >
-            Limpiar
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => exportAvancesCsv(filteredTasks)}
-          title="Exportar avances a CSV"
-          className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <Download className="size-3.5" />
-          Exportar
-        </button>
-      </div>
 
       <TareaDetailModal
         tarea={selected}

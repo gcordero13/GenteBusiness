@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { uploadSharePointAttachment } from "@/lib/sharepoint";
 import { sendTareaAsignadaEmail } from "@/lib/sendTareaAsignadaEmail";
 import { sendTareaCompletadaEmail } from "@/lib/sendTareaCompletadaEmail";
@@ -355,8 +356,9 @@ async function notifyTareaAsignada(
 ): Promise<void> {
   if (assigneeId === assignerId) return;
   try {
+    const admin = createAdminClient();
     const [{ data: assignee }, { data: proyecto }, nameByUserId, siteUrl] = await Promise.all([
-      supabase.from("app_users").select("email").eq("id", assigneeId).maybeSingle(),
+      admin.from("app_users").select("email").eq("id", assigneeId).maybeSingle(),
       supabase.from("plan_proyectos").select("name").eq("id", proyectoId).maybeSingle(),
       buildUserNameMap([assigneeId, assignerId]),
       getSiteUrl(),
@@ -370,8 +372,11 @@ async function notifyTareaAsignada(
       assignedByName: nameByUserId.get(assignerId) ?? "Alguien",
       proyectoUrl: `${siteUrl}/planificacion/proyectos/${proyectoId}`,
     });
-  } catch {
-    // Never block the assignment on an email delivery failure.
+  } catch (err) {
+    // Never block the assignment on an email delivery failure - logged
+    // (not silently swallowed) so a misconfigured SMTP/missing email is
+    // diagnosable from the function logs instead of just "not arriving".
+    console.error("notifyTareaAsignada failed", err);
   }
 }
 
@@ -399,8 +404,9 @@ async function notifyTareaCompletada(
     const { data: tarea } = await supabase.from("plan_tareas").select("created_by").eq("id", tareaId).maybeSingle();
     if (!tarea || tarea.created_by === actorId) return;
 
+    const admin = createAdminClient();
     const [{ data: creator }, { data: proyecto }, nameByUserId, siteUrl] = await Promise.all([
-      supabase.from("app_users").select("email").eq("id", tarea.created_by).maybeSingle(),
+      admin.from("app_users").select("email").eq("id", tarea.created_by).maybeSingle(),
       supabase.from("plan_proyectos").select("name").eq("id", proyectoId).maybeSingle(),
       buildUserNameMap([actorId]),
       getSiteUrl(),
@@ -413,8 +419,8 @@ async function notifyTareaCompletada(
       completedByName: nameByUserId.get(actorId) ?? "Alguien",
       proyectoUrl: `${siteUrl}/planificacion/proyectos/${proyectoId}`,
     });
-  } catch {
-    // Never block the save on an email delivery failure.
+  } catch (err) {
+    console.error("notifyTareaCompletada failed", err);
   }
 }
 
@@ -925,13 +931,22 @@ export interface CompartidoRow {
   accessLevel: "ver" | "editar";
 }
 
+// app_users' own SELECT policy only allows seeing your own row (or a
+// platform user-manager seeing everyone) - contacts' SELECT policy is
+// gated by its own can_view module flag. Planificación has no role-profile
+// gate at all, so most callers here can't see ANY other user's row through
+// the request-scoped client, making every name/email lookup across this
+// file silently come back empty for them. The admin client (service role,
+// bypasses RLS) is used here instead, same as the identical join in
+// planificacion/lideres/actions.ts - this is read-only name/email/photo
+// resolution for display and notifications, not an authorization check.
 async function buildUserNameMap(userIds: string[]): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map();
-  const supabase = await createClient();
-  const { data: users } = await supabase.from("app_users").select("id, email").in("id", userIds);
+  const admin = createAdminClient();
+  const { data: users } = await admin.from("app_users").select("id, email").in("id", userIds);
   if (!users || users.length === 0) return new Map();
   const emails = users.map((u) => u.email);
-  const { data: contacts } = await supabase.from("contacts").select("email, first_name, last_name").in("email", emails);
+  const { data: contacts } = await admin.from("contacts").select("email, first_name, last_name").in("email", emails);
   const nameByEmail = new Map((contacts ?? []).map((c) => [c.email, `${c.first_name} ${c.last_name}`]));
   return new Map(users.map((u) => [u.id, nameByEmail.get(u.email) ?? u.email]));
 }
@@ -949,11 +964,11 @@ interface UserProfile {
 // identifying.
 async function buildUserProfileMap(userIds: string[]): Promise<Map<string, UserProfile>> {
   if (userIds.length === 0) return new Map();
-  const supabase = await createClient();
-  const { data: users } = await supabase.from("app_users").select("id, email").in("id", userIds);
+  const admin = createAdminClient();
+  const { data: users } = await admin.from("app_users").select("id, email").in("id", userIds);
   if (!users || users.length === 0) return new Map();
   const emails = users.map((u) => u.email);
-  const { data: contacts } = await supabase
+  const { data: contacts } = await admin
     .from("contacts")
     .select("email, first_name, last_name, photo_url")
     .in("email", emails);
@@ -1008,11 +1023,11 @@ export async function getCurrentAppUserId(): Promise<string | null> {
 // where showing SOME identifier for history is more useful than hiding it),
 // this list is for picking someone NEW, so only real, active people belong.
 export async function listAssignableUsers(): Promise<AssignableUser[]> {
-  const supabase = await createClient();
-  const { data: users } = await supabase.from("app_users").select("id, email").eq("status", "active");
+  const admin = createAdminClient();
+  const { data: users } = await admin.from("app_users").select("id, email").eq("status", "active");
   if (!users || users.length === 0) return [];
   const emails = users.map((u) => u.email);
-  const { data: contacts } = await supabase
+  const { data: contacts } = await admin
     .from("contacts")
     .select("email, first_name, last_name")
     .in("email", emails)
