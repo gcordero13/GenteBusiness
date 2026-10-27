@@ -435,6 +435,54 @@ export async function removeAdjunto(adjuntoId: string, proyectoId: string): Prom
   return {};
 }
 
+export interface ComentarioRow {
+  id: string;
+  body: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+}
+
+export async function listComentarios(tareaId: string): Promise<ComentarioRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("plan_tarea_comentarios")
+    .select("id, body, created_by, created_at")
+    .eq("tarea_id", tareaId)
+    .order("created_at", { ascending: true });
+  const rows = data ?? [];
+  const nameByUserId = await buildUserNameMap(rows.map((c) => c.created_by));
+  return rows.map((c) => ({
+    id: c.id,
+    body: c.body,
+    createdBy: c.created_by,
+    createdByName: nameByUserId.get(c.created_by) ?? c.created_by,
+    createdAt: c.created_at,
+  }));
+}
+
+export async function addComentario(tareaId: string, proyectoId: string, body: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+  if (!body.trim()) return { error: "Escribe un comentario" };
+
+  // Not self-referential (plan_tarea_comentarios_select checks
+  // plan_can_see_tarea, which queries plan_tareas - a different,
+  // already-existing row), so unlike plan_proyectos/plan_tareas this
+  // table has no RETURNING/MVCC-visibility issue - a chained .select()
+  // would be safe here too, though this action doesn't need one.
+  const { error } = await supabase
+    .from("plan_tarea_comentarios")
+    .insert({ tarea_id: tareaId, body: body.trim(), created_by: user.id });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
 export interface EstadoOption {
   id: string;
   name: string;

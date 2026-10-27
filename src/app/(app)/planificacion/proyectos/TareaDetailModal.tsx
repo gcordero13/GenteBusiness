@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
+import { MessageSquare, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,11 +14,14 @@ import {
 } from "@/components/ui/select";
 import {
   addAdjunto,
+  addComentario,
   deleteTarea,
   listAdjuntos,
+  listComentarios,
   removeAdjunto,
   updateTarea,
   type CicloRow,
+  type ComentarioRow,
   type EstadoOption,
   type TareaAdjuntoRow,
   type TareaListRow,
@@ -46,6 +49,8 @@ export function TareaDetailModal({
 }) {
   const router = useRouter();
   const [adjuntos, setAdjuntos] = useState<TareaAdjuntoRow[]>([]);
+  const [comentarios, setComentarios] = useState<ComentarioRow[]>([]);
+  const [newComment, setNewComment] = useState("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -74,6 +79,10 @@ export function TareaDetailModal({
 
   useEffect(() => {
     if (tarea) listAdjuntos(tarea.id).then(setAdjuntos);
+  }, [tarea]);
+
+  useEffect(() => {
+    if (tarea) listComentarios(tarea.id).then(setComentarios);
   }, [tarea]);
 
   if (!tarea) return null;
@@ -149,6 +158,20 @@ export function TareaDetailModal({
       await removeAdjunto(adjuntoId, tarea.proyectoId);
       setAdjuntos(await listAdjuntos(tarea.id));
       router.refresh();
+    });
+  }
+
+  function submitComment() {
+    if (!tarea || !newComment.trim()) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await addComentario(tarea.id, tarea.proyectoId, newComment);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setNewComment("");
+      setComentarios(await listComentarios(tarea.id));
     });
   }
 
@@ -353,6 +376,44 @@ export function TareaDetailModal({
               }}
             />
           </label>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <MessageSquare className="size-3.5" />
+            Comentarios
+          </p>
+          <div className="space-y-2">
+            {comentarios.map((c) => (
+              <div key={c.id} className="rounded-lg border p-2 text-xs">
+                <div className="mb-0.5 flex items-center justify-between">
+                  <span className="font-semibold text-foreground">{c.createdByName}</span>
+                  <span className="text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
+                </div>
+                <p className="whitespace-pre-wrap text-muted-foreground">{c.body}</p>
+              </div>
+            ))}
+            {comentarios.length === 0 && (
+              <p className="py-2 text-center text-xs text-muted-foreground">Todavía no hay comentarios.</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <textarea
+              placeholder="Escribe un comentario..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-md border border-input bg-background p-2 text-sm"
+            />
+            <Button
+              size="sm"
+              disabled={isPending || !newComment.trim()}
+              onClick={submitComment}
+              className="shrink-0 self-end bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90"
+            >
+              Comentar
+            </Button>
+          </div>
         </div>
 
         <div className="mt-4 flex gap-2">
