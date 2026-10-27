@@ -21,9 +21,16 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
     startTransition(async () => {
       await createEstado(proyectoId, name, color);
       setName("");
+      setColor(ESTADO_COLORS[0]);
       setAdding(false);
       router.refresh();
     });
+  }
+
+  function cancelAdd() {
+    setName("");
+    setColor(ESTADO_COLORS[0]);
+    setAdding(false);
   }
 
   function remove(id: string) {
@@ -76,6 +83,9 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
           <Button size="sm" disabled={isPending || !name.trim()} onClick={add} className="gap-1.5">
             <Plus className="size-3.5" />
             Agregar
+          </Button>
+          <Button size="icon-sm" variant="ghost" disabled={isPending} onClick={cancelAdd} title="Cancelar">
+            <X className="size-3.5" />
           </Button>
         </div>
       ) : (
