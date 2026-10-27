@@ -270,6 +270,24 @@ export async function listTareasVisibles(): Promise<TareaListRow[]> {
   return attachProfiles(rows);
 }
 
+// Tasks I created whose current assignee's account is no longer active -
+// confirmed with the user: when someone is deactivated, their open work
+// needs to surface somewhere so it can be reassigned. Scoped to tasks I
+// created (not every task I can merely see) since reassigning requires
+// edit rights, and "mio" is the relationship that maps to real ownership.
+export async function listTareasConAsigneeInactivo(): Promise<TareaListRow[]> {
+  const all = await listTareasVisibles();
+  const mine = all.filter((t) => t.relationship === "mio" && t.assigneeId);
+  if (mine.length === 0) return [];
+
+  const admin = createAdminClient();
+  const assigneeIds = Array.from(new Set(mine.map((t) => t.assigneeId as string)));
+  const { data: users } = await admin.from("app_users").select("id, status").in("id", assigneeIds);
+  const inactiveIds = new Set((users ?? []).filter((u) => u.status !== "active").map((u) => u.id));
+
+  return mine.filter((t) => inactiveIds.has(t.assigneeId as string));
+}
+
 // One project's full tree - used by the project detail screen (a later task).
 export async function listTareasDeProyecto(proyectoId: string): Promise<TareaListRow[]> {
   const supabase = await createClient();
@@ -282,6 +300,28 @@ export async function listTareasDeProyecto(proyectoId: string): Promise<TareaLis
     .from("plan_tareas")
     .select(TAREA_SELECT)
     .eq("proyecto_id", proyectoId)
+    .order("sort_order", { ascending: true });
+
+  const rows = attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));
+  return attachProfiles(rows);
+}
+
+// A task's direct sub-tasks, for the simple To-Do-style checklist in its
+// detail view. hasChildren here is only as accurate as THIS batch (direct
+// children of parentTaskId) - a sub-task that itself has further sub-tasks
+// would show as editable here, but correctly read-only once opened in its
+// own detail modal, which re-fetches against its real sibling set.
+export async function listSubtareas(parentTaskId: string): Promise<TareaListRow[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("plan_tareas")
+    .select(TAREA_SELECT)
+    .eq("parent_task_id", parentTaskId)
     .order("sort_order", { ascending: true });
 
   const rows = attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));

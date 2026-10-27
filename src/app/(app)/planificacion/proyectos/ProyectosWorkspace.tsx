@@ -203,6 +203,7 @@ export function ProyectosWorkspace({
       <TareaDetailModal
         tarea={selected}
         onClose={() => setSelected(null)}
+        onSelectTarea={setSelected}
         estados={estados}
         assignees={assignees}
       />

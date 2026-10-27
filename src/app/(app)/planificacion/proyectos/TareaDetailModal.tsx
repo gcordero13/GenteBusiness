@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
+import { CheckSquare, ListTodo, MessageSquare, Paperclip, Pencil, Plus, Square, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,9 +16,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   addAdjunto,
   addComentario,
+  createTarea,
   deleteTarea,
   listAdjuntos,
   listComentarios,
+  listSubtareas,
   removeAdjunto,
   updateTarea,
   updateTareaPercent,
@@ -36,11 +38,15 @@ import type { AssigneeOption } from "./TareaCreateDialog";
 export function TareaDetailModal({
   tarea,
   onClose,
+  onSelectTarea,
   estados = [],
   assignees = [],
 }: {
   tarea: TareaListRow | null;
   onClose: () => void;
+  // Lets clicking a sub-task in the checklist below jump straight into ITS
+  // own detail view, re-using this same modal instance.
+  onSelectTarea?: (t: TareaListRow) => void;
   estados?: EstadoOption[];
   assignees?: AssigneeOption[];
 }) {
@@ -48,6 +54,8 @@ export function TareaDetailModal({
   const [adjuntos, setAdjuntos] = useState<TareaAdjuntoRow[]>([]);
   const [comentarios, setComentarios] = useState<ComentarioRow[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [subtareas, setSubtareas] = useState<TareaListRow[]>([]);
+  const [newSubtarea, setNewSubtarea] = useState("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -82,6 +90,10 @@ export function TareaDetailModal({
 
   useEffect(() => {
     if (tarea) listComentarios(tarea.id).then(setComentarios);
+  }, [tarea]);
+
+  useEffect(() => {
+    if (tarea) listSubtareas(tarea.id).then(setSubtareas);
   }, [tarea]);
 
   if (!tarea) return null;
@@ -186,6 +198,56 @@ export function TareaDetailModal({
       }
       setNewComment("");
       setComentarios(await listComentarios(tarea.id));
+    });
+  }
+
+  // Quick To-Do-style add: just a title, everything else defaults (no
+  // estado/assignee/dates) - confirmed with the user, who wanted a simple
+  // checklist rather than the full task-create form for this.
+  function addSubtarea() {
+    if (!tarea || !newSubtarea.trim()) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await createTarea({
+        proyectoId: tarea.proyectoId,
+        parentTaskId: tarea.id,
+        title: newSubtarea,
+        description: "",
+        estadoId: null,
+        priority: null,
+        labels: [],
+        startDate: null,
+        dueDate: null,
+        assigneeId: null,
+        cicloId: null,
+        color: null,
+        moduloIds: [],
+      });
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setNewSubtarea("");
+      setSubtareas(await listSubtareas(tarea.id));
+      router.refresh();
+    });
+  }
+
+  // Checking a box marks that sub-task fully done (100%) or back to not
+  // started (0%) - a sub-task that turns out to have its own children is
+  // still rejected server-side by updateTareaPercent regardless of what
+  // this checklist's (batch-local) hasChildren thinks.
+  function toggleSubtarea(sub: TareaListRow) {
+    if (!tarea) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await updateTareaPercent(sub.id, sub.percentComplete === 100 ? 0 : 100, tarea.proyectoId);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setSubtareas(await listSubtareas(tarea.id));
+      router.refresh();
     });
   }
 
@@ -398,6 +460,51 @@ export function TareaDetailModal({
             </dl>
           </>
         )}
+
+        <div className="mb-4 space-y-2">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <ListTodo className="size-3.5" />
+            Subtareas
+          </p>
+          <div className="space-y-1">
+            {subtareas.map((sub) => (
+              <div key={sub.id} className="flex items-center gap-2 rounded-lg border p-2 text-xs">
+                <button type="button" disabled={isPending} onClick={() => toggleSubtarea(sub)} className="shrink-0 text-muted-foreground">
+                  {sub.percentComplete === 100 ? (
+                    <CheckSquare className="size-4 text-[#04B1AF]" />
+                  ) : (
+                    <Square className="size-4" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSelectTarea?.(sub)}
+                  className={`min-w-0 flex-1 truncate text-left ${sub.percentComplete === 100 ? "text-muted-foreground line-through" : "text-foreground"}`}
+                >
+                  {sub.title}
+                </button>
+                {sub.percentComplete > 0 && sub.percentComplete < 100 && (
+                  <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{sub.percentComplete}%</span>
+                )}
+              </div>
+            ))}
+            {subtareas.length === 0 && (
+              <p className="py-1 text-xs text-muted-foreground">Todavía no hay subtareas.</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Agregar subtarea..."
+              value={newSubtarea}
+              onChange={(e) => setNewSubtarea(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addSubtarea()}
+              className="h-8 text-xs"
+            />
+            <Button size="sm" disabled={isPending || !newSubtarea.trim()} onClick={addSubtarea} className="h-8 gap-1.5 px-2.5">
+              <Plus className="size-3.5" />
+            </Button>
+          </div>
+        </div>
 
         <div className="space-y-2">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">

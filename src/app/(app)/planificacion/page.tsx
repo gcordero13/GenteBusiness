@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { listCompartidoConmigo, listMisProyectos, listTareasVisibles } from "./proyectos/actions";
+import {
+  listAssignableUsers,
+  listCompartidoConmigo,
+  listMisProyectos,
+  listTareasConAsigneeInactivo,
+  listTareasVisibles,
+} from "./proyectos/actions";
 import { NuevoProyectoDialog } from "./proyectos/NuevoProyectoDialog";
 import { TareasTabs } from "./proyectos/TareasTabs";
 
@@ -11,10 +17,12 @@ export default async function PlanificacionPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [tasks, misProyectos, proyectosCompartidos] = await Promise.all([
+  const [tasks, misProyectos, proyectosCompartidos, tareasSinResponsableActivo, assignableUsers] = await Promise.all([
     listTareasVisibles(),
     listMisProyectos(),
     listCompartidoConmigo(),
+    listTareasConAsigneeInactivo(),
+    listAssignableUsers(),
   ]);
   // Confirmed with the user: "Mis tareas" is specifically what's assigned
   // to me (relationship "asignado"); tasks I created myself show instead
@@ -58,8 +66,10 @@ export default async function PlanificacionPage() {
           misColumns={buildMixedColumns(misTareas)}
           compartidoConmigo={compartidoConmigo}
           compartidoColumns={buildMixedColumns(compartidoConmigo)}
+          tareasSinResponsableActivo={tareasSinResponsableActivo}
+          tareasSinResponsableActivoColumns={buildMixedColumns(tareasSinResponsableActivo)}
           estados={[]}
-          assignees={[]}
+          assignees={assignableUsers}
         />
       </div>
     </div>

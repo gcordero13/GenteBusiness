@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { TriangleAlert } from "lucide-react";
 import type { EstadoOption, ProyectoListRow, TareaListRow } from "./actions";
 import { ProyectosWorkspace } from "./ProyectosWorkspace";
 import type { TableroColumn } from "./TableroView";
@@ -42,6 +43,8 @@ export function TareasTabs({
   misColumns,
   compartidoConmigo,
   compartidoColumns,
+  tareasSinResponsableActivo,
+  tareasSinResponsableActivoColumns,
   estados,
   assignees,
 }: {
@@ -53,6 +56,8 @@ export function TareasTabs({
   misColumns: TableroColumn[];
   compartidoConmigo: TareaListRow[];
   compartidoColumns: TableroColumn[];
+  tareasSinResponsableActivo: TareaListRow[];
+  tareasSinResponsableActivoColumns: TableroColumn[];
   estados: EstadoOption[];
   assignees: AssigneeOption[];
 }) {
@@ -99,6 +104,22 @@ export function TareasTabs({
                   <ProyectoCard key={p.id} proyecto={p} />
                 ))}
               </div>
+            </div>
+          )}
+
+          {tareasSinResponsableActivo.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-amber-600">
+                <TriangleAlert className="size-4" />
+                Tareas sin responsable activo - reasigna a alguien
+              </h3>
+              <ProyectosWorkspace
+                tasks={tareasSinResponsableActivo}
+                columns={tareasSinResponsableActivoColumns}
+                columnKeyBy="estadoName"
+                estados={estados}
+                assignees={assignees}
+              />
             </div>
           )}
 
