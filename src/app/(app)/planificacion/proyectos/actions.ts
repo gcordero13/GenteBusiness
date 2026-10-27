@@ -24,6 +24,14 @@ export async function createProyecto(name: string, description: string): Promise
   if (!user) return { error: "No autorizado" };
   if (!name.trim()) return { error: "El nombre es obligatorio" };
 
+  // TEMPORARY DIAGNOSTIC: an RPC already used site-wide (every other module's
+  // permission check) that also depends on auth.uid() resolving correctly.
+  // If this comes back with real data, auth.uid() works fine in this
+  // session/environment in general, and the bug is specific to plan_proyectos.
+  // If it comes back empty/erroring, the whole session's auth context is
+  // broken in this environment, not just this one table.
+  const permCheck = await supabase.rpc("get_my_module_permissions", { p_module_key: "planificacion" });
+
   const { data, error } = await supabase
     .from("plan_proyectos")
     .insert({ name: name.trim(), description: description.trim() || null, created_by: user.id })
@@ -33,7 +41,11 @@ export async function createProyecto(name: string, description: string): Promise
   // the exact user.id this insert attempted, so it can be compared against
   // auth.users/app_users directly instead of guessing blind.
   if (error || !data) {
-    return { error: `${error?.message ?? "No se pudo crear el proyecto"} [debug: user.id=${user.id}, email=${user.email}]` };
+    return {
+      error:
+        `${error?.message ?? "No se pudo crear el proyecto"} [debug: user.id=${user.id}, email=${user.email}, ` +
+        `permCheck.data=${JSON.stringify(permCheck.data)}, permCheck.error=${JSON.stringify(permCheck.error)}]`,
+    };
   }
 
   revalidatePath("/planificacion");
