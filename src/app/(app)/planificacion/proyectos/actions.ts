@@ -279,7 +279,7 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
   const supabase = await createClient();
   if (!input.title.trim()) return { error: "El título es obligatorio" };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("plan_tareas")
     .update({
       title: input.title.trim(),
@@ -292,8 +292,10 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
       assignee_id: input.assigneeId,
       ciclo_id: input.cicloId,
     })
-    .eq("id", input.id);
+    .eq("id", input.id)
+    .select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
 
   await supabase.from("plan_tarea_modulos").delete().eq("tarea_id", input.id);
   if (input.moduloIds.length > 0) {
@@ -317,8 +319,9 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
 // applies arguments from the front, which is why proyectoId is first here.
 export async function updateTareaEstado(proyectoId: string, tareaId: string, estadoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("plan_tareas").update({ estado_id: estadoId }).eq("id", tareaId);
+  const { data, error } = await supabase.from("plan_tareas").update({ estado_id: estadoId }).eq("id", tareaId).select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath("/planificacion");
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
@@ -326,8 +329,9 @@ export async function updateTareaEstado(proyectoId: string, tareaId: string, est
 
 export async function updateTareaFecha(tareaId: string, dueDate: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("plan_tareas").update({ due_date: dueDate }).eq("id", tareaId);
+  const { data, error } = await supabase.from("plan_tareas").update({ due_date: dueDate }).eq("id", tareaId).select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath("/planificacion");
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
@@ -335,8 +339,9 @@ export async function updateTareaFecha(tareaId: string, dueDate: string, proyect
 
 export async function deleteTarea(tareaId: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("plan_tareas").delete().eq("id", tareaId);
+  const { data, error } = await supabase.from("plan_tareas").delete().eq("id", tareaId).select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath("/planificacion");
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
@@ -374,6 +379,9 @@ export async function addAdjunto(tareaId: string, proyectoId: string, file: File
   if (!user) return { error: "No autorizado" };
   if (file.size === 0) return { error: "Selecciona un archivo" };
 
+  const { data: canEdit } = await supabase.rpc("plan_can_edit_tarea", { p_tarea_id: tareaId });
+  if (!canEdit) return { error: "No autorizado" };
+
   const uploadResult = await uploadSharePointAttachment(file);
   if (uploadResult.error) return { error: uploadResult.error };
 
@@ -393,8 +401,9 @@ export async function addAdjunto(tareaId: string, proyectoId: string, file: File
 
 export async function removeAdjunto(adjuntoId: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("plan_tarea_adjuntos").delete().eq("id", adjuntoId);
+  const { data, error } = await supabase.from("plan_tarea_adjuntos").delete().eq("id", adjuntoId).select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
@@ -438,8 +447,9 @@ export async function createEstado(proyectoId: string, name: string, color: stri
 
 export async function deleteEstado(estadoId: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("plan_estados").delete().eq("id", estadoId);
+  const { data, error } = await supabase.from("plan_estados").delete().eq("id", estadoId).select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
@@ -479,8 +489,9 @@ export async function createCiclo(
 
 export async function deleteCiclo(cicloId: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("plan_ciclos").delete().eq("id", cicloId);
+  const { data, error } = await supabase.from("plan_ciclos").delete().eq("id", cicloId).select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
@@ -514,8 +525,9 @@ export async function createModulo(proyectoId: string, name: string, description
 
 export async function deleteModulo(moduloId: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("plan_modulos").delete().eq("id", moduloId);
+  const { data, error } = await supabase.from("plan_modulos").delete().eq("id", moduloId).select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
@@ -583,24 +595,29 @@ export async function shareProyecto(
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autorizado" };
 
-  const { error } = await supabase.from("plan_proyecto_compartidos").upsert(
-    {
-      proyecto_id: proyectoId,
-      shared_with_app_user_id: appUserId,
-      access_level: accessLevel,
-      shared_by: user.id,
-    },
-    { onConflict: "proyecto_id,shared_with_app_user_id" },
-  );
+  const { data, error } = await supabase
+    .from("plan_proyecto_compartidos")
+    .upsert(
+      {
+        proyecto_id: proyectoId,
+        shared_with_app_user_id: appUserId,
+        access_level: accessLevel,
+        shared_by: user.id,
+      },
+      { onConflict: "proyecto_id,shared_with_app_user_id" },
+    )
+    .select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
 
 export async function revokeProyectoShare(shareId: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("plan_proyecto_compartidos").delete().eq("id", shareId);
+  const { data, error } = await supabase.from("plan_proyecto_compartidos").delete().eq("id", shareId).select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
@@ -633,19 +650,24 @@ export async function shareTarea(
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autorizado" };
 
-  const { error } = await supabase.from("plan_tarea_compartidos").upsert(
-    { tarea_id: tareaId, shared_with_app_user_id: appUserId, access_level: accessLevel, shared_by: user.id },
-    { onConflict: "tarea_id,shared_with_app_user_id" },
-  );
+  const { data, error } = await supabase
+    .from("plan_tarea_compartidos")
+    .upsert(
+      { tarea_id: tareaId, shared_with_app_user_id: appUserId, access_level: accessLevel, shared_by: user.id },
+      { onConflict: "tarea_id,shared_with_app_user_id" },
+    )
+    .select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
 
 export async function revokeTareaShare(shareId: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("plan_tarea_compartidos").delete().eq("id", shareId);
+  const { data, error } = await supabase.from("plan_tarea_compartidos").delete().eq("id", shareId).select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);
   return {};
 }
