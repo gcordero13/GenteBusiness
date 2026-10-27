@@ -124,6 +124,21 @@ export async function getProyecto(id: string): Promise<ProyectoRow | null> {
   return { id: data.id, name: data.name, description: data.description, createdBy: data.created_by, archived: data.archived };
 }
 
+// Deleting the whole project is restricted to its creator at the RLS layer
+// (plan_proyectos_delete) - more destructive than editing it, so not
+// extended to editar-level share holders. Every plan_tareas/plan_estados/
+// plan_ciclos/plan_modulos/plan_proyecto_compartidos row for this project
+// cascades via its own FK's ON DELETE CASCADE, so a single delete here is
+// enough.
+export async function deleteProyecto(id: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("plan_proyectos").delete().eq("id", id).select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el proyecto ya no existe" };
+  revalidatePath("/planificacion");
+  return {};
+}
+
 export interface TareaListRow {
   id: string;
   proyectoId: string;

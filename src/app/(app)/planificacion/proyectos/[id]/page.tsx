@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getProyecto, listAssignableUsers, listEstados, listTareasDeProyecto, updateTareaEstado } from "../actions";
+import { DeleteIconButton } from "@/components/DeleteIconButton";
+import { deleteProyecto, getProyecto, listAssignableUsers, listEstados, listTareasDeProyecto, updateTareaEstado } from "../actions";
 import { ProyectosWorkspace } from "../ProyectosWorkspace";
 import { TareaCreateDialog } from "../TareaCreateDialog";
 import { CompartirDialog } from "../CompartirDialog";
@@ -51,6 +52,12 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
               assignees={assignees}
               triggerLabel="Nueva tarea"
             />
+            {proyecto.createdBy === user.id && (
+              <DeleteIconButton
+                confirmMessage={`¿Eliminar el proyecto "${proyecto.name}"? Se eliminarán también todas sus tareas. Esta acción no se puede deshacer.`}
+                action={deleteProyecto.bind(null, id)}
+              />
+            )}
           </div>
         </div>
 

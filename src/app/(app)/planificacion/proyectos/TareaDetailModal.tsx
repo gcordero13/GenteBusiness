@@ -188,6 +188,7 @@ export function TareaDetailModal({
 
   function remove_task() {
     if (!tarea) return;
+    if (!confirm(`¿Eliminar la tarea "${tarea.title}"? Esta acción no se puede deshacer.`)) return;
     startTransition(async () => {
       await deleteTarea(tarea.id, tarea.proyectoId);
       onClose();
