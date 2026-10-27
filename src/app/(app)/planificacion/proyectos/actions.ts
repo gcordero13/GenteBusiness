@@ -24,39 +24,26 @@ export async function createProyecto(name: string, description: string): Promise
   if (!user) return { error: "No autorizado" };
   if (!name.trim()) return { error: "El nombre es obligatorio" };
 
-  // TEMPORARY DIAGNOSTIC: generate the id client-side and insert WITHOUT a
-  // chained .select() - Postgres's RETURNING clause (which .select() after
-  // .insert() triggers) requires the just-written row to ALSO pass the
-  // table's SELECT policy, not just the INSERT policy's WITH CHECK. If
-  // plan_proyectos_select's policy fails for some reason on the brand-new
-  // row, Postgres reports the exact same generic "new row violates
-  // row-level security policy" message as a WITH CHECK failure - so a
-  // plain INSERT with RETURNING can fail even when the INSERT itself would
-  // have succeeded on its own. Testing both steps separately to find out
-  // which one is actually failing.
+  // The id is generated client-side and the insert is NOT chained with
+  // .select() - a chained .select() after .insert() makes PostgREST issue
+  // the INSERT with a RETURNING clause, which requires the brand-new row to
+  // also pass the table's SELECT policy (plan_proyectos_select, which calls
+  // plan_can_see_proyecto - a function that re-queries plan_proyectos
+  // itself). Per Postgres's MVCC command-visibility rules, that internal
+  // re-query cannot see a row inserted earlier in the SAME command, so the
+  // SELECT-policy check spuriously fails even though the INSERT's own WITH
+  // CHECK was satisfied - manifesting as the exact same "new row violates
+  // row-level security policy" error. Issuing the SELECT as a separate,
+  // later command (same transaction) avoids this: by then the row was
+  // inserted by an earlier command and is visible normally.
   const newId = crypto.randomUUID();
   const { error: insertError } = await supabase
     .from("plan_proyectos")
     .insert({ id: newId, name: name.trim(), description: description.trim() || null, created_by: user.id });
-
-  if (insertError) {
-    return { error: `INSERT (sin select) FALLÓ: ${insertError.message} [user.id=${user.id}]` };
-  }
-
-  const { data: readBack, error: selectError } = await supabase
-    .from("plan_proyectos")
-    .select("id")
-    .eq("id", newId)
-    .maybeSingle();
-
-  if (selectError || !readBack) {
-    return {
-      error: `El INSERT funcionó, pero leer la fila de vuelta falló: ${selectError?.message ?? "no se encontró la fila"} [id=${newId}]`,
-    };
-  }
+  if (insertError) return { error: insertError.message };
 
   revalidatePath("/planificacion");
-  return { id: readBack.id };
+  return { id: newId };
 }
 
 export interface ProyectoListRow extends ProyectoRow {
