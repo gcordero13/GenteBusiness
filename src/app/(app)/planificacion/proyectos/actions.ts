@@ -142,6 +142,17 @@ export interface TareaListRow {
   createdBy: string;
   moduloIds: string[];
   relationship: "mio" | "asignado" | "compartido";
+  percentComplete: number;
+  color: string | null;
+  // True when at least one other visible task has parent_task_id = this
+  // row's id, i.e. this is a "parent" whose percentComplete is computed by
+  // the plan_recompute_ancestor_percent trigger, not user-editable. Only as
+  // complete as the fetch it came from: a child visible only through a
+  // different visibility path (e.g. direct assignment, not the
+  // project/share cascade) could be missing from that same batch, making a
+  // true parent read as a false leaf here. updateTareaPercent re-checks
+  // this against the database itself and is the actual authority.
+  hasChildren: boolean;
 }
 
 interface RawTareaRow {
@@ -161,6 +172,8 @@ interface RawTareaRow {
   ciclo_id: string | null;
   created_by: string;
   plan_tarea_modulos: { modulo_id: string }[] | null;
+  percent_complete: number;
+  color: string | null;
 }
 
 function toTareaListRow(t: RawTareaRow, callerId: string): TareaListRow {
@@ -186,11 +199,25 @@ function toTareaListRow(t: RawTareaRow, callerId: string): TareaListRow {
     createdBy: t.created_by,
     moduloIds: (t.plan_tarea_modulos ?? []).map((m) => m.modulo_id),
     relationship,
+    percentComplete: t.percent_complete,
+    color: t.color,
+    hasChildren: false,
   };
 }
 
+// hasChildren can only be known once the whole fetched batch is in hand (it
+// depends on whether any OTHER row in the same batch points back at this
+// one), so toTareaListRow always sets it false and this pass corrects it.
+function attachHasChildren(rows: TareaListRow[]): TareaListRow[] {
+  const parentIds = new Set<string>();
+  for (const row of rows) {
+    if (row.parentTaskId) parentIds.add(row.parentTaskId);
+  }
+  return rows.map((row) => ({ ...row, hasChildren: parentIds.has(row.id) }));
+}
+
 const TAREA_SELECT =
-  "id, proyecto_id, plan_proyectos(name), parent_task_id, title, description, estado_id, plan_estados(name), priority, labels, start_date, due_date, assignee_id, ciclo_id, created_by, plan_tarea_modulos(modulo_id)";
+  "id, proyecto_id, plan_proyectos(name), parent_task_id, title, description, estado_id, plan_estados(name), priority, labels, start_date, due_date, assignee_id, ciclo_id, created_by, plan_tarea_modulos(modulo_id), percent_complete, color";
 
 // Every task RLS lets the caller see, across every project - the landing
 // screen (a later task) splits this into "Mis tareas" (relationship is
@@ -210,7 +237,7 @@ export async function listTareasVisibles(): Promise<TareaListRow[]> {
     .select(TAREA_SELECT)
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id));
+  return attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));
 }
 
 // One project's full tree - used by the project detail screen (a later task).
@@ -227,7 +254,7 @@ export async function listTareasDeProyecto(proyectoId: string): Promise<TareaLis
     .eq("proyecto_id", proyectoId)
     .order("sort_order", { ascending: true });
 
-  return (data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id));
+  return attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));
 }
 
 export interface CreateTareaInput {
@@ -242,7 +269,44 @@ export interface CreateTareaInput {
   dueDate: string | null;
   assigneeId: string | null;
   cicloId: string | null;
+  color: string | null;
   moduloIds: string[];
+}
+
+// A task with no children has user-owned percentComplete (defense in depth
+// also enforced server-side here, not just in the UI): updateTareaPercent
+// is the only action allowed to write it directly, and updateTarea/
+// updateTareaEstado skip every percent-related side effect once a task has
+// children, leaving that column exclusively owned by
+// plan_recompute_ancestor_percent for such tasks.
+async function taskHasChildren(supabase: Awaited<ReturnType<typeof createClient>>, tareaId: string): Promise<boolean> {
+  const { count } = await supabase
+    .from("plan_tareas")
+    .select("id", { count: "exact", head: true })
+    .eq("parent_task_id", tareaId);
+  return (count ?? 0) > 0;
+}
+
+// Shared by updateTarea (editing the Estado field directly) and
+// updateTareaEstado (Tablero drag-and-drop) so both entry points apply the
+// same leaf-only 100<->99 forcing rule: moving a leaf task's estado to the
+// project's completado estado forces percent to 100; moving it away from
+// completado while sitting at 100 forces it down to 99 (a leaf task can
+// never show 100% while not actually marked Completado). Returns the
+// percent to additionally write, or null when no forcing is needed.
+async function resolveEstadoPercentSideEffects(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  currentPercent: number,
+  newEstadoId: string | null,
+): Promise<number | null> {
+  let isCompletado = false;
+  if (newEstadoId) {
+    const { data: estado } = await supabase.from("plan_estados").select("kind").eq("id", newEstadoId).maybeSingle();
+    isCompletado = estado?.kind === "completado";
+  }
+  if (isCompletado && currentPercent !== 100) return 100;
+  if (!isCompletado && currentPercent === 100) return 99;
+  return null;
 }
 
 export async function createTarea(input: CreateTareaInput): Promise<ActionResult & { id?: string }> {
@@ -272,6 +336,10 @@ export async function createTarea(input: CreateTareaInput): Promise<ActionResult
     due_date: input.dueDate,
     assignee_id: input.assigneeId,
     ciclo_id: input.cicloId,
+    color: input.color,
+    // Assigning a task bumps it to 5% (confirmed with the user) - applies
+    // at creation the same as it does in updateTarea.
+    percent_complete: input.assigneeId ? 5 : 0,
     created_by: user.id,
   });
   if (error) return { error: error.message };
@@ -300,12 +368,32 @@ export interface UpdateTareaInput {
   dueDate: string | null;
   assigneeId: string | null;
   cicloId: string | null;
+  color: string | null;
   moduloIds: string[];
 }
 
 export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult> {
   const supabase = await createClient();
   if (!input.title.trim()) return { error: "El título es obligatorio" };
+
+  const { data: current } = await supabase
+    .from("plan_tareas")
+    .select("percent_complete, assignee_id")
+    .eq("id", input.id)
+    .maybeSingle();
+  if (!current) return { error: "No autorizado o el registro ya no existe" };
+
+  // Percent is exclusively owned by the auto-rollup trigger once a task has
+  // children (see taskHasChildren) - none of the sync rules below apply to
+  // it, to avoid a write-tug-of-war between this code and the trigger.
+  let percentComplete: number | undefined;
+  if (!(await taskHasChildren(supabase, input.id))) {
+    if (current.assignee_id === null && input.assigneeId !== null && current.percent_complete === 0) {
+      percentComplete = 5;
+    }
+    const forcedPercent = await resolveEstadoPercentSideEffects(supabase, percentComplete ?? current.percent_complete, input.estadoId);
+    if (forcedPercent !== null) percentComplete = forcedPercent;
+  }
 
   const { data, error } = await supabase
     .from("plan_tareas")
@@ -319,6 +407,8 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
       due_date: input.dueDate,
       assignee_id: input.assigneeId,
       ciclo_id: input.cicloId,
+      color: input.color,
+      ...(percentComplete !== undefined ? { percent_complete: percentComplete } : {}),
     })
     .eq("id", input.id)
     .select("id");
@@ -347,7 +437,54 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
 // applies arguments from the front, which is why proyectoId is first here.
 export async function updateTareaEstado(proyectoId: string, tareaId: string, estadoId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("plan_tareas").update({ estado_id: estadoId }).eq("id", tareaId).select("id");
+
+  const update: { estado_id: string; percent_complete?: number } = { estado_id: estadoId };
+  if (!(await taskHasChildren(supabase, tareaId))) {
+    const { data: current } = await supabase.from("plan_tareas").select("percent_complete").eq("id", tareaId).maybeSingle();
+    if (current) {
+      const forcedPercent = await resolveEstadoPercentSideEffects(supabase, current.percent_complete, estadoId);
+      if (forcedPercent !== null) update.percent_complete = forcedPercent;
+    }
+  }
+
+  const { data, error } = await supabase.from("plan_tareas").update(update).eq("id", tareaId).select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
+  revalidatePath("/planificacion");
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+// Leaf-only direct percent edit (the detail view's slider). A task with
+// children rejects the write outright - percent is computed by
+// plan_recompute_ancestor_percent for those, regardless of what the UI
+// sent (the UI itself also hides the slider for such tasks - this is the
+// server-side half of that same defense-in-depth enforcement).
+export async function updateTareaPercent(tareaId: string, percent: number, proyectoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+    return { error: "El porcentaje debe ser un entero entre 0 y 100" };
+  }
+
+  const { data: tarea } = await supabase.from("plan_tareas").select("proyecto_id").eq("id", tareaId).maybeSingle();
+  if (!tarea) return { error: "No autorizado o el registro ya no existe" };
+
+  if (await taskHasChildren(supabase, tareaId)) {
+    return { error: "El % de una tarea con subtareas se calcula automáticamente a partir de ellas" };
+  }
+
+  const update: { percent_complete: number; estado_id?: string } = { percent_complete: percent };
+  if (percent === 100) {
+    const { data: completado } = await supabase
+      .from("plan_estados")
+      .select("id")
+      .eq("proyecto_id", tarea.proyecto_id)
+      .eq("kind", "completado")
+      .maybeSingle();
+    if (completado) update.estado_id = completado.id;
+  }
+
+  const { data, error } = await supabase.from("plan_tareas").update(update).eq("id", tareaId).select("id");
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath("/planificacion");

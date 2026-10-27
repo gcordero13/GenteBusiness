@@ -1,20 +1,12 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import {
-  getProyecto,
-  listAssignableUsers,
-  listCiclos,
-  listEstados,
-  listModulos,
-  listTareasDeProyecto,
-  updateTareaEstado,
-} from "../actions";
+import { getProyecto, listAssignableUsers, listEstados, listTareasDeProyecto, updateTareaEstado } from "../actions";
 import { ProyectosWorkspace } from "../ProyectosWorkspace";
 import { TareaCreateDialog } from "../TareaCreateDialog";
 import { CompartirDialog } from "../CompartirDialog";
 import { EstadosEditor } from "../EstadosEditor";
-import { CiclosManager } from "../CiclosManager";
-import { ModulosManager } from "../ModulosManager";
 
 export default async function ProyectoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,11 +19,9 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
   const proyecto = await getProyecto(id);
   if (!proyecto) redirect("/planificacion");
 
-  const [tasks, estados, ciclos, modulos, assignees] = await Promise.all([
+  const [tasks, estados, assignees] = await Promise.all([
     listTareasDeProyecto(id),
     listEstados(id),
-    listCiclos(id),
-    listModulos(id),
     listAssignableUsers(),
   ]);
 
@@ -40,6 +30,13 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
   return (
     <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
       <div className="w-full min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
+        <Link
+          href="/planificacion"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" />
+          Volver a Planificación
+        </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">{proyecto.name}</h1>
@@ -52,18 +49,12 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
               parentTaskId={null}
               estados={estados}
               assignees={assignees}
-              ciclos={ciclos}
-              modulos={modulos}
               triggerLabel="Nueva tarea"
             />
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <EstadosEditor proyectoId={id} estados={estados} />
-          <CiclosManager proyectoId={id} ciclos={ciclos} />
-          <ModulosManager proyectoId={id} modulos={modulos} />
-        </div>
+        <EstadosEditor proyectoId={id} estados={estados} />
 
         <ProyectosWorkspace
           tasks={tasks}
@@ -73,7 +64,6 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           defaultProyectoId={id}
           estados={estados}
           assignees={assignees}
-          ciclos={ciclos}
         />
       </div>
     </div>

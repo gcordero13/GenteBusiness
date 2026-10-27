@@ -79,8 +79,17 @@ export function TableroView({
                     onDrop ? "cursor-grab active:cursor-grabbing" : ""
                   } ${draggingId === t.id ? "opacity-40" : ""}`}
                 >
-                  <p className="font-semibold text-foreground">{t.title}</p>
+                  <div className="flex items-center gap-1.5">
+                    {t.color && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: t.color }} />}
+                    <p className="truncate font-semibold text-foreground">{t.title}</p>
+                  </div>
                   <p className="truncate text-muted-foreground">{t.proyectoName}</p>
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full bg-[#04B1AF]" style={{ width: `${t.percentComplete}%` }} />
+                    </div>
+                    <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{t.percentComplete}%</span>
+                  </div>
                   {t.dueDate && <p className="mt-1 text-muted-foreground">{t.dueDate}</p>}
                 </button>
               ))}

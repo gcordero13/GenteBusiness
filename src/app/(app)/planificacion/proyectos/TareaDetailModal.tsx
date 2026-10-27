@@ -20,32 +20,26 @@ import {
   listComentarios,
   removeAdjunto,
   updateTarea,
-  type CicloRow,
+  updateTareaPercent,
   type ComentarioRow,
   type EstadoOption,
   type TareaAdjuntoRow,
   type TareaListRow,
 } from "./actions";
 import { CompartirDialog } from "./CompartirDialog";
+import { ESTADO_COLORS } from "./EstadosEditor";
 import type { AssigneeOption } from "./TareaCreateDialog";
-
-// Sentinel used for the ciclo Select's "Sin ciclo" option - the underlying
-// base-ui Select reserves the empty string internally, so a real (non-empty)
-// sentinel value is used instead and mapped back to null on save.
-const SIN_CICLO = "__sin-ciclo__";
 
 export function TareaDetailModal({
   tarea,
   onClose,
   estados = [],
   assignees = [],
-  ciclos = [],
 }: {
   tarea: TareaListRow | null;
   onClose: () => void;
   estados?: EstadoOption[];
   assignees?: AssigneeOption[];
-  ciclos?: CicloRow[];
 }) {
   const router = useRouter();
   const [adjuntos, setAdjuntos] = useState<TareaAdjuntoRow[]>([]);
@@ -62,11 +56,12 @@ export function TareaDetailModal({
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
-  const [cicloId, setCicloId] = useState(SIN_CICLO);
+  const [color, setColor] = useState<string | null>(null);
+  const [percentDraft, setPercentDraft] = useState(0);
   const [lastTareaId, setLastTareaId] = useState<string | null>(null);
 
-  // Reset edit/error state when switching to a different task (or closing
-  // the modal) - done during render, not in the effect below, since
+  // Reset edit/error/percent state when switching to a different task (or
+  // closing the modal) - done during render, not in the effect below, since
   // synchronously calling setState inside an effect body is a cascading-
   // render anti-pattern; this is React's documented "adjust state while
   // rendering" alternative, guarded by lastTareaId so it only fires once
@@ -75,6 +70,7 @@ export function TareaDetailModal({
     setLastTareaId(tarea?.id ?? null);
     setIsEditing(false);
     setError(null);
+    setPercentDraft(tarea?.percentComplete ?? 0);
   }
 
   useEffect(() => {
@@ -96,7 +92,7 @@ export function TareaDetailModal({
     setStartDate(tarea.startDate ?? "");
     setDueDate(tarea.dueDate ?? "");
     setAssigneeId(tarea.assigneeId ?? "");
-    setCicloId(tarea.cicloId ?? SIN_CICLO);
+    setColor(tarea.color);
     setError(null);
     setIsEditing(true);
   }
@@ -125,7 +121,8 @@ export function TareaDetailModal({
         startDate: startDate || null,
         dueDate: dueDate || null,
         assigneeId: assignees.length > 0 ? assigneeId || null : tarea.assigneeId,
-        cicloId: ciclos.length > 0 ? (cicloId === SIN_CICLO ? null : cicloId) : tarea.cicloId,
+        cicloId: tarea.cicloId,
+        color,
         moduloIds: tarea.moduloIds,
       });
       if (result.error) {
@@ -134,6 +131,20 @@ export function TareaDetailModal({
       }
       setIsEditing(false);
       onClose();
+      router.refresh();
+    });
+  }
+
+  function commitPercent(value: number) {
+    if (!tarea) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await updateTareaPercent(tarea.id, value, tarea.proyectoId);
+      if (result.error) {
+        setError(result.error);
+        setPercentDraft(tarea.percentComplete);
+        return;
+      }
       router.refresh();
     });
   }
@@ -199,7 +210,10 @@ export function TareaDetailModal({
               placeholder="Título"
             />
           ) : (
-            <h2 className="text-lg font-semibold text-foreground">{tarea.title}</h2>
+            <div className="flex min-w-0 items-center gap-2">
+              {tarea.color && <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: tarea.color }} />}
+              <h2 className="truncate text-lg font-semibold text-foreground">{tarea.title}</h2>
+            </div>
           )}
           <div className="flex shrink-0 items-center gap-1">
             {!isEditing && (
@@ -213,6 +227,35 @@ export function TareaDetailModal({
           </div>
         </div>
         {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+
+        <div className="mb-4 space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-muted-foreground">Progreso</span>
+            <span className="font-semibold text-foreground">{tarea.hasChildren ? tarea.percentComplete : percentDraft}%</span>
+          </div>
+          {tarea.hasChildren ? (
+            <>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full bg-[#04B1AF]" style={{ width: `${tarea.percentComplete}%` }} />
+              </div>
+              <p className="text-[11px] text-muted-foreground">Calculado a partir de las subtareas</p>
+            </>
+          ) : (
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={percentDraft}
+              disabled={isPending}
+              onChange={(e) => setPercentDraft(Number(e.target.value))}
+              onMouseUp={(e) => commitPercent(Number((e.target as HTMLInputElement).value))}
+              onTouchEnd={() => commitPercent(percentDraft)}
+              onKeyUp={() => commitPercent(percentDraft)}
+              className="w-full accent-[#04B1AF]"
+            />
+          )}
+        </div>
 
         {isEditing ? (
           <div className="mb-4 space-y-3">
@@ -286,26 +329,28 @@ export function TareaDetailModal({
                 <p className="flex h-8 items-center text-xs text-muted-foreground">Sin asignar</p>
               )}
             </div>
-            {ciclos.length > 0 && (
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-muted-foreground">Ciclo</label>
-                <Select value={cicloId} onValueChange={(v) => v && setCicloId(v)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue>
-                      {() => (cicloId === SIN_CICLO ? "Sin ciclo" : ciclos.find((c) => c.id === cicloId)?.name ?? "Sin ciclo")}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SIN_CICLO}>Sin ciclo</SelectItem>
-                    {ciclos.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Color de la tarea</label>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setColor(null)}
+                  className={`flex size-6 items-center justify-center rounded-full border-2 text-muted-foreground ${color === null ? "border-foreground" : "border-dashed border-muted-foreground/40"}`}
+                  title="Sin color"
+                >
+                  <span className="text-[10px]">×</span>
+                </button>
+                {ESTADO_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className={`size-6 rounded-full border-2 ${color === c ? "border-foreground" : "border-transparent"}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
               </div>
-            )}
+            </div>
             <div className="flex gap-2">
               <Button
                 onClick={saveEdit}

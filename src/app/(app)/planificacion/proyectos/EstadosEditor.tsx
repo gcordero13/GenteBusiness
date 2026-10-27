@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createEstado, deleteEstado, type EstadoOption } from "./actions";
 
-const ESTADO_COLORS = ["#94a3b8", "#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6"];
+export const ESTADO_COLORS = ["#94a3b8", "#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6"];
 
 export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; estados: EstadoOption[] }) {
   const router = useRouter();
+  const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [color, setColor] = useState(ESTADO_COLORS[0]);
   const [isPending, startTransition] = useTransition();
@@ -20,6 +21,7 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
     startTransition(async () => {
       await createEstado(proyectoId, name, color);
       setName("");
+      setAdding(false);
       router.refresh();
     });
   }
@@ -43,30 +45,45 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
           >
             <span className="size-1.5 rounded-full" style={{ backgroundColor: e.color ?? "#94a3b8" }} />
             {e.name}
-            <button type="button" onClick={() => remove(e.id)} disabled={isPending}>
-              <X className="size-3" />
-            </button>
+            {!e.isDefault && (
+              <button type="button" onClick={() => remove(e.id)} disabled={isPending}>
+                <X className="size-3" />
+              </button>
+            )}
           </span>
         ))}
       </div>
-      <div className="flex gap-2">
-        <Input placeholder="Nuevo estado" value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-xs" />
-        <div className="flex gap-1">
-          {ESTADO_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setColor(c)}
-              className={`size-6 rounded-full border-2 ${color === c ? "border-foreground" : "border-transparent"}`}
-              style={{ backgroundColor: c }}
-            />
-          ))}
+      {adding ? (
+        <div className="flex gap-2">
+          <Input
+            placeholder="Nuevo estado"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="h-8 text-xs"
+            autoFocus
+          />
+          <div className="flex gap-1">
+            {ESTADO_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setColor(c)}
+                className={`size-6 rounded-full border-2 ${color === c ? "border-foreground" : "border-transparent"}`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+          <Button size="sm" disabled={isPending || !name.trim()} onClick={add} className="gap-1.5">
+            <Plus className="size-3.5" />
+            Agregar
+          </Button>
         </div>
-        <Button size="sm" disabled={isPending || !name.trim()} onClick={add} className="gap-1.5">
+      ) : (
+        <Button size="sm" variant="ghost" onClick={() => setAdding(true)} className="gap-1.5 text-xs text-muted-foreground">
           <Plus className="size-3.5" />
-          Agregar
+          Agregar estado personalizado
         </Button>
-      </div>
+      )}
     </div>
   );
 }
