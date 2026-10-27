@@ -239,36 +239,39 @@ export async function createTarea(input: CreateTareaInput): Promise<ActionResult
   if (!user) return { error: "No autorizado" };
   if (!input.title.trim()) return { error: "El título es obligatorio" };
 
-  const { data: tarea, error } = await supabase
-    .from("plan_tareas")
-    .insert({
-      proyecto_id: input.proyectoId,
-      parent_task_id: input.parentTaskId,
-      title: input.title.trim(),
-      description: input.description.trim() || null,
-      estado_id: input.estadoId,
-      priority: input.priority,
-      labels: input.labels,
-      start_date: input.startDate,
-      due_date: input.dueDate,
-      assignee_id: input.assigneeId,
-      ciclo_id: input.cicloId,
-      created_by: user.id,
-    })
-    .select("id")
-    .single();
-  if (error || !tarea) return { error: error?.message ?? "No se pudo crear la tarea" };
+  // No chained .select() - same RETURNING/MVCC-visibility issue as
+  // createProyecto: plan_tareas_select's policy (plan_can_see_tarea) would
+  // need to re-query plan_tareas for this very row, which isn't visible yet
+  // within the same INSERT command. The id is generated client-side so
+  // nothing needs to be read back.
+  const newId = crypto.randomUUID();
+  const { error } = await supabase.from("plan_tareas").insert({
+    id: newId,
+    proyecto_id: input.proyectoId,
+    parent_task_id: input.parentTaskId,
+    title: input.title.trim(),
+    description: input.description.trim() || null,
+    estado_id: input.estadoId,
+    priority: input.priority,
+    labels: input.labels,
+    start_date: input.startDate,
+    due_date: input.dueDate,
+    assignee_id: input.assigneeId,
+    ciclo_id: input.cicloId,
+    created_by: user.id,
+  });
+  if (error) return { error: error.message };
 
   if (input.moduloIds.length > 0) {
     const { error: modError } = await supabase
       .from("plan_tarea_modulos")
-      .insert(input.moduloIds.map((modulo_id) => ({ tarea_id: tarea.id, modulo_id })));
+      .insert(input.moduloIds.map((modulo_id) => ({ tarea_id: newId, modulo_id })));
     if (modError) return { error: modError.message };
   }
 
   revalidatePath("/planificacion");
   revalidatePath(`/planificacion/proyectos/${input.proyectoId}`);
-  return { id: tarea.id };
+  return { id: newId };
 }
 
 export interface UpdateTareaInput {
