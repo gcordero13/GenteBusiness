@@ -24,32 +24,39 @@ export async function createProyecto(name: string, description: string): Promise
   if (!user) return { error: "No autorizado" };
   if (!name.trim()) return { error: "El nombre es obligatorio" };
 
-  // TEMPORARY DIAGNOSTIC: an RPC already used site-wide (every other module's
-  // permission check) that also depends on auth.uid() resolving correctly.
-  // If this comes back with real data, auth.uid() works fine in this
-  // session/environment in general, and the bug is specific to plan_proyectos.
-  // If it comes back empty/erroring, the whole session's auth context is
-  // broken in this environment, not just this one table.
-  const permCheck = await supabase.rpc("get_my_module_permissions", { p_module_key: "planificacion" });
-
-  const { data, error } = await supabase
+  // TEMPORARY DIAGNOSTIC: generate the id client-side and insert WITHOUT a
+  // chained .select() - Postgres's RETURNING clause (which .select() after
+  // .insert() triggers) requires the just-written row to ALSO pass the
+  // table's SELECT policy, not just the INSERT policy's WITH CHECK. If
+  // plan_proyectos_select's policy fails for some reason on the brand-new
+  // row, Postgres reports the exact same generic "new row violates
+  // row-level security policy" message as a WITH CHECK failure - so a
+  // plain INSERT with RETURNING can fail even when the INSERT itself would
+  // have succeeded on its own. Testing both steps separately to find out
+  // which one is actually failing.
+  const newId = crypto.randomUUID();
+  const { error: insertError } = await supabase
     .from("plan_proyectos")
-    .insert({ name: name.trim(), description: description.trim() || null, created_by: user.id })
+    .insert({ id: newId, name: name.trim(), description: description.trim() || null, created_by: user.id });
+
+  if (insertError) {
+    return { error: `INSERT (sin select) FALLÓ: ${insertError.message} [user.id=${user.id}]` };
+  }
+
+  const { data: readBack, error: selectError } = await supabase
+    .from("plan_proyectos")
     .select("id")
-    .single();
-  // TEMPORARY DIAGNOSTIC (remove once the RLS issue is confirmed/fixed): include
-  // the exact user.id this insert attempted, so it can be compared against
-  // auth.users/app_users directly instead of guessing blind.
-  if (error || !data) {
+    .eq("id", newId)
+    .maybeSingle();
+
+  if (selectError || !readBack) {
     return {
-      error:
-        `${error?.message ?? "No se pudo crear el proyecto"} [debug: user.id=${user.id}, email=${user.email}, ` +
-        `permCheck.data=${JSON.stringify(permCheck.data)}, permCheck.error=${JSON.stringify(permCheck.error)}]`,
+      error: `El INSERT funcionó, pero leer la fila de vuelta falló: ${selectError?.message ?? "no se encontró la fila"} [id=${newId}]`,
     };
   }
 
   revalidatePath("/planificacion");
-  return { id: data.id };
+  return { id: readBack.id };
 }
 
 export interface ProyectoListRow extends ProyectoRow {
