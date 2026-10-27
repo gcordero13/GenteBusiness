@@ -20,24 +20,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createTarea, type EstadoOption } from "./actions";
+import { createTarea, type CicloRow, type EstadoOption, type ModuloRow } from "./actions";
 
 export interface AssigneeOption {
   id: string;
   name: string;
 }
 
+// Sentinel for the ciclo Select's "Sin ciclo" option - base-ui's Select
+// reserves the empty string internally, so a real sentinel value is used
+// and mapped back to null before calling createTarea.
+const SIN_CICLO = "__sin-ciclo__";
+
 export function TareaCreateDialog({
   proyectoId,
   parentTaskId,
   estados,
   assignees,
+  ciclos,
+  modulos,
   triggerLabel,
 }: {
   proyectoId: string;
   parentTaskId: string | null;
   estados: EstadoOption[];
   assignees: AssigneeOption[];
+  ciclos: CicloRow[];
+  modulos: ModuloRow[];
   triggerLabel: string;
 }) {
   const router = useRouter();
@@ -49,6 +58,8 @@ export function TareaCreateDialog({
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [cicloId, setCicloId] = useState(SIN_CICLO);
+  const [moduloIds, setModuloIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -59,7 +70,13 @@ export function TareaCreateDialog({
     setStartDate("");
     setDueDate("");
     setAssigneeId("");
+    setCicloId(SIN_CICLO);
+    setModuloIds([]);
     setError(null);
+  }
+
+  function toggleModulo(id: string) {
+    setModuloIds((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
   }
 
   function submit() {
@@ -76,8 +93,8 @@ export function TareaCreateDialog({
         startDate: startDate || null,
         dueDate: dueDate || null,
         assigneeId: assigneeId || null,
-        cicloId: null,
-        moduloIds: [],
+        cicloId: cicloId === SIN_CICLO ? null : cicloId,
+        moduloIds,
       });
       if (result.error) {
         setError(result.error);
@@ -164,6 +181,45 @@ export function TareaCreateDialog({
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-muted-foreground">Ciclo</label>
+            <Select value={cicloId} onValueChange={(v) => v && setCicloId(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {() => (cicloId === SIN_CICLO ? "Sin ciclo" : ciclos.find((c) => c.id === cicloId)?.name ?? "Sin ciclo")}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SIN_CICLO}>Sin ciclo</SelectItem>
+                {ciclos.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {modulos.length > 0 && (
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Módulos</label>
+              <div className="flex flex-wrap gap-2">
+                {modulos.map((m) => (
+                  <label
+                    key={m.id}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={moduloIds.includes(m.id)}
+                      onChange={() => toggleModulo(m.id)}
+                      className="size-3"
+                    />
+                    {m.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button onClick={submit} disabled={isPending || !title.trim()} className="w-full bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90">

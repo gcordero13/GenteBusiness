@@ -1,8 +1,24 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { listTareasVisibles } from "./proyectos/actions";
+import { listCompartidoConmigo, listMisProyectos, listTareasVisibles } from "./proyectos/actions";
 import { ProyectosWorkspace } from "./proyectos/ProyectosWorkspace";
 import { NuevoProyectoDialog } from "./proyectos/NuevoProyectoDialog";
+import type { ProyectoListRow } from "./proyectos/actions";
+
+function ProyectoCard({ proyecto }: { proyecto: ProyectoListRow }) {
+  return (
+    <Link
+      href={`/planificacion/proyectos/${proyecto.id}`}
+      className="block rounded-xl border p-3 text-sm transition-colors hover:border-[#04B1AF] hover:bg-[#04B1AF]/5"
+    >
+      <p className="font-semibold text-foreground">{proyecto.name}</p>
+      {proyecto.description && (
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">{proyecto.description}</p>
+      )}
+    </Link>
+  );
+}
 
 export default async function PlanificacionPage() {
   const supabase = await createClient();
@@ -11,7 +27,11 @@ export default async function PlanificacionPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const tasks = await listTareasVisibles();
+  const [tasks, misProyectos, proyectosCompartidos] = await Promise.all([
+    listTareasVisibles(),
+    listMisProyectos(),
+    listCompartidoConmigo(),
+  ]);
   const misTareas = tasks.filter((t) => t.relationship === "mio" || t.relationship === "asignado");
   const compartidoConmigo = tasks.filter((t) => t.relationship === "compartido");
 
@@ -42,11 +62,39 @@ export default async function PlanificacionPage() {
         </div>
 
         <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">Mis proyectos</h2>
+          {misProyectos.length > 0 ? (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {misProyectos.map((p) => (
+                <ProyectoCard key={p.id} proyecto={p} />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
+              Todavía no has creado ningún proyecto.
+            </p>
+          )}
+        </section>
+
+        {proyectosCompartidos.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold text-foreground">Proyectos compartidos conmigo</h2>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {proyectosCompartidos.map((p) => (
+                <ProyectoCard key={p.id} proyecto={p} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">Mis tareas</h2>
           <ProyectosWorkspace
             tasks={misTareas}
             columns={buildMixedColumns(misTareas)}
             columnKeyBy="estadoName"
+            estados={[]}
+            assignees={[]}
           />
         </section>
 
@@ -56,6 +104,8 @@ export default async function PlanificacionPage() {
             tasks={compartidoConmigo}
             columns={buildMixedColumns(compartidoConmigo)}
             columnKeyBy="estadoName"
+            estados={[]}
+            assignees={[]}
           />
         </section>
       </div>

@@ -52,6 +52,8 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
               parentTaskId={null}
               estados={estados}
               assignees={assignees}
+              ciclos={ciclos}
+              modulos={modulos}
               triggerLabel="Nueva tarea"
             />
           </div>
@@ -69,6 +71,9 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           columnKeyBy="estadoId"
           onDropEstado={updateTareaEstado.bind(null, id)}
           defaultProyectoId={id}
+          estados={estados}
+          assignees={assignees}
+          ciclos={ciclos}
         />
       </div>
     </div>

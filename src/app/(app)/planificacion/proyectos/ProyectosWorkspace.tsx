@@ -3,12 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, LayoutGrid, List, Network } from "lucide-react";
-import { updateTareaFecha, type TareaListRow } from "./actions";
+import { updateTareaFecha, type CicloRow, type EstadoOption, type TareaListRow } from "./actions";
 import { ListaView } from "./ListaView";
 import { TableroView, type TableroColumn } from "./TableroView";
 import { CalendarioView } from "./CalendarioView";
 import { JerarquiaView } from "./JerarquiaView";
 import { TareaDetailModal } from "./TareaDetailModal";
+import type { AssigneeOption } from "./TareaCreateDialog";
 
 type ViewMode = "lista" | "tablero" | "calendario" | "jerarquia";
 
@@ -31,12 +32,21 @@ export function ProyectosWorkspace({
   columnKeyBy,
   onDropEstado,
   defaultProyectoId,
+  estados,
+  assignees,
+  ciclos = [],
 }: {
   tasks: TareaListRow[];
   columns: TableroColumn[];
   columnKeyBy: "estadoId" | "estadoName";
   onDropEstado?: (tareaId: string, estadoId: string) => Promise<{ error?: string }>;
   defaultProyectoId?: string;
+  // Catalogs for TareaDetailModal's edit form. Pass [] when the caller spans
+  // multiple projects with unrelated catalogs (e.g. the landing page) -
+  // TareaDetailModal degrades those fields to read-only when empty.
+  estados: EstadoOption[];
+  assignees: AssigneeOption[];
+  ciclos?: CicloRow[];
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -95,7 +105,13 @@ export function ProyectosWorkspace({
       {view === "calendario" && <CalendarioView tasks={tasks} onSelect={setSelected} onReschedule={reschedule} />}
       {view === "jerarquia" && <JerarquiaView tasks={tasks} onSelect={setSelected} />}
 
-      <TareaDetailModal tarea={selected} onClose={() => setSelected(null)} />
+      <TareaDetailModal
+        tarea={selected}
+        onClose={() => setSelected(null)}
+        estados={estados}
+        assignees={assignees}
+        ciclos={ciclos}
+      />
     </div>
   );
 }

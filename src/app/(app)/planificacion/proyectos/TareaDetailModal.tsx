@@ -2,34 +2,132 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Paperclip, Trash2, Upload, X } from "lucide-react";
+import { Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   addAdjunto,
   deleteTarea,
   listAdjuntos,
   removeAdjunto,
+  updateTarea,
+  type CicloRow,
+  type EstadoOption,
   type TareaAdjuntoRow,
   type TareaListRow,
 } from "./actions";
+import { CompartirDialog } from "./CompartirDialog";
+import type { AssigneeOption } from "./TareaCreateDialog";
+
+// Sentinel used for the ciclo Select's "Sin ciclo" option - the underlying
+// base-ui Select reserves the empty string internally, so a real (non-empty)
+// sentinel value is used instead and mapped back to null on save.
+const SIN_CICLO = "__sin-ciclo__";
 
 export function TareaDetailModal({
   tarea,
   onClose,
+  estados = [],
+  assignees = [],
+  ciclos = [],
 }: {
   tarea: TareaListRow | null;
   onClose: () => void;
+  estados?: EstadoOption[];
+  assignees?: AssigneeOption[];
+  ciclos?: CicloRow[];
 }) {
   const router = useRouter();
   const [adjuntos, setAdjuntos] = useState<TareaAdjuntoRow[]>([]);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [estadoId, setEstadoId] = useState("");
+  const [priority, setPriority] = useState<"alta" | "media" | "baja" | "">("");
+  const [startDate, setStartDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [cicloId, setCicloId] = useState(SIN_CICLO);
+  const [lastTareaId, setLastTareaId] = useState<string | null>(null);
+
+  // Reset edit/error state when switching to a different task (or closing
+  // the modal) - done during render, not in the effect below, since
+  // synchronously calling setState inside an effect body is a cascading-
+  // render anti-pattern; this is React's documented "adjust state while
+  // rendering" alternative, guarded by lastTareaId so it only fires once
+  // per task change.
+  if ((tarea?.id ?? null) !== lastTareaId) {
+    setLastTareaId(tarea?.id ?? null);
+    setIsEditing(false);
+    setError(null);
+  }
 
   useEffect(() => {
     if (tarea) listAdjuntos(tarea.id).then(setAdjuntos);
   }, [tarea]);
 
   if (!tarea) return null;
+
+  function startEdit() {
+    if (!tarea) return;
+    setTitle(tarea.title);
+    setDescription(tarea.description ?? "");
+    setEstadoId(tarea.estadoId ?? "");
+    setPriority(tarea.priority ?? "");
+    setStartDate(tarea.startDate ?? "");
+    setDueDate(tarea.dueDate ?? "");
+    setAssigneeId(tarea.assigneeId ?? "");
+    setCicloId(tarea.cicloId ?? SIN_CICLO);
+    setError(null);
+    setIsEditing(true);
+  }
+
+  function cancelEdit() {
+    setIsEditing(false);
+    setError(null);
+  }
+
+  function saveEdit() {
+    if (!tarea) return;
+    if (!title.trim()) {
+      setError("El título es obligatorio");
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await updateTarea({
+        id: tarea.id,
+        proyectoId: tarea.proyectoId,
+        title,
+        description,
+        estadoId: estados.length > 0 ? estadoId || null : tarea.estadoId,
+        priority: priority || null,
+        labels: tarea.labels,
+        startDate: startDate || null,
+        dueDate: dueDate || null,
+        assigneeId: assignees.length > 0 ? assigneeId || null : tarea.assigneeId,
+        cicloId: ciclos.length > 0 ? (cicloId === SIN_CICLO ? null : cicloId) : tarea.cicloId,
+        moduloIds: tarea.moduloIds,
+      });
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setIsEditing(false);
+      onClose();
+      router.refresh();
+    });
+  }
 
   function uploadFile(file: File) {
     if (!tarea) return;
@@ -70,31 +168,157 @@ export function TareaDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold text-foreground">{tarea.title}</h2>
-          <Button size="icon-sm" variant="ghost" onClick={onClose}>
-            <X className="size-4" />
-          </Button>
+          {isEditing ? (
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="text-lg font-semibold"
+              placeholder="Título"
+            />
+          ) : (
+            <h2 className="text-lg font-semibold text-foreground">{tarea.title}</h2>
+          )}
+          <div className="flex shrink-0 items-center gap-1">
+            {!isEditing && (
+              <Button size="icon-sm" variant="ghost" onClick={startEdit} title="Editar">
+                <Pencil className="size-4" />
+              </Button>
+            )}
+            <Button size="icon-sm" variant="ghost" onClick={onClose}>
+              <X className="size-4" />
+            </Button>
+          </div>
         </div>
         {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
-        {tarea.description && <p className="mb-3 text-sm text-muted-foreground">{tarea.description}</p>}
-        <dl className="mb-4 grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <dt className="text-muted-foreground">Estado</dt>
-            <dd className="font-medium text-foreground">{tarea.estadoName ?? "—"}</dd>
+
+        {isEditing ? (
+          <div className="mb-4 space-y-3">
+            <textarea
+              placeholder="Descripción (opcional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-md border border-input bg-background p-2 text-sm"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-muted-foreground">Estado</label>
+                {estados.length > 0 ? (
+                  <Select value={estadoId} onValueChange={(v) => v && setEstadoId(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue>{() => estados.find((e) => e.id === estadoId)?.name ?? "Selecciona"}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {estados.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="flex h-8 items-center text-xs text-muted-foreground">{tarea.estadoName ?? "—"}</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-muted-foreground">Prioridad</label>
+                <Select value={priority} onValueChange={(v) => setPriority((v as typeof priority) || "")}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{() => priority || "Ninguna"}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="alta">Alta</SelectItem>
+                    <SelectItem value="media">Media</SelectItem>
+                    <SelectItem value="baja">Baja</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-muted-foreground">Fecha de inicio</label>
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-muted-foreground">Fecha límite</label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Responsable</label>
+              {assignees.length > 0 ? (
+                <Select value={assigneeId} onValueChange={(v) => setAssigneeId(v || "")}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{() => assignees.find((a) => a.id === assigneeId)?.name ?? "Sin asignar"}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assignees.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="flex h-8 items-center text-xs text-muted-foreground">Sin asignar</p>
+              )}
+            </div>
+            {ciclos.length > 0 && (
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-muted-foreground">Ciclo</label>
+                <Select value={cicloId} onValueChange={(v) => v && setCicloId(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {() => (cicloId === SIN_CICLO ? "Sin ciclo" : ciclos.find((c) => c.id === cicloId)?.name ?? "Sin ciclo")}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SIN_CICLO}>Sin ciclo</SelectItem>
+                    {ciclos.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                onClick={saveEdit}
+                disabled={isPending || !title.trim()}
+                className="flex-1 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90"
+              >
+                Guardar
+              </Button>
+              <Button variant="outline" disabled={isPending} onClick={cancelEdit} className="flex-1">
+                Cancelar
+              </Button>
+            </div>
           </div>
-          <div>
-            <dt className="text-muted-foreground">Prioridad</dt>
-            <dd className="font-medium text-foreground">{tarea.priority ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Fecha límite</dt>
-            <dd className="font-medium text-foreground">{tarea.dueDate ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Proyecto</dt>
-            <dd className="font-medium text-foreground">{tarea.proyectoName}</dd>
-          </div>
-        </dl>
+        ) : (
+          <>
+            {tarea.description && <p className="mb-3 text-sm text-muted-foreground">{tarea.description}</p>}
+            <dl className="mb-4 grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <dt className="text-muted-foreground">Estado</dt>
+                <dd className="font-medium text-foreground">{tarea.estadoName ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Prioridad</dt>
+                <dd className="font-medium text-foreground">{tarea.priority ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Fecha límite</dt>
+                <dd className="font-medium text-foreground">{tarea.dueDate ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Proyecto</dt>
+                <dd className="font-medium text-foreground">{tarea.proyectoName}</dd>
+              </div>
+            </dl>
+          </>
+        )}
 
         <div className="space-y-2">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
@@ -131,15 +355,18 @@ export function TareaDetailModal({
           </label>
         </div>
 
-        <Button
-          variant="outline"
-          disabled={isPending}
-          onClick={remove_task}
-          className="mt-4 w-full gap-1.5 text-red-600"
-        >
-          <Trash2 className="size-3.5" />
-          Eliminar tarea
-        </Button>
+        <div className="mt-4 flex gap-2">
+          <CompartirDialog tareaId={tarea.id} parentProyectoId={tarea.proyectoId} />
+          <Button
+            variant="outline"
+            disabled={isPending}
+            onClick={remove_task}
+            className="flex-1 gap-1.5 text-red-600"
+          >
+            <Trash2 className="size-3.5" />
+            Eliminar tarea
+          </Button>
+        </div>
       </div>
     </div>
   );
