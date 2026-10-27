@@ -42,16 +42,17 @@ export async function createProyecto(name: string, description: string): Promise
     .insert({ id: newId, name: name.trim(), description: description.trim() || null, created_by: user.id });
   if (insertError) return { error: insertError.message };
 
-  // Every new project starts with these three estados already in place -
-  // confirmed with the user ("quiero que siempre se carguen los estados
-  // que debería de estar: en espera, en proceso, completado"). Not
-  // self-referential (plan_estados_select checks plan_can_see_proyecto,
-  // which queries plan_proyectos - a different, already-committed row),
-  // so no chained .select() issue here.
+  // Every new project starts with these four estados already in place and
+  // marked as default (is_default = true, non-deletable) - confirmed with
+  // the user that En espera/En proceso/Completado/Cancelado must always
+  // exist. Not self-referential (plan_estados_select checks
+  // plan_can_see_proyecto, which queries plan_proyectos - a different,
+  // already-committed row), so no chained .select() issue here.
   const { error: estadosError } = await supabase.from("plan_estados").insert([
-    { proyecto_id: newId, name: "En espera", color: "#94a3b8", sort_order: 0 },
-    { proyecto_id: newId, name: "En proceso", color: "#3b82f6", sort_order: 1 },
-    { proyecto_id: newId, name: "Completado", color: "#10b981", sort_order: 2 },
+    { proyecto_id: newId, name: "En espera", color: "#94a3b8", kind: "en_espera", is_default: true, sort_order: 0 },
+    { proyecto_id: newId, name: "En proceso", color: "#3b82f6", kind: "en_proceso", is_default: true, sort_order: 1 },
+    { proyecto_id: newId, name: "Completado", color: "#10b981", kind: "completado", is_default: true, sort_order: 2 },
+    { proyecto_id: newId, name: "Cancelado", color: "#ef4444", kind: "cancelado", is_default: true, sort_order: 3 },
   ]);
   if (estadosError) return { error: estadosError.message };
 
@@ -487,16 +488,18 @@ export interface EstadoOption {
   id: string;
   name: string;
   color: string | null;
+  kind: string | null;
+  isDefault: boolean;
 }
 
 export async function listEstados(proyectoId: string): Promise<EstadoOption[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("plan_estados")
-    .select("id, name, color")
+    .select("id, name, color, kind, is_default")
     .eq("proyecto_id", proyectoId)
     .order("sort_order");
-  return (data ?? []).map((e) => ({ id: e.id, name: e.name, color: e.color }));
+  return (data ?? []).map((e) => ({ id: e.id, name: e.name, color: e.color, kind: e.kind, isDefault: e.is_default }));
 }
 
 export async function createEstado(proyectoId: string, name: string, color: string): Promise<ActionResult> {
@@ -522,6 +525,8 @@ export async function createEstado(proyectoId: string, name: string, color: stri
 
 export async function deleteEstado(estadoId: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
+  const { data: estado } = await supabase.from("plan_estados").select("is_default").eq("id", estadoId).single();
+  if (estado?.is_default) return { error: "Este estado es parte de los estados base y no se puede eliminar" };
   const { data, error } = await supabase.from("plan_estados").delete().eq("id", estadoId).select("id");
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
