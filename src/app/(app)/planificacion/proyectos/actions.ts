@@ -163,6 +163,8 @@ export interface TareaListRow {
   assigneeName: string | null;
   assigneePhotoUrl: string | null;
   cicloId: string | null;
+  planificacionId: string | null;
+  planificacionName: string | null;
   createdBy: string;
   creatorName: string;
   creatorPhotoUrl: string | null;
@@ -196,6 +198,8 @@ interface RawTareaRow {
   due_date: string | null;
   assignee_id: string | null;
   ciclo_id: string | null;
+  planificacion_id: string | null;
+  plan_planificaciones: { name: string } | { name: string }[] | null;
   created_by: string;
   plan_tarea_modulos: { modulo_id: string }[] | null;
   percent_complete: number;
@@ -205,6 +209,7 @@ interface RawTareaRow {
 function toTareaListRow(t: RawTareaRow, callerId: string): TareaListRow {
   const proyecto = Array.isArray(t.plan_proyectos) ? t.plan_proyectos[0] : t.plan_proyectos;
   const estado = Array.isArray(t.plan_estados) ? t.plan_estados[0] : t.plan_estados;
+  const planificacion = Array.isArray(t.plan_planificaciones) ? t.plan_planificaciones[0] : t.plan_planificaciones;
   const relationship: TareaListRow["relationship"] =
     t.created_by === callerId ? "mio" : t.assignee_id === callerId ? "asignado" : "compartido";
   return {
@@ -225,6 +230,8 @@ function toTareaListRow(t: RawTareaRow, callerId: string): TareaListRow {
     assigneeName: null,
     assigneePhotoUrl: null,
     cicloId: t.ciclo_id,
+    planificacionId: t.planificacion_id,
+    planificacionName: planificacion?.name ?? null,
     createdBy: t.created_by,
     creatorName: t.created_by,
     creatorPhotoUrl: null,
@@ -248,7 +255,7 @@ function attachHasChildren(rows: TareaListRow[]): TareaListRow[] {
 }
 
 const TAREA_SELECT =
-  "id, proyecto_id, plan_proyectos(name), parent_task_id, title, description, estado_id, plan_estados(name, color), priority, labels, start_date, due_date, assignee_id, ciclo_id, created_by, plan_tarea_modulos(modulo_id), percent_complete, color";
+  "id, proyecto_id, plan_proyectos(name), parent_task_id, title, description, estado_id, plan_estados(name, color), priority, labels, start_date, due_date, assignee_id, ciclo_id, planificacion_id, plan_planificaciones(name), created_by, plan_tarea_modulos(modulo_id), percent_complete, color";
 
 // Every task RLS lets the caller see, across every project - the landing
 // screen (a later task) splits this into "Mis tareas" (relationship is
@@ -364,6 +371,7 @@ export interface CreateTareaInput {
   dueDate: string | null;
   assigneeId: string | null;
   cicloId: string | null;
+  planificacionId: string | null;
   color: string | null;
   moduloIds: string[];
 }
@@ -554,6 +562,7 @@ export async function createTarea(input: CreateTareaInput): Promise<ActionResult
     due_date: input.dueDate,
     assignee_id: input.assigneeId,
     ciclo_id: input.cicloId,
+    planificacion_id: input.planificacionId,
     color: input.color,
     percent_complete: percentComplete,
     created_by: user.id,
@@ -588,6 +597,7 @@ export interface UpdateTareaInput {
   dueDate: string | null;
   assigneeId: string | null;
   cicloId: string | null;
+  planificacionId: string | null;
   color: string | null;
   moduloIds: string[];
 }
@@ -636,6 +646,7 @@ export async function updateTarea(input: UpdateTareaInput): Promise<ActionResult
       due_date: input.dueDate,
       assignee_id: input.assigneeId,
       ciclo_id: input.cicloId,
+      planificacion_id: input.planificacionId,
       color: input.color,
       ...(percentComplete !== undefined ? { percent_complete: percentComplete } : {}),
     })
@@ -996,6 +1007,64 @@ export async function createCiclo(
 export async function deleteCiclo(cicloId: string, proyectoId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("plan_ciclos").delete().eq("id", cicloId).select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export interface PlanificacionRow {
+  id: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+}
+
+// The hierarchy layer between a project and its (root) tasks - confirmed
+// with the user: Proyecto -> Planificación -> Tarea -> Subtarea. Strictly
+// one-per-task (via plan_tareas.planificacion_id), unlike the many-to-many
+// plan_modulos tags below.
+export async function listPlanificaciones(proyectoId: string): Promise<PlanificacionRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("plan_planificaciones")
+    .select("id, name, description, sort_order")
+    .eq("proyecto_id", proyectoId)
+    .order("sort_order", { ascending: true });
+  return (data ?? []).map((p) => ({ id: p.id, name: p.name, description: p.description, sortOrder: p.sort_order }));
+}
+
+export async function createPlanificacion(proyectoId: string, name: string, description: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+  if (!name.trim()) return { error: "El nombre es obligatorio" };
+
+  const { data: existing } = await supabase
+    .from("plan_planificaciones")
+    .select("sort_order")
+    .eq("proyecto_id", proyectoId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  const nextSort = (existing?.[0]?.sort_order ?? -1) + 1;
+
+  const { error } = await supabase.from("plan_planificaciones").insert({
+    proyecto_id: proyectoId,
+    name: name.trim(),
+    description: description.trim() || null,
+    created_by: user.id,
+    sort_order: nextSort,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/planificacion/proyectos/${proyectoId}`);
+  return {};
+}
+
+export async function deletePlanificacion(planificacionId: string, proyectoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("plan_planificaciones").delete().eq("id", planificacionId).select("id");
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No autorizado o el registro ya no existe" };
   revalidatePath(`/planificacion/proyectos/${proyectoId}`);

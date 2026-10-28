@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createTarea, type EstadoOption } from "./actions";
+import { createTarea, type EstadoOption, type PlanificacionRow } from "./actions";
 import { AssigneePicker } from "./AssigneePicker";
 import { ESTADO_COLORS } from "./EstadosEditor";
 
@@ -34,12 +34,16 @@ export function TareaCreateDialog({
   parentTaskId,
   estados,
   assignees,
+  planificaciones = [],
   triggerLabel,
 }: {
   proyectoId: string;
   parentTaskId: string | null;
   estados: EstadoOption[];
   assignees: AssigneeOption[];
+  // Only meaningful for root tasks (parentTaskId null) - a sub-task doesn't
+  // pick its own planificación, it inherits its place from its parent.
+  planificaciones?: PlanificacionRow[];
   triggerLabel: string;
 }) {
   const router = useRouter();
@@ -51,6 +55,7 @@ export function TareaCreateDialog({
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [planificacionId, setPlanificacionId] = useState("");
   const [color, setColor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -62,6 +67,7 @@ export function TareaCreateDialog({
     setStartDate("");
     setDueDate("");
     setAssigneeId("");
+    setPlanificacionId("");
     setColor(null);
     setError(null);
   }
@@ -81,6 +87,7 @@ export function TareaCreateDialog({
         dueDate: dueDate || null,
         assigneeId: assigneeId || null,
         cicloId: null,
+        planificacionId: parentTaskId ? null : planificacionId || null,
         color,
         moduloIds: [],
       });
@@ -154,6 +161,25 @@ export function TareaCreateDialog({
               <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
           </div>
+          {!parentTaskId && planificaciones.length > 0 && (
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted-foreground">Planificación</label>
+              <Select value={planificacionId} onValueChange={(v) => setPlanificacionId(v || "")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {() => planificaciones.find((p) => p.id === planificacionId)?.name ?? "Sin planificación"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {planificaciones.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-muted-foreground">Responsable</label>
             <AssigneePicker assignees={assignees} value={assigneeId} onChange={setAssigneeId} />

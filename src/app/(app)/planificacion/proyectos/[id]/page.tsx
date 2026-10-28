@@ -3,11 +3,20 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { DeleteIconButton } from "@/components/DeleteIconButton";
-import { deleteProyecto, getProyecto, listAssignableUsers, listEstados, listTareasDeProyecto, updateTareaEstado } from "../actions";
+import {
+  deleteProyecto,
+  getProyecto,
+  listAssignableUsers,
+  listEstados,
+  listPlanificaciones,
+  listTareasDeProyecto,
+  updateTareaEstado,
+} from "../actions";
 import { ProyectosWorkspace } from "../ProyectosWorkspace";
 import { TareaCreateDialog } from "../TareaCreateDialog";
 import { CompartirDialog } from "../CompartirDialog";
 import { EstadosEditor } from "../EstadosEditor";
+import { PlanificacionesManager } from "../PlanificacionesManager";
 import { progressOpacity } from "../progress";
 
 export default async function ProyectoDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,10 +30,11 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
   const proyecto = await getProyecto(id);
   if (!proyecto) redirect("/planificacion");
 
-  const [tasks, estados, assignees] = await Promise.all([
+  const [tasks, estados, assignees, planificaciones] = await Promise.all([
     listTareasDeProyecto(id),
     listEstados(id),
     listAssignableUsers(),
+    listPlanificaciones(id),
   ]);
 
   const columns = estados.map((e) => ({ key: e.id, label: e.name, color: e.color }));
@@ -71,6 +81,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
               parentTaskId={null}
               estados={estados}
               assignees={assignees}
+              planificaciones={planificaciones}
               triggerLabel="Nueva tarea"
             />
             {proyecto.createdBy === user.id && (
@@ -82,7 +93,10 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           </div>
         </div>
 
-        <EstadosEditor proyectoId={id} estados={estados} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <EstadosEditor proyectoId={id} estados={estados} />
+          <PlanificacionesManager proyectoId={id} planificaciones={planificaciones} />
+        </div>
 
         <ProyectosWorkspace
           tasks={tasks}
@@ -92,6 +106,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           defaultProyectoId={id}
           estados={estados}
           assignees={assignees}
+          planificaciones={planificaciones}
         />
       </div>
     </div>

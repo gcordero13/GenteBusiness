@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Download, LayoutGrid, List, Network } from "lucide-react";
-import { updateTareaFecha, type EstadoOption, type TareaListRow } from "./actions";
+import { updateTareaFecha, type EstadoOption, type PlanificacionRow, type TareaListRow } from "./actions";
 import { ListaView } from "./ListaView";
 import { TableroView, type TableroColumn } from "./TableroView";
 import { CalendarioView } from "./CalendarioView";
@@ -64,6 +64,7 @@ export function ProyectosWorkspace({
   defaultProyectoId,
   estados,
   assignees,
+  planificaciones = [],
 }: {
   tasks: TareaListRow[];
   columns: TableroColumn[];
@@ -75,6 +76,7 @@ export function ProyectosWorkspace({
   // TareaDetailModal degrades those fields to read-only when empty.
   estados: EstadoOption[];
   assignees: AssigneeOption[];
+  planificaciones?: PlanificacionRow[];
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -218,6 +220,7 @@ export function ProyectosWorkspace({
         onSelectTarea={setSelected}
         estados={estados}
         assignees={assignees}
+        planificaciones={planificaciones}
       />
     </div>
   );

@@ -82,6 +82,9 @@ function TaskRow({
           </Link>
         </td>
         <td className="cursor-pointer p-3 text-muted-foreground" onClick={() => onSelect(task)}>
+          {task.planificacionName ?? "—"}
+        </td>
+        <td className="cursor-pointer p-3 text-muted-foreground" onClick={() => onSelect(task)}>
           <span className="inline-flex items-center gap-1.5">
             <span className="size-1.5 rounded-full" style={{ backgroundColor: task.estadoColor ?? "#94a3b8" }} />
             {task.estadoName ?? "—"}
@@ -173,6 +176,7 @@ export function ListaView({
           <tr className="border-b text-left text-xs text-muted-foreground">
             <th className="p-3 font-medium">Título</th>
             <th className="p-3 font-medium">Proyecto</th>
+            <th className="p-3 font-medium">Planificación</th>
             <th className="p-3 font-medium">Estado</th>
             <th className="p-3 font-medium">Progreso</th>
             <th className="p-3 font-medium">Prioridad</th>

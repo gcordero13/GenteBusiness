@@ -41,6 +41,7 @@ import {
   updateTareaPercent,
   type ComentarioRow,
   type EstadoOption,
+  type PlanificacionRow,
   type TareaAdjuntoRow,
   type TareaListRow,
 } from "./actions";
@@ -56,6 +57,7 @@ export function TareaDetailModal({
   onSelectTarea,
   estados = [],
   assignees = [],
+  planificaciones = [],
 }: {
   tarea: TareaListRow | null;
   onClose: () => void;
@@ -64,6 +66,9 @@ export function TareaDetailModal({
   onSelectTarea?: (t: TareaListRow) => void;
   estados?: EstadoOption[];
   assignees?: AssigneeOption[];
+  // Only shown/editable for root tasks - a sub-task inherits its place in
+  // the hierarchy from its parent instead of picking its own.
+  planificaciones?: PlanificacionRow[];
 }) {
   const router = useRouter();
   const [adjuntos, setAdjuntos] = useState<TareaAdjuntoRow[]>([]);
@@ -84,6 +89,7 @@ export function TareaDetailModal({
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [planificacionId, setPlanificacionId] = useState("");
   const [color, setColor] = useState<string | null>(null);
   const [percentDraft, setPercentDraft] = useState(0);
   const [lastTareaId, setLastTareaId] = useState<string | null>(null);
@@ -162,6 +168,7 @@ export function TareaDetailModal({
     setStartDate(tarea.startDate ?? "");
     setDueDate(tarea.dueDate ?? "");
     setAssigneeId(tarea.assigneeId ?? "");
+    setPlanificacionId(tarea.planificacionId ?? "");
     setColor(tarea.color);
     setError(null);
     setIsEditing(true);
@@ -192,6 +199,11 @@ export function TareaDetailModal({
         dueDate: dueDate || null,
         assigneeId: assignees.length > 0 ? assigneeId || null : tarea.assigneeId,
         cicloId: tarea.cicloId,
+        planificacionId: tarea.parentTaskId
+          ? null
+          : planificaciones.length > 0
+            ? planificacionId || null
+            : tarea.planificacionId,
         color,
         moduloIds: tarea.moduloIds,
       });
@@ -286,6 +298,7 @@ export function TareaDetailModal({
         dueDate: null,
         assigneeId: null,
         cicloId: null,
+        planificacionId: null,
         color: null,
         moduloIds: [],
       });
@@ -447,6 +460,25 @@ export function TareaDetailModal({
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </div>
             </div>
+            {!tarea.parentTaskId && planificaciones.length > 0 && (
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-muted-foreground">Planificación</label>
+                <Select value={planificacionId} onValueChange={(v) => setPlanificacionId(v || "")}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {() => planificaciones.find((p) => p.id === planificacionId)?.name ?? "Sin planificación"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {planificaciones.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-muted-foreground">Responsable</label>
               {assignees.length > 0 ? (
@@ -515,6 +547,12 @@ export function TareaDetailModal({
                 <dt className="text-muted-foreground">Proyecto</dt>
                 <dd className="font-medium text-foreground">{tarea.proyectoName}</dd>
               </div>
+              {!tarea.parentTaskId && (
+                <div>
+                  <dt className="text-muted-foreground">Planificación</dt>
+                  <dd className="font-medium text-foreground">{tarea.planificacionName ?? "—"}</dd>
+                </div>
+              )}
               <div className="col-span-2">
                 <dt className="text-muted-foreground">Responsable</dt>
                 <dd className="mt-0.5 flex items-center gap-1.5 font-medium text-foreground">
