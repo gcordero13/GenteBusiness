@@ -133,12 +133,13 @@ export function ProyectosWorkspace({
               key={v.key}
               type="button"
               onClick={() => setView(v.key)}
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${
+              className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold sm:px-2.5 ${
                 view === v.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
+              title={v.label}
             >
               <v.icon className="size-3.5" />
-              {v.label}
+              <span className="hidden sm:inline">{v.label}</span>
             </button>
           ))}
         </div>

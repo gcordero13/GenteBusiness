@@ -114,7 +114,7 @@ export function TareaCreateDialog({
             rows={2}
             className="w-full resize-none rounded-md border border-input bg-background p-2 text-sm"
           />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-muted-foreground">Estado</label>
               <Select value={estadoId} onValueChange={(v) => v && setEstadoId(v)}>
@@ -144,7 +144,7 @@ export function TareaCreateDialog({
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-muted-foreground">Fecha de inicio</label>
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />

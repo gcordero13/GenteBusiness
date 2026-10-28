@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, GripVertical, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, GripVertical, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createEstado, deleteEstado, reorderEstados, type EstadoOption } from "./actions";
@@ -59,6 +59,14 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
     });
   }
 
+  function persistOrder(next: EstadoOption[]) {
+    setOrder(next);
+    startTransition(async () => {
+      await reorderEstados(proyectoId, next.map((e) => e.id));
+      router.refresh();
+    });
+  }
+
   function dropOn(targetId: string) {
     setDragOverId(null);
     const draggedId = draggingId;
@@ -71,12 +79,20 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
     if (fromIndex === -1 || toIndex === -1) return;
     const [moved] = next.splice(fromIndex, 1);
     next.splice(toIndex, 0, moved);
-    setOrder(next);
+    persistOrder(next);
+  }
 
-    startTransition(async () => {
-      await reorderEstados(proyectoId, next.map((e) => e.id));
-      router.refresh();
-    });
+  // Touch devices don't support native HTML5 drag-and-drop at all -
+  // confirmed with the user: the module needs to work well on phones, so
+  // reordering can't depend on drag alone. These buttons give everyone
+  // (mouse or touch) a second, always-available way to do the same thing.
+  function move(id: string, delta: -1 | 1) {
+    const index = order.findIndex((e) => e.id === id);
+    const targetIndex = index + delta;
+    if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return;
+    const next = [...order];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    persistOrder(next);
   }
 
   return (
@@ -91,9 +107,11 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
       </button>
       {expanded && (
         <>
-          <p className="text-[11px] text-muted-foreground">Arrastra un estado para cambiar su orden en el Tablero.</p>
+          <p className="text-[11px] text-muted-foreground">
+            Arrastra un estado (o usa las flechas) para cambiar su orden en el Tablero.
+          </p>
           <div className="flex flex-wrap gap-2">
-            {order.map((e) => (
+            {order.map((e, index) => (
               <span
                 key={e.id}
                 draggable
@@ -111,7 +129,7 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
                   ev.preventDefault();
                   dropOn(e.id);
                 }}
-                className={`flex cursor-grab items-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold transition-all duration-150 active:cursor-grabbing ${
+                className={`flex cursor-grab items-center gap-1 rounded-full border py-1 pr-2 pl-1 text-xs font-semibold transition-all duration-150 active:cursor-grabbing ${
                   draggingId === e.id
                     ? "scale-95 opacity-40"
                     : dragOverId === e.id
@@ -120,7 +138,27 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
                 }`}
                 style={{ borderColor: e.color ?? undefined }}
               >
-                <GripVertical className="size-3 text-muted-foreground/50" />
+                <span className="flex shrink-0 items-center">
+                  <button
+                    type="button"
+                    disabled={isPending || index === 0}
+                    onClick={() => move(e.id, -1)}
+                    className="rounded p-0.5 text-muted-foreground/60 hover:text-foreground disabled:opacity-20"
+                    title="Mover antes"
+                  >
+                    <ChevronLeft className="size-3" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isPending || index === order.length - 1}
+                    onClick={() => move(e.id, 1)}
+                    className="rounded p-0.5 text-muted-foreground/60 hover:text-foreground disabled:opacity-20"
+                    title="Mover después"
+                  >
+                    <ChevronRight className="size-3" />
+                  </button>
+                </span>
+                <GripVertical className="hidden size-3 text-muted-foreground/50 sm:block" />
                 <span className="size-1.5 rounded-full" style={{ backgroundColor: e.color ?? "#94a3b8" }} />
                 {e.name}
                 {!e.isDefault && (
