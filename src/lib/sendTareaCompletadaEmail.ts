@@ -2,7 +2,7 @@ import "server-only";
 import nodemailer from "nodemailer";
 import { lookup } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildBrandedEmailHtml } from "@/lib/emailTemplates";
+import { buildTareaNotificationEmailHtml } from "@/lib/tareaNotificationEmailTemplate";
 
 interface EmailSettings {
   smtp_host: string;
@@ -67,13 +67,17 @@ export async function sendTareaCompletadaEmail(input: {
 }): Promise<void> {
   const settings = await getEmailSettings();
   const [transport, logoUrl] = await Promise.all([buildTransport(settings), fetchPlatformLogoUrl()]);
-  const html = buildBrandedEmailHtml({
-    title: "Se completó una tarea",
-    bodyHtml: `<p style="margin:0;">${input.completedByName} marcó la tarea <strong>${input.tareaTitle}</strong> como completada en el proyecto <strong>${input.proyectoName}</strong>.</p>`,
+  const html = buildTareaNotificationEmailHtml({
+    badgeText: "Tarea completada",
+    headline: "Se completó una tarea",
+    bodyHtml: `${input.completedByName} marcó la tarea <strong>${input.tareaTitle}</strong> como completada en el proyecto <strong>${input.proyectoName}</strong>.`,
+    meta: [
+      { icon: "&#9989;", label: "Completada por", value: input.completedByName },
+      { icon: "&#128193;", label: "Proyecto", value: input.proyectoName },
+    ],
     ctaText: "Ver proyecto",
     ctaUrl: input.proyectoUrl,
     logoUrl,
-    footerText: "Correo generado automáticamente por Gente Sánchez Business.",
   });
   await transport.sendMail({
     from: fromAddress(settings),

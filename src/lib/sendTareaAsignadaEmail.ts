@@ -2,7 +2,7 @@ import "server-only";
 import nodemailer from "nodemailer";
 import { lookup } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildBrandedEmailHtml } from "@/lib/emailTemplates";
+import { buildTareaNotificationEmailHtml } from "@/lib/tareaNotificationEmailTemplate";
 
 interface EmailSettings {
   smtp_host: string;
@@ -74,13 +74,17 @@ export async function sendTareaAsignadaEmail(input: {
 }): Promise<void> {
   const settings = await getEmailSettings();
   const [transport, logoUrl] = await Promise.all([buildTransport(settings), fetchPlatformLogoUrl()]);
-  const html = buildBrandedEmailHtml({
-    title: "Te asignaron una tarea",
-    bodyHtml: `<p style="margin:0;">${input.assignedByName} te asignó la tarea <strong>${input.tareaTitle}</strong> en el proyecto <strong>${input.proyectoName}</strong>.</p>`,
+  const html = buildTareaNotificationEmailHtml({
+    badgeText: "Nueva tarea asignada",
+    headline: "Te asignaron una tarea",
+    bodyHtml: `${input.assignedByName} te asignó la tarea <strong>${input.tareaTitle}</strong> en el proyecto <strong>${input.proyectoName}</strong>.`,
+    meta: [
+      { icon: "&#128100;", label: "Asignada por", value: input.assignedByName },
+      { icon: "&#128193;", label: "Proyecto", value: input.proyectoName },
+    ],
     ctaText: "Ver proyecto",
     ctaUrl: input.proyectoUrl,
     logoUrl,
-    footerText: "Correo generado automáticamente por Gente Sánchez Business.",
   });
   await transport.sendMail({
     from: fromAddress(settings),
