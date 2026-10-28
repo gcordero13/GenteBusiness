@@ -74,7 +74,9 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <EstadosEditor proyectoId={id} estados={estados} />
+            <PlanificacionesManager proyectoId={id} planificaciones={planificaciones} />
             <CompartirDialog proyectoId={id} parentProyectoId={id} />
             <TareaCreateDialog
               proyectoId={id}
@@ -91,11 +93,6 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
               />
             )}
           </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <EstadosEditor proyectoId={id} estados={estados} />
-          <PlanificacionesManager proyectoId={id} planificaciones={planificaciones} />
         </div>
 
         <ProyectosWorkspace

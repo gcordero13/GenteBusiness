@@ -2,20 +2,26 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronLeft, ChevronRight, GripVertical, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, ListChecks, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { createEstado, deleteEstado, reorderEstados, type EstadoOption } from "./actions";
 
 export const ESTADO_COLORS = ["#94a3b8", "#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6"];
 
+// A modal, not an inline panel - confirmed with the user: the old
+// always-expandable section pushed the task workspace further down the
+// page. Same trigger-button-opens-a-Dialog shape as CompartirDialog.
 export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; estados: EstadoOption[] }) {
   const router = useRouter();
-  // Collapsed by default - confirmed with the user: this panel shouldn't
-  // take up space on the project page unless someone actually wants to
-  // touch the estados, same "tucked away" idea already applied to the
-  // add-custom-estado form below.
-  const [expanded, setExpanded] = useState(false);
+  const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [color, setColor] = useState(ESTADO_COLORS[0]);
@@ -96,17 +102,16 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
   }
 
   return (
-    <div className="space-y-2 rounded-xl border p-3">
-      <button
-        type="button"
-        onClick={() => setExpanded((e) => !e)}
-        className="flex w-full items-center gap-1.5 text-left text-xs font-semibold text-muted-foreground"
-      >
-        {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-        Estados de este proyecto ({order.length})
-      </button>
-      {expanded && (
-        <>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button size="sm" variant="outline" className="gap-1.5" />}>
+        <ListChecks className="size-3.5" />
+        Estados ({order.length})
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Estados de este proyecto</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
           <p className="text-[11px] text-muted-foreground">
             Arrastra un estado (o usa las flechas) para cambiar su orden en el Tablero.
           </p>
@@ -203,8 +208,8 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
               Agregar estado personalizado
             </Button>
           )}
-        </>
-      )}
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
