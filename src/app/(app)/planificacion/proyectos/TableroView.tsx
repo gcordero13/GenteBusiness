@@ -23,9 +23,10 @@ export function TableroView({
   columns: TableroColumn[];
   getColumnKey: (t: TareaListRow) => string;
   onSelect: (t: TareaListRow) => void;
-  onDrop?: (taskId: string, columnKey: string) => void;
+  onDrop?: (taskId: string, columnKey: string, cardEl: HTMLElement | null) => void;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [draggingEl, setDraggingEl] = useState<HTMLElement | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
 
   const byColumn = new Map<string, TareaListRow[]>();
@@ -55,8 +56,10 @@ export function TableroView({
               e.preventDefault();
               setDragOverKey(null);
               const id = draggingId;
+              const el = draggingEl;
               setDraggingId(null);
-              if (id) onDrop(id, col.key);
+              setDraggingEl(null);
+              if (id) onDrop(id, col.key, el);
             }}
             className={`w-64 shrink-0 space-y-2 rounded-xl border border-t-4 bg-card p-3 shadow-sm ${
               isDragOver ? "border-[#04B1AF] bg-[#04B1AF]/5" : ""
@@ -75,8 +78,14 @@ export function TableroView({
                   key={t.id}
                   type="button"
                   draggable={Boolean(onDrop)}
-                  onDragStart={() => setDraggingId(t.id)}
-                  onDragEnd={() => setDraggingId(null)}
+                  onDragStart={(e) => {
+                    setDraggingId(t.id);
+                    setDraggingEl(e.currentTarget);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingId(null);
+                    setDraggingEl(null);
+                  }}
                   onClick={() => onSelect(t)}
                   className={`w-full rounded-lg border bg-background p-2.5 text-left text-xs hover:bg-muted ${
                     onDrop ? "cursor-grab active:cursor-grabbing" : ""

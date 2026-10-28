@@ -10,6 +10,7 @@ import { CalendarioView } from "./CalendarioView";
 import { JerarquiaView } from "./JerarquiaView";
 import { TareaDetailModal } from "./TareaDetailModal";
 import type { AssigneeOption } from "./TareaCreateDialog";
+import { celebrateCompletion } from "./celebrate";
 
 type ViewMode = "lista" | "tablero" | "calendario" | "jerarquia";
 
@@ -128,10 +129,16 @@ export function ProyectosWorkspace({
     });
   }
 
-  function dropEstado(taskId: string, columnKey: string) {
+  function dropEstado(taskId: string, columnKey: string, cardEl: HTMLElement | null) {
     if (!onDropEstado) return;
+    const task = tasks.find((t) => t.id === taskId);
+    const wasComplete = task?.percentComplete === 100;
+    const targetEstado = estados.find((e) => e.id === columnKey);
     startTransition(async () => {
-      await onDropEstado(taskId, columnKey);
+      const result = await onDropEstado(taskId, columnKey);
+      if (!result.error && !wasComplete && targetEstado?.kind === "completado") {
+        celebrateCompletion(cardEl);
+      }
       router.refresh();
     });
   }
