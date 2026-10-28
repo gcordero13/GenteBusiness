@@ -35,6 +35,7 @@ export function TareaCreateDialog({
   estados,
   assignees,
   planificaciones = [],
+  fixedPlanificacionId,
   triggerLabel,
 }: {
   proyectoId: string;
@@ -44,6 +45,10 @@ export function TareaCreateDialog({
   // Only meaningful for root tasks (parentTaskId null) - a sub-task doesn't
   // pick its own planificación, it inherits its place from its parent.
   planificaciones?: PlanificacionRow[];
+  // Set when this dialog is opened from inside a specific planificación's
+  // own page - every task created there belongs to it, so the picker is
+  // skipped entirely instead of making the user re-select what's implied.
+  fixedPlanificacionId?: string;
   triggerLabel: string;
 }) {
   const router = useRouter();
@@ -87,7 +92,7 @@ export function TareaCreateDialog({
         dueDate: dueDate || null,
         assigneeId: assigneeId || null,
         cicloId: null,
-        planificacionId: parentTaskId ? null : planificacionId || null,
+        planificacionId: parentTaskId ? null : (fixedPlanificacionId ?? (planificacionId || null)),
         color,
         moduloIds: [],
       });
@@ -161,7 +166,7 @@ export function TareaCreateDialog({
               <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
           </div>
-          {!parentTaskId && planificaciones.length > 0 && (
+          {!parentTaskId && fixedPlanificacionId === undefined && planificaciones.length > 0 && (
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-muted-foreground">Planificación</label>
               <Select value={planificacionId} onValueChange={(v) => setPlanificacionId(v || "")}>

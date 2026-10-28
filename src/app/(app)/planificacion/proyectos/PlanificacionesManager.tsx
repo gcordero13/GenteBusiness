@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +50,12 @@ export function PlanificacionesManager({ proyectoId, planificaciones }: { proyec
           <div className="space-y-1">
             {planificaciones.map((p) => (
               <div key={p.id} className="flex items-center justify-between rounded-lg border p-2 text-xs">
-                <span className="font-medium text-foreground">{p.name}</span>
+                <Link
+                  href={`/planificacion/proyectos/${proyectoId}/${p.id}`}
+                  className="min-w-0 flex-1 truncate font-medium text-foreground hover:text-[#04B1AF] hover:underline"
+                >
+                  {p.name}
+                </Link>
                 <Button size="icon-sm" variant="ghost" disabled={isPending} onClick={() => remove(p.id)}>
                   <Trash2 className="size-3.5 text-red-600" />
                 </Button>

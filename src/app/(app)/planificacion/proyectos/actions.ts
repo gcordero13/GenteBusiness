@@ -1034,6 +1034,18 @@ export async function listPlanificaciones(proyectoId: string): Promise<Planifica
   return (data ?? []).map((p) => ({ id: p.id, name: p.name, description: p.description, sortOrder: p.sort_order }));
 }
 
+export async function getPlanificacion(id: string): Promise<PlanificacionRow | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("plan_planificaciones")
+    .select("id, name, description, sort_order")
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return null;
+  return { id: data.id, name: data.name, description: data.description, sortOrder: data.sort_order };
+}
+
+
 export async function createPlanificacion(proyectoId: string, name: string, description: string): Promise<ActionResult> {
   const supabase = await createClient();
   const {
