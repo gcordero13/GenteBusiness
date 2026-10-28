@@ -72,7 +72,7 @@ export default async function PlanificacionPage() {
       <div className="w-full min-w-0 space-y-8 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Planificación</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Proyecto</h1>
             <p className="text-sm text-muted-foreground">Tus proyectos y tareas.</p>
           </div>
           <NuevoProyectoDialog />

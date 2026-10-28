@@ -221,7 +221,7 @@ export function Sidebar({
   ];
 
   const mainLinksAfterMaintenance: NavLink[] = [
-    { href: "/planificacion", label: "Planificación", icon: Target },
+    { href: "/planificacion", label: "Proyecto", icon: Target },
     ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
   ];
 

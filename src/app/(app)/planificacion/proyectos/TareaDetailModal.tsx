@@ -88,17 +88,24 @@ export function TareaDetailModal({
   const [percentDraft, setPercentDraft] = useState(0);
   const [lastTareaId, setLastTareaId] = useState<string | null>(null);
 
-  // Reset edit/error/percent state when switching to a different task (or
-  // closing the modal) - done during render, not in the effect below, since
-  // synchronously calling setState inside an effect body is a cascading-
-  // render anti-pattern; this is React's documented "adjust state while
-  // rendering" alternative, guarded by lastTareaId so it only fires once
-  // per task change.
+  // Reset edit/error/percent state - and, critically, clear the previous
+  // task's fetched adjuntos/comentarios/subtareas - the instant the task
+  // switches. Done during render (not in the effects below that actually
+  // fetch the new task's data) so the old task's data is gone in the SAME
+  // render as the id change, before anything paints. Without this, the
+  // previous task's sub-tasks stayed on screen - rendered under the NEW
+  // task's title - for the one render/network round trip before the fresh
+  // (possibly empty) list arrived: a real information leak across tasks,
+  // not just a cosmetic flash, since two tasks can have entirely different
+  // viewers. Guarded by lastTareaId so it only fires once per task change.
   if ((tarea?.id ?? null) !== lastTareaId) {
     setLastTareaId(tarea?.id ?? null);
     setIsEditing(false);
     setError(null);
     setPercentDraft(tarea?.percentComplete ?? 0);
+    setAdjuntos([]);
+    setComentarios([]);
+    setSubtareas([]);
   }
 
   // Keyed on the id (not the whole `tarea` object) so refreshTarea()
