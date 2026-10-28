@@ -151,6 +151,22 @@ export function ProyectosWorkspace({
     });
   }
 
+  // Lista's inline Estado combobox - same transition rules as dropEstado
+  // (Tablero drag-and-drop), just a different trigger element.
+  function changeListaEstado(taskId: string, estadoId: string, anchorEl: HTMLElement | null) {
+    if (!onDropEstado) return;
+    const task = tasks.find((t) => t.id === taskId);
+    const wasComplete = task?.percentComplete === 100;
+    const targetEstado = estados.find((e) => e.id === estadoId);
+    startTransition(async () => {
+      const result = await onDropEstado(taskId, estadoId);
+      if (!result.error && !wasComplete && targetEstado?.kind === "completado") {
+        celebrateCompletion(anchorEl);
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -227,7 +243,14 @@ export function ProyectosWorkspace({
           date filter excluded it there'd be nothing to expand into even
           though the parent itself passed the filter. */}
       {view === "lista" && (
-        <ListaView tasks={rootFilteredTasks} allTasks={tasks} onSelect={setSelected} onToggleComplete={toggleListaComplete} />
+        <ListaView
+          tasks={rootFilteredTasks}
+          allTasks={tasks}
+          onSelect={setSelected}
+          onToggleComplete={toggleListaComplete}
+          estados={estados}
+          onChangeEstado={onDropEstado ? changeListaEstado : undefined}
+        />
       )}
       {view === "tablero" && (
         <TableroView

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { CheckSquare, ChevronRight, Square } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from "@/components/ui/avatar";
-import type { TareaListRow } from "./actions";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { EstadoOption, TareaListRow } from "./actions";
 import { initials } from "./AssigneePicker";
 import { progressOpacity } from "./progress";
 
@@ -38,6 +39,8 @@ function TaskRow({
   toggleExpanded,
   onSelect,
   onToggleComplete,
+  estados,
+  onChangeEstado,
 }: {
   task: TareaListRow;
   depth: number;
@@ -46,9 +49,16 @@ function TaskRow({
   toggleExpanded: (id: string) => void;
   onSelect: (t: TareaListRow) => void;
   onToggleComplete: (taskId: string, proyectoId: string, rowEl: HTMLElement) => void;
+  // Empty estados / no onChangeEstado (the mixed-project "Mis tareas" view,
+  // same restriction Tablero's drag-and-drop already has - no single estado
+  // catalog applies across projects there) falls back to the read-only badge.
+  estados: EstadoOption[];
+  onChangeEstado?: (taskId: string, estadoId: string, anchorEl: HTMLElement | null) => void;
 }) {
   const children = childrenByParent.get(task.id) ?? [];
   const isExpanded = expandedIds.has(task.id);
+  const estadoCellRef = useRef<HTMLDivElement>(null);
+  const estadoEditable = Boolean(onChangeEstado) && estados.length > 0;
 
   return (
     <>
@@ -109,11 +119,33 @@ function TaskRow({
         <td className="cursor-pointer p-3 text-muted-foreground" onClick={() => onSelect(task)}>
           {task.planificacionName ?? "—"}
         </td>
-        <td className="cursor-pointer p-3 text-muted-foreground" onClick={() => onSelect(task)}>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-1.5 rounded-full" style={{ backgroundColor: task.estadoColor ?? "#94a3b8" }} />
-            {task.estadoName ?? "—"}
-          </span>
+        <td className={estadoEditable ? "p-3 text-muted-foreground" : "cursor-pointer p-3 text-muted-foreground"} onClick={estadoEditable ? undefined : () => onSelect(task)}>
+          {estadoEditable ? (
+            <div ref={estadoCellRef} className="inline-block">
+              <Select
+                value={task.estadoId ?? undefined}
+                onValueChange={(v) => v && onChangeEstado!(task.id, v, estadoCellRef.current)}
+              >
+                <SelectTrigger size="sm" className="h-7 gap-1.5 border-none bg-transparent px-1.5 text-xs shadow-none hover:bg-muted">
+                  <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: task.estadoColor ?? "#94a3b8" }} />
+                  <SelectValue>{() => task.estadoName ?? "—"}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {estados.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: e.color ?? "#94a3b8" }} />
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full" style={{ backgroundColor: task.estadoColor ?? "#94a3b8" }} />
+              {task.estadoName ?? "—"}
+            </span>
+          )}
         </td>
         <td className="cursor-pointer p-3" onClick={() => onSelect(task)}>
           <div className="flex items-center gap-1.5">
@@ -154,6 +186,8 @@ function TaskRow({
             toggleExpanded={toggleExpanded}
             onSelect={onSelect}
             onToggleComplete={onToggleComplete}
+            estados={estados}
+            onChangeEstado={onChangeEstado}
           />
         ))}
     </>
@@ -165,6 +199,8 @@ export function ListaView({
   allTasks,
   onSelect,
   onToggleComplete,
+  estados = [],
+  onChangeEstado,
 }: {
   // Root-level tasks shown as the table's top-level rows.
   tasks: TareaListRow[];
@@ -174,6 +210,8 @@ export function ListaView({
   allTasks: TareaListRow[];
   onSelect: (t: TareaListRow) => void;
   onToggleComplete: (taskId: string, proyectoId: string, rowEl: HTMLElement) => void;
+  estados?: EstadoOption[];
+  onChangeEstado?: (taskId: string, estadoId: string, anchorEl: HTMLElement | null) => void;
 }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -224,6 +262,8 @@ export function ListaView({
               toggleExpanded={toggleExpanded}
               onSelect={onSelect}
               onToggleComplete={onToggleComplete}
+              estados={estados}
+              onChangeEstado={onChangeEstado}
             />
           ))}
         </tbody>
