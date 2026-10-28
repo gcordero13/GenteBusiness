@@ -350,7 +350,7 @@ export function TareaDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border bg-card p-5 shadow-xl"
+        className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border bg-card p-4 shadow-xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
@@ -380,6 +380,8 @@ export function TareaDetailModal({
         </div>
         {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
 
+        <div className="md:grid md:grid-cols-2 md:gap-x-6">
+        <div>
         <div className="mb-4 space-y-1">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-muted-foreground">Progreso</span>
@@ -571,7 +573,9 @@ export function TareaDetailModal({
             </dl>
           </>
         )}
+        </div>
 
+        <div className="md:border-l md:pl-6">
         <div className="mb-4 space-y-2">
           <button
             type="button"
@@ -696,6 +700,8 @@ export function TareaDetailModal({
               Comentar
             </Button>
           </div>
+        </div>
+        </div>
         </div>
 
         <div className="mt-4 flex gap-2">
