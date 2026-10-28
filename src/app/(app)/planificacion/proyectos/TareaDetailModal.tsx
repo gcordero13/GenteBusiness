@@ -707,10 +707,11 @@ export function TareaDetailModal({
         <div className="mt-4 flex gap-2">
           <CompartirDialog tareaId={tarea.id} parentProyectoId={tarea.proyectoId} />
           <Button
+            size="sm"
             variant="outline"
             disabled={isPending}
             onClick={remove_task}
-            className="flex-1 gap-1.5 text-red-600"
+            className="gap-1.5 text-red-600"
           >
             <Trash2 className="size-3.5" />
             Eliminar tarea
