@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { CheckSquare, ChevronRight, Square } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from "@/components/ui/avatar";
 import type { TareaListRow } from "./actions";
 import { initials } from "./AssigneePicker";
@@ -37,6 +37,7 @@ function TaskRow({
   expandedIds,
   toggleExpanded,
   onSelect,
+  onToggleComplete,
 }: {
   task: TareaListRow;
   depth: number;
@@ -44,6 +45,7 @@ function TaskRow({
   expandedIds: Set<string>;
   toggleExpanded: (id: string) => void;
   onSelect: (t: TareaListRow) => void;
+  onToggleComplete: (taskId: string, proyectoId: string, rowEl: HTMLElement) => void;
 }) {
   const children = childrenByParent.get(task.id) ?? [];
   const isExpanded = expandedIds.has(task.id);
@@ -51,6 +53,29 @@ function TaskRow({
   return (
     <>
       <tr className="border-b last:border-0 hover:brightness-95" style={{ backgroundColor: softTint(task.color) }}>
+        <td className="p-3">
+          {task.hasChildren ? (
+            <span className="inline-flex" title="Calculado a partir de las subtareas">
+              <CheckSquare className="size-4 text-muted-foreground opacity-30" />
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (task.percentComplete === 100) return;
+                onToggleComplete(task.id, task.proyectoId, e.currentTarget);
+              }}
+              className="shrink-0 text-muted-foreground"
+            >
+              {task.percentComplete === 100 ? (
+                <CheckSquare className="size-4 text-[#04B1AF]" />
+              ) : (
+                <Square className="size-4" />
+              )}
+            </button>
+          )}
+        </td>
         <td className="cursor-pointer p-3 font-medium text-foreground" onClick={() => onSelect(task)}>
           <div className="flex items-center gap-1.5" style={{ paddingLeft: `${depth * 1.25}rem` }}>
             {children.length > 0 ? (
@@ -128,6 +153,7 @@ function TaskRow({
             expandedIds={expandedIds}
             toggleExpanded={toggleExpanded}
             onSelect={onSelect}
+            onToggleComplete={onToggleComplete}
           />
         ))}
     </>
@@ -138,6 +164,7 @@ export function ListaView({
   tasks,
   allTasks,
   onSelect,
+  onToggleComplete,
 }: {
   // Root-level tasks shown as the table's top-level rows.
   tasks: TareaListRow[];
@@ -146,6 +173,7 @@ export function ListaView({
   // so it's instant with no extra fetch or loading state.
   allTasks: TareaListRow[];
   onSelect: (t: TareaListRow) => void;
+  onToggleComplete: (taskId: string, proyectoId: string, rowEl: HTMLElement) => void;
 }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -174,6 +202,7 @@ export function ListaView({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left text-xs text-muted-foreground">
+            <th className="w-8 p-3"></th>
             <th className="p-3 font-medium">Título</th>
             <th className="p-3 font-medium">Proyecto</th>
             <th className="p-3 font-medium">Planificación</th>
@@ -194,6 +223,7 @@ export function ListaView({
               expandedIds={expandedIds}
               toggleExpanded={toggleExpanded}
               onSelect={onSelect}
+              onToggleComplete={onToggleComplete}
             />
           ))}
         </tbody>

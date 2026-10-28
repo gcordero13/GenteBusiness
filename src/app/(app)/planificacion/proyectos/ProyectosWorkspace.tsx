@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Download, LayoutGrid, List, Network } from "lucide-react";
-import { updateTareaFecha, type EstadoOption, type PlanificacionRow, type TareaListRow } from "./actions";
+import { updateTareaFecha, updateTareaPercent, type EstadoOption, type PlanificacionRow, type TareaListRow } from "./actions";
 import { ListaView } from "./ListaView";
 import { TableroView, type TableroColumn } from "./TableroView";
 import { CalendarioView } from "./CalendarioView";
@@ -129,6 +129,14 @@ export function ProyectosWorkspace({
     });
   }
 
+  function toggleListaComplete(taskId: string, proyectoId: string, rowEl: HTMLElement) {
+    startTransition(async () => {
+      const result = await updateTareaPercent(taskId, 100, proyectoId);
+      if (!result.error) celebrateCompletion(rowEl);
+      router.refresh();
+    });
+  }
+
   function dropEstado(taskId: string, columnKey: string, cardEl: HTMLElement | null) {
     if (!onDropEstado) return;
     const task = tasks.find((t) => t.id === taskId);
@@ -218,7 +226,9 @@ export function ProyectosWorkspace({
           sub-task's own due date rarely matches its parent's, so if the
           date filter excluded it there'd be nothing to expand into even
           though the parent itself passed the filter. */}
-      {view === "lista" && <ListaView tasks={rootFilteredTasks} allTasks={tasks} onSelect={setSelected} />}
+      {view === "lista" && (
+        <ListaView tasks={rootFilteredTasks} allTasks={tasks} onSelect={setSelected} onToggleComplete={toggleListaComplete} />
+      )}
       {view === "tablero" && (
         <TableroView
           tasks={rootFilteredTasks}
