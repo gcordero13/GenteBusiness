@@ -36,8 +36,8 @@ export function PlanificacionesManager({ proyectoId, planificaciones }: { proyec
     });
   }
 
-  function remove(id: string) {
-    if (!confirm("¿Eliminar esta planificación? Las tareas que tenía quedan sin planificación asignada.")) return;
+  function remove(id: string, name: string) {
+    if (!confirm(`¿Eliminar la planificación "${name}"? Las tareas que tenía quedan sin planificación asignada.`)) return;
     startTransition(async () => {
       await deletePlanificacion(id, proyectoId);
       router.refresh();
@@ -65,7 +65,14 @@ export function PlanificacionesManager({ proyectoId, planificaciones }: { proyec
                 >
                   {p.name}
                 </Link>
-                <Button size="icon-sm" variant="ghost" disabled={isPending} onClick={() => remove(p.id)}>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  disabled={isPending}
+                  onClick={() => remove(p.id, p.name)}
+                  title="Eliminar"
+                  className="hover:bg-red-50 dark:hover:bg-red-950"
+                >
                   <Trash2 className="size-3.5 text-red-600" />
                 </Button>
               </div>
@@ -74,7 +81,11 @@ export function PlanificacionesManager({ proyectoId, planificaciones }: { proyec
               <p className="py-1 text-xs text-muted-foreground">Todavía no hay planificaciones.</p>
             )}
           </div>
-          <div className="flex gap-2">
+
+          {/* A visible gap, not just spacing - confirmed with the user:
+              deleting a planificación and adding one shouldn't feel like
+              the same action living right next to each other. */}
+          <div className="flex gap-2 border-t pt-3">
             <Input
               placeholder="Nombre de la planificación"
               value={name}
@@ -82,7 +93,7 @@ export function PlanificacionesManager({ proyectoId, planificaciones }: { proyec
               onKeyDown={(e) => e.key === "Enter" && add()}
               className="h-8 text-xs"
             />
-            <Button size="sm" disabled={isPending || !name.trim()} onClick={add} className="gap-1.5">
+            <Button size="sm" disabled={isPending || !name.trim()} onClick={add} className="gap-1.5 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90">
               <Plus className="size-3.5" />
               Agregar
             </Button>

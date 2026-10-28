@@ -1,4 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import {
   listAssignableUsers,
@@ -75,7 +78,15 @@ export default async function PlanificacionPage() {
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Proyecto</h1>
             <p className="text-sm text-muted-foreground">Tus proyectos y tareas.</p>
           </div>
-          <NuevoProyectoDialog />
+          <div className="flex gap-2">
+            <Link href="/planificacion/departamentos">
+              <Button size="sm" variant="outline" className="gap-1.5">
+                <Building2 className="size-3.5" />
+                Departamentos
+              </Button>
+            </Link>
+            <NuevoProyectoDialog />
+          </div>
         </div>
 
         <TareasTabs

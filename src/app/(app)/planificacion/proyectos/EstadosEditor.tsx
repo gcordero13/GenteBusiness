@@ -58,7 +58,8 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
     setAdding(false);
   }
 
-  function remove(id: string) {
+  function remove(id: string, name: string) {
+    if (!confirm(`¿Eliminar el estado "${name}"? Las tareas que lo tenían quedan sin estado.`)) return;
     startTransition(async () => {
       await deleteEstado(id, proyectoId);
       router.refresh();
@@ -167,47 +168,59 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
                 <span className="size-1.5 rounded-full" style={{ backgroundColor: e.color ?? "#94a3b8" }} />
                 {e.name}
                 {!e.isDefault && (
-                  <button type="button" onClick={() => remove(e.id)} disabled={isPending}>
+                  <button
+                    type="button"
+                    onClick={() => remove(e.id, e.name)}
+                    disabled={isPending}
+                    title="Eliminar"
+                    className="ml-0.5 rounded-full p-0.5 text-muted-foreground/50 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                  >
                     <X className="size-3" />
                   </button>
                 )}
               </span>
             ))}
           </div>
-          {adding ? (
-            <div className="flex gap-2">
-              <Input
-                placeholder="Nuevo estado"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-8 text-xs"
-                autoFocus
-              />
-              <div className="flex gap-1">
-                {ESTADO_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setColor(c)}
-                    className={`size-6 rounded-full border-2 ${color === c ? "border-foreground" : "border-transparent"}`}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
+
+          {/* A visible gap, not just spacing - confirmed with the user:
+              deleting an estado and adding one shouldn't feel like the
+              same action living right next to each other. */}
+          <div className="border-t pt-3">
+            {adding ? (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nuevo estado"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-8 text-xs"
+                  autoFocus
+                />
+                <div className="flex gap-1">
+                  {ESTADO_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setColor(c)}
+                      className={`size-6 rounded-full border-2 ${color === c ? "border-foreground" : "border-transparent"}`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+                <Button size="sm" disabled={isPending || !name.trim()} onClick={add} className="gap-1.5 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90">
+                  <Plus className="size-3.5" />
+                  Agregar
+                </Button>
+                <Button size="icon-sm" variant="ghost" disabled={isPending} onClick={cancelAdd} title="Cancelar">
+                  <X className="size-3.5" />
+                </Button>
               </div>
-              <Button size="sm" disabled={isPending || !name.trim()} onClick={add} className="gap-1.5">
+            ) : (
+              <Button size="sm" variant="ghost" onClick={() => setAdding(true)} className="gap-1.5 text-xs text-muted-foreground">
                 <Plus className="size-3.5" />
-                Agregar
+                Agregar estado personalizado
               </Button>
-              <Button size="icon-sm" variant="ghost" disabled={isPending} onClick={cancelAdd} title="Cancelar">
-                <X className="size-3.5" />
-              </Button>
-            </div>
-          ) : (
-            <Button size="sm" variant="ghost" onClick={() => setAdding(true)} className="gap-1.5 text-xs text-muted-foreground">
-              <Plus className="size-3.5" />
-              Agregar estado personalizado
-            </Button>
-          )}
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

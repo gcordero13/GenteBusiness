@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { DeleteIconButton } from "@/components/DeleteIconButton";
 import {
@@ -60,6 +60,15 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-[14rem] space-y-1">
+            {proyecto.departamentoName && (
+              <Link
+                href={`/planificacion/departamentos/${proyecto.departamentoId}`}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-[#04B1AF]"
+              >
+                <Building2 className="size-3" />
+                {proyecto.departamentoName}
+              </Link>
+            )}
             <h1 className="text-2xl font-bold tracking-tight text-foreground">{proyecto.name}</h1>
             {proyecto.description && <p className="text-sm text-muted-foreground">{proyecto.description}</p>}
             {rootTasks.length > 0 && (

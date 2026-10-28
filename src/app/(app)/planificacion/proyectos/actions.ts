@@ -18,9 +18,44 @@ export interface ProyectoRow {
   description: string | null;
   createdBy: string;
   archived: boolean;
+  departamentoId: string | null;
+  departamentoName: string | null;
 }
 
-export async function createProyecto(name: string, description: string): Promise<ActionResult & { id?: string }> {
+const PROYECTO_SELECT = "id, name, description, created_by, archived, departamento_id, departments(name)";
+
+interface RawProyectoRow {
+  id: string;
+  name: string;
+  description: string | null;
+  created_by: string;
+  archived: boolean;
+  departamento_id: string | null;
+  departments: { name: string } | { name: string }[] | null;
+}
+
+function toProyectoRow(p: RawProyectoRow): ProyectoRow {
+  const departamento = Array.isArray(p.departments) ? p.departments[0] : p.departments;
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    createdBy: p.created_by,
+    archived: p.archived,
+    departamentoId: p.departamento_id,
+    departamentoName: departamento?.name ?? null,
+  };
+}
+
+// departamentoId is only ever set here, at creation ("modo avanzado" in
+// NuevoProyectoDialog) - confirmed with the user: Departamento -> Proyecto
+// -> Planificación -> Tarea -> Subtarea, reusing the company's existing
+// departments table rather than a new one.
+export async function createProyecto(
+  name: string,
+  description: string,
+  departamentoId?: string | null,
+): Promise<ActionResult & { id?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -41,9 +76,13 @@ export async function createProyecto(name: string, description: string): Promise
   // later command (same transaction) avoids this: by then the row was
   // inserted by an earlier command and is visible normally.
   const newId = crypto.randomUUID();
-  const { error: insertError } = await supabase
-    .from("plan_proyectos")
-    .insert({ id: newId, name: name.trim(), description: description.trim() || null, created_by: user.id });
+  const { error: insertError } = await supabase.from("plan_proyectos").insert({
+    id: newId,
+    name: name.trim(),
+    description: description.trim() || null,
+    created_by: user.id,
+    departamento_id: departamentoId ?? null,
+  });
   if (insertError) return { error: insertError.message };
 
   // Every new project starts with these five estados already in place and
@@ -82,18 +121,11 @@ export async function listMisProyectos(): Promise<ProyectoListRow[]> {
 
   const { data } = await supabase
     .from("plan_proyectos")
-    .select("id, name, description, created_by, archived")
+    .select(PROYECTO_SELECT)
     .eq("created_by", user.id)
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    createdBy: p.created_by,
-    archived: p.archived,
-    isOwner: true,
-  }));
+  return (data ?? []).map((p) => ({ ...toProyectoRow(p as unknown as RawProyectoRow), isOwner: true }));
 }
 
 export async function listCompartidoConmigo(): Promise<ProyectoListRow[]> {
@@ -105,29 +137,61 @@ export async function listCompartidoConmigo(): Promise<ProyectoListRow[]> {
 
   const { data } = await supabase
     .from("plan_proyectos")
-    .select("id, name, description, created_by, archived")
+    .select(PROYECTO_SELECT)
     .neq("created_by", user.id)
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    createdBy: p.created_by,
-    archived: p.archived,
-    isOwner: false,
-  }));
+  return (data ?? []).map((p) => ({ ...toProyectoRow(p as unknown as RawProyectoRow), isOwner: false }));
 }
 
 export async function getProyecto(id: string): Promise<ProyectoRow | null> {
   const supabase = await createClient();
+  const { data } = await supabase.from("plan_proyectos").select(PROYECTO_SELECT).eq("id", id).maybeSingle();
+  if (!data) return null;
+  return toProyectoRow(data as unknown as RawProyectoRow);
+}
+
+export interface DepartamentoOption {
+  id: string;
+  name: string;
+}
+
+// Shared by NuevoProyectoDialog's "modo avanzado" picker and the
+// departamentos index page. departments_select_any_authenticated already
+// lets any authenticated user read the full list.
+export async function listDepartments(): Promise<DepartamentoOption[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("departments").select("id, name").order("name", { ascending: true });
+  return (data ?? []).map((d) => ({ id: d.id, name: d.name }));
+}
+
+export async function getDepartamento(id: string): Promise<DepartamentoOption | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("departments").select("id, name").eq("id", id).maybeSingle();
+  return data ? { id: data.id, name: data.name } : null;
+}
+
+// Every project tagged with this department THAT THE CALLER CAN SEE - RLS
+// on plan_proyectos (unchanged by this feature) still does the real
+// filtering; this is the same "mine vs shared" split merged into one list
+// since a department page shows both regardless of ownership.
+export async function listProyectosDeDepartamento(departamentoId: string): Promise<ProyectoListRow[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data } = await supabase
     .from("plan_proyectos")
-    .select("id, name, description, created_by, archived")
-    .eq("id", id)
-    .maybeSingle();
-  if (!data) return null;
-  return { id: data.id, name: data.name, description: data.description, createdBy: data.created_by, archived: data.archived };
+    .select(PROYECTO_SELECT)
+    .eq("departamento_id", departamentoId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map((p) => ({
+    ...toProyectoRow(p as unknown as RawProyectoRow),
+    isOwner: (p as unknown as RawProyectoRow).created_by === user.id,
+  }));
 }
 
 // Deleting the whole project is restricted to its creator at the RLS layer
