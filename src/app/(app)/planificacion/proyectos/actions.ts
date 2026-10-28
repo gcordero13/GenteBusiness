@@ -318,6 +318,34 @@ function attachHasChildren(rows: TareaListRow[]): TareaListRow[] {
   return rows.map((row) => ({ ...row, hasChildren: parentIds.has(row.id) }));
 }
 
+// A sub-task's own relationship defaults to "compartido" when it isn't
+// itself assigned to the caller, even when an ANCESTOR is - confirmed with
+// the user as a real bug: being assigned a parent task now grants RLS
+// visibility into its whole subtree (plan_can_see_tarea), but without
+// this, those sub-tasks landed in "Compartido conmigo" instead of "Mis
+// tareas", so the assignee never found them where they'd actually look.
+// Walks the parentTaskId chain within this same fetched batch (the RLS fix
+// guarantees every task between an assigned ancestor and this one is in
+// it too) rather than re-querying.
+function upgradeRelationshipForAssignedSubtree(rows: TareaListRow[], callerId: string): TareaListRow[] {
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  function hasAssignedAncestor(row: TareaListRow): boolean {
+    const seen = new Set<string>();
+    let current = row;
+    while (current.parentTaskId && !seen.has(current.parentTaskId)) {
+      seen.add(current.parentTaskId);
+      const parent = byId.get(current.parentTaskId);
+      if (!parent) return false;
+      if (parent.assigneeId === callerId) return true;
+      current = parent;
+    }
+    return false;
+  }
+  return rows.map((row) =>
+    row.relationship === "compartido" && hasAssignedAncestor(row) ? { ...row, relationship: "asignado" as const } : row,
+  );
+}
+
 const TAREA_SELECT =
   "id, proyecto_id, plan_proyectos(name), parent_task_id, title, description, estado_id, plan_estados(name, color), priority, labels, start_date, due_date, assignee_id, ciclo_id, planificacion_id, plan_planificaciones(name), created_by, plan_tarea_modulos(modulo_id), percent_complete, color";
 
@@ -339,7 +367,10 @@ export async function listTareasVisibles(): Promise<TareaListRow[]> {
     .select(TAREA_SELECT)
     .order("created_at", { ascending: false });
 
-  const rows = attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));
+  const rows = upgradeRelationshipForAssignedSubtree(
+    attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id))),
+    user.id,
+  );
   return attachProfiles(rows);
 }
 
@@ -375,7 +406,10 @@ export async function listTareasDeProyecto(proyectoId: string): Promise<TareaLis
     .eq("proyecto_id", proyectoId)
     .order("sort_order", { ascending: true });
 
-  const rows = attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id)));
+  const rows = upgradeRelationshipForAssignedSubtree(
+    attachHasChildren((data ?? []).map((t) => toTareaListRow(t as unknown as RawTareaRow, user.id))),
+    user.id,
+  );
   return attachProfiles(rows);
 }
 
