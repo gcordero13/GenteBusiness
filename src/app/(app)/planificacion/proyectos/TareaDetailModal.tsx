@@ -49,6 +49,7 @@ import { AssigneePicker, initials } from "./AssigneePicker";
 import { CompartirDialog } from "./CompartirDialog";
 import { ESTADO_COLORS } from "./EstadosEditor";
 import { progressOpacity } from "./progress";
+import { celebrateCompletion } from "./celebrate";
 import type { AssigneeOption } from "./TareaCreateDialog";
 
 export function TareaDetailModal({
@@ -217,9 +218,10 @@ export function TareaDetailModal({
     });
   }
 
-  function commitPercent(value: number) {
+  function commitPercent(value: number, anchorEl: HTMLElement | null) {
     if (!tarea) return;
     setError(null);
+    const wasComplete = tarea.percentComplete === 100;
     startTransition(async () => {
       const result = await updateTareaPercent(tarea.id, value, tarea.proyectoId);
       if (result.error) {
@@ -227,6 +229,7 @@ export function TareaDetailModal({
         setPercentDraft(tarea.percentComplete);
         return;
       }
+      if (value === 100 && !wasComplete) celebrateCompletion(anchorEl);
       router.refresh();
     });
   }
@@ -399,9 +402,9 @@ export function TareaDetailModal({
               value={percentDraft}
               disabled={isPending}
               onChange={(e) => setPercentDraft(Number(e.target.value))}
-              onMouseUp={(e) => commitPercent(Number((e.target as HTMLInputElement).value))}
-              onTouchEnd={() => commitPercent(percentDraft)}
-              onKeyUp={() => commitPercent(percentDraft)}
+              onMouseUp={(e) => commitPercent(Number((e.target as HTMLInputElement).value), e.currentTarget)}
+              onTouchEnd={(e) => commitPercent(percentDraft, e.currentTarget)}
+              onKeyUp={(e) => commitPercent(percentDraft, e.currentTarget)}
               className="w-full accent-[#04B1AF]"
             />
           )}
