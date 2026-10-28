@@ -103,7 +103,17 @@ export function ProyectosWorkspace({
   // must not also show up as their own independent cards/rows in the
   // estado-driven views, which would just be clutter. Jerarquía is the one
   // view that needs the full set, including sub-tasks, to nest correctly.
-  const rootFilteredTasks = useMemo(() => filteredTasks.filter((t) => !t.parentTaskId), [filteredTasks]);
+  //
+  // A task whose real parent ISN'T in this same batch is treated as a root
+  // too (same fallback JerarquiaView already uses) - confirmed with the
+  // user with a real bug report: someone who only has a sub-task shared or
+  // assigned directly to them (without visibility into its ancestors) was
+  // seeing it in Jerarquía but nowhere else, since it has a parentTaskId
+  // but that parent never shows up in their own fetched task list.
+  const rootFilteredTasks = useMemo(
+    () => filteredTasks.filter((t) => !t.parentTaskId || !tasks.some((p) => p.id === t.parentTaskId)),
+    [filteredTasks, tasks],
+  );
 
   const getColumnKey =
     columnKeyBy === "estadoId"
@@ -152,7 +162,7 @@ export function ProyectosWorkspace({
         <div className="flex flex-wrap items-center gap-1.5">
           {(fromDate || toDate) && (
             <span className="text-xs text-muted-foreground">
-              {rootFilteredTasks.length} de {tasks.filter((t) => !t.parentTaskId).length}
+              {rootFilteredTasks.length} de {tasks.filter((t) => !t.parentTaskId || !tasks.some((p) => p.id === t.parentTaskId)).length}
             </span>
           )}
           <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
