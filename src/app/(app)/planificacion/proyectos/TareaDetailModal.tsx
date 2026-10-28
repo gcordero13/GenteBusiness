@@ -320,15 +320,17 @@ export function TareaDetailModal({
   // started (0%) - a sub-task that turns out to have its own children is
   // still rejected server-side by updateTareaPercent regardless of what
   // this checklist's (batch-local) hasChildren thinks.
-  function toggleSubtarea(sub: TareaListRow) {
+  function toggleSubtarea(sub: TareaListRow, anchorEl: HTMLElement | null) {
     if (!tarea) return;
     setError(null);
+    const willComplete = sub.percentComplete !== 100;
     startTransition(async () => {
       const result = await updateTareaPercent(sub.id, sub.percentComplete === 100 ? 0 : 100, tarea.proyectoId);
       if (result.error) {
         setError(result.error);
         return;
       }
+      if (willComplete) celebrateCompletion(anchorEl);
       setSubtareas(await listSubtareas(tarea.id));
       await refreshTarea();
       router.refresh();
@@ -585,7 +587,7 @@ export function TareaDetailModal({
               <div className="space-y-1">
                 {subtareas.map((sub) => (
                   <div key={sub.id} className="flex items-center gap-2 rounded-lg border p-2 text-xs">
-                    <button type="button" disabled={isPending} onClick={() => toggleSubtarea(sub)} className="shrink-0 text-muted-foreground">
+                    <button type="button" disabled={isPending} onClick={(e) => toggleSubtarea(sub, e.currentTarget)} className="shrink-0 text-muted-foreground">
                       {sub.percentComplete === 100 ? (
                         <CheckSquare className="size-4 text-[#04B1AF]" />
                       ) : (
