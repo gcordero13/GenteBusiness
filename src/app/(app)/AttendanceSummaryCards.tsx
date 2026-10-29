@@ -36,11 +36,12 @@ export function AttendanceSummaryCards({
     <div className={`grid grid-cols-1 gap-4 ${hasOwnCards ? "sm:grid-cols-2 lg:grid-cols-4" : ""}`}>
       {hasOwnCards && (
         <>
-          {/* Promedio + llegada de hoy stacked in one card (confirmed with
-              the user) so the grid frees up a column for the phrase-of-
-              the-day widget next to it. */}
-          <div className="divide-y divide-[#04B1AF]/20 rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5">
-            <div className="p-5">
+          {/* Promedio y llegada de hoy son 2 objetos separados, apilados
+              uno arriba del otro (confirmado con el usuario) dentro de la
+              misma columna de la grilla, que ahora deja espacio para la
+              tarjeta de frase del día al lado. */}
+          <div className="flex flex-col gap-4">
+            <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
               <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <TrendingUp className="size-4 text-[#04B1AF]" />
                 Mi promedio
@@ -49,7 +50,7 @@ export function AttendanceSummaryCards({
               {card1.phrase && <p className="mt-1 text-sm text-muted-foreground">{card1.phrase}</p>}
             </div>
 
-            <div className="p-5">
+            <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
               <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <Clock className="size-4 text-[#04B1AF]" />
                 Mi llegada de hoy
@@ -69,7 +70,7 @@ export function AttendanceSummaryCards({
               <Sparkles className="size-4 text-[#04B1AF]" />
               Frase del día
             </div>
-            <p className="mt-3 text-base leading-relaxed font-medium text-foreground italic">
+            <p className="mt-3 text-xl leading-relaxed font-medium text-foreground italic">
               “{pickDailyMotivationalPhrase()}”
             </p>
           </div>
