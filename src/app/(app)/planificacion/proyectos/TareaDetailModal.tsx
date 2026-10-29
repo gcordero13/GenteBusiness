@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckSquare,
@@ -171,6 +171,14 @@ export function TareaDetailModal({
       cancelled = true;
     };
   }, [tareaId]);
+
+  // Chat-like: always land on the latest comment instead of making the
+  // user scroll down to it, both on first load and after posting a new one.
+  const comentariosScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = comentariosScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [comentarios]);
 
   useEffect(() => {
     if (!tareaId) return;
@@ -694,12 +702,12 @@ export function TareaDetailModal({
             <MessageSquare className="size-3.5" />
             Comentarios
           </p>
-          <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+          <div ref={comentariosScrollRef} className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
             {comentarios.map((c) => (
-              <div key={c.id} className="rounded-lg border p-2 text-xs">
-                <div className="mb-0.5 flex items-center justify-between">
+              <div key={c.id} className="rounded-lg border p-1.5 text-xs">
+                <div className="mb-0.5 flex items-center justify-between gap-2">
                   <span className="font-semibold text-foreground">{c.createdByName}</span>
-                  <span className="text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
+                  <span className="shrink-0 text-[10px] text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
                 </div>
                 <p className="whitespace-pre-wrap text-muted-foreground">{c.body}</p>
               </div>
