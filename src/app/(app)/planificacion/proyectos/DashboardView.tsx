@@ -152,12 +152,16 @@ function DesgloseEstadoWidget({ tasks }: { tasks: TareaListRow[] }) {
 
 // Leaf tasks only (!hasChildren) - a task with sub-tasks isn't anyone's
 // direct workload, the same distinction Lista's inline checkbox already
-// uses for "is this task's percent directly settable".
+// uses for "is this task's percent directly settable". A task with no
+// assignee counts toward its creator instead of a "Sin asignar" bucket -
+// confirmed with the user: sub-tasks are created without an assignee by
+// default (the quick checklist add has no assignee field at all), but the
+// work is still the creator's until someone else is explicitly assigned.
 function CargaResponsableWidget({ tasks }: { tasks: TareaListRow[] }) {
   const leafTasks = tasks.filter((t) => !t.hasChildren);
   const counts = new Map<string, number>();
   for (const t of leafTasks) {
-    const key = t.assigneeName ?? "Sin asignar";
+    const key = t.assigneeName ?? t.creatorName;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]);
