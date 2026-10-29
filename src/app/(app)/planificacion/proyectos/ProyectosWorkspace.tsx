@@ -265,7 +265,7 @@ export function ProyectosWorkspace({
       )}
       {view === "calendario" && <CalendarioView tasks={rootFilteredTasks} onSelect={setSelected} onReschedule={reschedule} />}
       {view === "jerarquia" && <JerarquiaView tasks={filteredTasks} onSelect={setSelected} />}
-      {view === "dashboard" && <DashboardView tasks={filteredTasks} />}
+      {view === "dashboard" && <DashboardView tasks={filteredTasks} onSelect={setSelected} />}
 
       <TareaDetailModal
         tarea={selected}

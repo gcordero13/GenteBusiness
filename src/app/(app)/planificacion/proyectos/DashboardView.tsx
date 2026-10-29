@@ -170,12 +170,74 @@ function CargaResponsableWidget({ tasks }: { tasks: TareaListRow[] }) {
   );
 }
 
-export function DashboardView({ tasks }: { tasks: TareaListRow[] }) {
+// Excludes already-completed tasks (percentComplete === 100) even if their
+// dueDate is in the past - a finished task isn't "overdue" in any
+// actionable sense. dueDate is a plain "YYYY-MM-DD" string, compared
+// lexicographically - the same pattern ProyectosWorkspace's own
+// fromDate/toDate filter already relies on.
+function VencidasWidget({ tasks, onSelect }: { tasks: TareaListRow[]; onSelect: (t: TareaListRow) => void }) {
+  const now = new Date();
+  const todayIso = now.toISOString().slice(0, 10);
+  const in7Days = new Date(now);
+  in7Days.setDate(in7Days.getDate() + 7);
+  const in7DaysIso = in7Days.toISOString().slice(0, 10);
+
+  const pending = tasks.filter((t) => t.dueDate && t.percentComplete !== 100);
+  const vencidas = pending.filter((t) => t.dueDate! < todayIso);
+  const porVencer = pending.filter((t) => t.dueDate! >= todayIso && t.dueDate! <= in7DaysIso);
+  const urgentes = [...vencidas, ...porVencer]
+    .sort((a, b) => (a.dueDate! < b.dueDate! ? -1 : a.dueDate! > b.dueDate! ? 1 : 0))
+    .slice(0, 5);
+
+  return (
+    <div className="rounded-2xl border bg-card p-4 shadow-sm">
+      <p className="mb-3 text-sm font-semibold text-foreground">Vencidas / por vencer</p>
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-red-50 p-3 text-center">
+          <p className="text-2xl font-bold text-red-600">{vencidas.length}</p>
+          <p className="text-[11px] text-muted-foreground">Vencidas</p>
+        </div>
+        <div className="rounded-lg bg-amber-50 p-3 text-center">
+          <p className="text-2xl font-bold text-amber-600">{porVencer.length}</p>
+          <p className="text-[11px] text-muted-foreground">Por vencer (7 días)</p>
+        </div>
+      </div>
+      {urgentes.length === 0 ? (
+        <p className="py-4 text-center text-xs text-muted-foreground">Sin tareas vencidas ni próximas a vencer.</p>
+      ) : (
+        <div className="space-y-1">
+          {urgentes.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onSelect(t)}
+              className="flex w-full items-center justify-between gap-2 rounded-lg border p-2 text-left text-xs hover:bg-muted"
+            >
+              <span className="min-w-0 flex-1 truncate text-foreground">{t.title}</span>
+              <span className={`shrink-0 font-semibold ${t.dueDate! < todayIso ? "text-red-600" : "text-amber-600"}`}>
+                {t.dueDate}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DashboardView({
+  tasks,
+  onSelect,
+}: {
+  tasks: TareaListRow[];
+  onSelect: (t: TareaListRow) => void;
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <AvanceGeneralWidget tasks={tasks} />
       <DesgloseEstadoWidget tasks={tasks} />
       <CargaResponsableWidget tasks={tasks} />
+      <VencidasWidget tasks={tasks} onSelect={onSelect} />
     </div>
   );
 }
