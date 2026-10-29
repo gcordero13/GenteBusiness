@@ -1,0 +1,525 @@
+import "server-only";
+
+// A generic "phrase of the day" pool - unrelated to the attendance-tier
+// phrases in attendance.ts (those are personalized and conditioned on how
+// punctual someone's been this month). This one just needs enough variety
+// that a daily visitor doesn't see the same line too often; repeating on
+// the same calendar day in a future year is fine (confirmed with the
+// user) - at 366 entries (covers leap years too) a phrase only repeats
+// once a year, selected deterministically by day-of-year so everyone sees
+// the same phrase on a given day, and it doesn't change on refresh.
+export const MOTIVATIONAL_PHRASES: string[] = [
+  // Esfuerzo y perseverancia
+  "Cada esfuerzo de hoy es una semilla para el resultado de mañana.",
+  "No se trata de ser el más rápido, sino de no detenerte.",
+  "Los pequeños pasos constantes vencen a los grandes saltos ocasionales.",
+  "El esfuerzo de hoy construye la confianza de mañana.",
+  "Avanzar un poco cada día también es avanzar.",
+  "La perseverancia convierte lo difícil en posible.",
+  "Un paso más, siempre vale la pena.",
+  "Lo que cuesta trabajo es, casi siempre, lo que más vale.",
+  "Sigue empujando: el progreso no siempre se nota de inmediato.",
+  "Hoy es un buen día para intentarlo una vez más.",
+
+  // Trabajo en equipo
+  "Nada grande se construye en solitario.",
+  "Un equipo que se apoya llega más lejos que uno que solo compite.",
+  "Tu ayuda de hoy puede ser el impulso que alguien más necesitaba.",
+  "El buen trabajo en equipo se nota hasta en los detalles pequeños.",
+  "Compartir el conocimiento hace crecer a todo el equipo.",
+  "Juntos se resuelven cosas que solos tardarían mucho más.",
+  "Cada persona del equipo suma algo que nadie más puede dar.",
+  "Celebrar los logros del equipo también es celebrar los propios.",
+  "Preguntar y ayudar son dos formas de fortalecer al equipo.",
+  "Un buen compañero hace más liviano cualquier día difícil.",
+
+  // Gratitud
+  "Agradecer lo que ya tienes abre espacio para lo que viene.",
+  "Un simple gracias puede alegrarle el día a alguien más.",
+  "Reconocer lo bueno de hoy también es parte del trabajo bien hecho.",
+  "La gratitud convierte lo ordinario en memorable.",
+  "Vale la pena detenerse un momento a agradecer el camino recorrido.",
+  "Hay algo que agradecer incluso en los días complicados.",
+  "Decir gracias a tiempo nunca sobra.",
+  "La gratitud es contagiosa: compártela hoy.",
+  "Valorar lo pequeño también es una forma de gratitud.",
+  "Agradece el esfuerzo de quienes te rodean, también el tuyo.",
+
+  // Crecimiento y aprendizaje
+  "Cada día trae una oportunidad nueva para aprender algo.",
+  "Equivocarse también enseña, si se mira con calma.",
+  "Lo que no sabías ayer, hoy puedes empezar a aprenderlo.",
+  "Crecer casi siempre incomoda un poco antes de dar resultados.",
+  "Pregunta sin miedo: así es como se aprende más rápido.",
+  "El conocimiento que compartes hoy, regresa multiplicado.",
+  "Cada reto superado deja una lección que se queda contigo.",
+  "Aprender un poco cada día suma más de lo que parece.",
+  "La curiosidad de hoy es la habilidad de mañana.",
+  "No hay edad ni puesto que impida seguir aprendiendo.",
+
+  // Actitud positiva
+  "Una buena actitud puede cambiar el rumbo de todo un día.",
+  "Elegir ver lo positivo también es una decisión diaria.",
+  "Sonríe: cuesta poco y rinde mucho.",
+  "El buen ánimo se contagia más rápido de lo que crees.",
+  "Hoy es una buena oportunidad para empezar de nuevo.",
+  "La actitud con la que empiezas el día suele marcar el resto.",
+  "Encontrar algo bueno en el día también es una habilidad.",
+  "Una actitud positiva atrae soluciones, no solo buen ánimo.",
+  "No subestimes el poder de un buen comentario a tiempo.",
+  "El optimismo bien puesto también es trabajo en equipo.",
+
+  // Disciplina y hábitos
+  "La disciplina es simplemente cuidar las cosas pequeñas todos los días.",
+  "Un buen hábito repetido vence a la motivación pasajera.",
+  "Hacerlo bien aunque nadie lo note, eso es disciplina.",
+  "Los resultados grandes casi siempre vienen de rutinas simples.",
+  "La constancia de hoy facilita el trabajo de mañana.",
+  "No necesitas sentir ganas para hacer lo correcto.",
+  "Un pequeño orden diario ahorra muchas complicaciones después.",
+  "La disciplina construye la libertad de hacer las cosas bien.",
+  "Cumplir lo que prometiste, aunque sea pequeño, también cuenta.",
+  "Las buenas costumbres se notan más en los días difíciles.",
+
+  // Resiliencia
+  "Lo que hoy parece difícil, mañana puede ser una anécdota.",
+  "Cada tropiezo también enseña a sostenerse mejor.",
+  "No pasa nada por empezar de nuevo las veces que haga falta.",
+  "La fuerza no está en no caer, sino en volver a levantarse.",
+  "Los días duros también pasan, aunque ahora no lo parezca.",
+  "Resistir con calma también es una forma de avanzar.",
+  "De los momentos difíciles suelen salir las mejores lecciones.",
+  "Aguantar un poco más cuando todo pesa, también cuenta como logro.",
+  "No tienes que tener todas las respuestas para seguir adelante.",
+  "Cada obstáculo superado te deja un poco más preparado para el siguiente.",
+
+  // Liderazgo e iniciativa
+  "Liderar no es tener el puesto más alto, es dar el ejemplo correcto.",
+  "Tomar la iniciativa hoy puede inspirar a alguien más a hacerlo también.",
+  "El mejor liderazgo casi siempre se ve en los detalles cotidianos.",
+  "Proponer una idea, aunque no sea perfecta, también es liderazgo.",
+  "Dar el primer paso abre camino para los demás.",
+  "Escuchar antes de decidir también es una forma de liderar.",
+  "Un buen líder celebra los logros ajenos tanto como los propios.",
+  "La confianza se gana actuando con el ejemplo, no solo con palabras.",
+  "Animar a otros a crecer también es una forma de liderazgo.",
+  "Asumir una responsabilidad extra hoy puede abrirte puertas mañana.",
+
+  // Creatividad e innovación
+  "Una idea distinta, aunque sea pequeña, puede cambiar la forma de hacer las cosas.",
+  "Atreverse a proponer algo nuevo también vale la pena.",
+  "La creatividad florece cuando nos atrevemos a preguntar '¿y si lo hacemos diferente?'",
+  "No hay mala idea si se comparte con buena intención.",
+  "Innovar también puede ser mejorar un poco lo que ya existe.",
+  "Pensar distinto hoy puede resolver lo que parecía imposible ayer.",
+  "La curiosidad es el primer paso de toda buena idea.",
+  "Experimentar sin miedo también es parte de crecer.",
+  "A veces la solución más simple es también la más creativa.",
+  "Deja espacio hoy para una idea que todavía no habías pensado.",
+
+  // Calma y presencia
+  "Respirar profundo antes de reaccionar también cuenta como productividad.",
+  "No todo se resuelve corriendo: a veces conviene pausar.",
+  "Estar presente en lo que haces mejora cómo lo haces.",
+  "La calma, incluso en medio del ajetreo, se nota y se agradece.",
+  "Un momento de pausa también es parte de un buen trabajo.",
+  "La prisa casi nunca mejora el resultado final.",
+  "Concéntrate en lo que tienes frente a ti, un paso a la vez.",
+  "La serenidad ante los imprevistos también es una habilidad valiosa.",
+  "Hoy puedes elegir responder con calma en vez de reaccionar con prisa.",
+  "Un respiro a tiempo evita muchos problemas después.",
+
+  // Pequeños logros
+  "Celebra los avances pequeños: son los que sostienen a los grandes.",
+  "Terminar algo pendiente, aunque sea chico, también merece reconocerse.",
+  "No subestimes lo que lograste hoy comparado con ayer.",
+  "Cada tarea cumplida suma más de lo que parece a simple vista.",
+  "Los días se construyen con pequeñas victorias acumuladas.",
+  "Reconocer lo logrado también te da impulso para seguir.",
+  "No necesitas un gran resultado para sentirte orgulloso hoy.",
+  "Cada meta pequeña cumplida acerca a la meta grande.",
+  "Date crédito por lo que ya avanzaste, no solo por lo que falta.",
+  "Un buen día no siempre se mide en grandes logros, sino en constancia.",
+
+  // Energía de inicio de semana
+  "Un nuevo inicio de semana, una nueva oportunidad para hacerlo bien.",
+  "Empezar la semana con buena actitud facilita todo lo demás.",
+  "Hoy es un buen momento para planear una semana con propósito.",
+  "La energía con la que empiezas suele acompañarte varios días.",
+  "Una meta clara para esta semana puede marcar la diferencia.",
+  "Aprovecha el impulso de un nuevo comienzo.",
+  "Esta semana trae oportunidades que todavía no has visto.",
+  "Organiza tu semana y deja espacio también para lo inesperado.",
+  "Un buen lunes no define toda la semana, pero sí le da buen rumbo.",
+  "Empieza con lo más importante y el resto fluirá mejor.",
+
+  // Cierre de semana / reflexión
+  "Al cerrar la semana, vale la pena reconocer lo que sí se logró.",
+  "Un buen cierre de semana también incluye descansar con tranquilidad.",
+  "Revisa lo avanzado antes de pensar en lo que falta.",
+  "El fin de semana también es momento de recargar energías.",
+  "Agradece lo vivido esta semana, lo bueno y lo que enseñó.",
+  "Cerrar bien una semana ayuda a comenzar mejor la siguiente.",
+  "No todo tiene que quedar perfecto para sentirse satisfecho con la semana.",
+  "Tómate un momento para descansar: te lo has ganado.",
+  "Una semana bien cerrada deja espacio mental para la que viene.",
+  "El descanso también es parte del trabajo bien hecho.",
+
+  // Servicio y atención
+  "Atender bien a alguien también deja huella en su día.",
+  "Un buen servicio empieza con escuchar de verdad.",
+  "La amabilidad en el trato también es parte de la calidad del trabajo.",
+  "Resolver con paciencia una duda ajena vale más de lo que parece.",
+  "Tratar bien a quien te necesita hoy puede marcar su semana.",
+  "La atención a los detalles se nota más en el servicio al cliente.",
+  "Un gesto amable puede ser justo lo que alguien necesitaba hoy.",
+  "Servir con gusto cambia por completo la experiencia de quien recibe.",
+  "Ponerse en el lugar del otro mejora cualquier atención.",
+  "La paciencia al atender a alguien también habla de profesionalismo.",
+
+  // Orgullo por el trabajo bien hecho
+  "Hacer las cosas bien, aunque nadie lo note, también vale.",
+  "El trabajo bien hecho se reconoce solo, tarde o temprano.",
+  "Siéntete orgulloso de cuidar los detalles que otros pasan por alto.",
+  "La calidad de tu trabajo habla por ti, incluso en silencio.",
+  "No hay tarea pequeña si se hace con dedicación.",
+  "Poner cuidado en lo que haces siempre deja un buen resultado.",
+  "El orgullo por el trabajo bien hecho no necesita aplausos para ser real.",
+  "Hacerlo con calidad hoy ahorra correcciones mañana.",
+  "Firmar tu trabajo con esfuerzo también es una forma de orgullo.",
+  "La excelencia está en los detalles que decides no descuidar.",
+
+  // Honestidad e integridad
+  "Decir la verdad, aunque incomode, construye confianza duradera.",
+  "La integridad se nota más cuando nadie está mirando.",
+  "Cumplir tu palabra, aunque sea pequeña, fortalece tu reputación.",
+  "Ser honesto hoy evita muchos problemas mañana.",
+  "La confianza se construye con coherencia entre lo que dices y haces.",
+  "Reconocer un error a tiempo también es un acto de integridad.",
+  "Hacer lo correcto no siempre es lo más fácil, pero sí lo más valioso.",
+  "La transparencia simplifica las relaciones de trabajo.",
+  "Actuar con honestidad, incluso cuando cuesta, siempre vale la pena.",
+  "Tu palabra vale tanto como tus resultados.",
+
+  // Gestión del tiempo
+  "Organizar tu día con calma ahorra tiempo después.",
+  "Priorizar lo importante evita que lo urgente te desborde.",
+  "Un buen plan diario también deja espacio para lo imprevisto.",
+  "Terminar una tarea antes de empezar otra mejora el enfoque.",
+  "El tiempo bien usado rinde más que el tiempo apurado.",
+  "Diez minutos de planeación pueden ahorrar una hora de confusión.",
+  "No se trata de hacer más, sino de hacer lo correcto a tiempo.",
+  "Revisar tus prioridades a mitad del día también ayuda.",
+  "Un descanso corto y bien usado mejora el rendimiento del resto del día.",
+  "Cuida tu tiempo como cuidas tus demás recursos.",
+
+  // Comunicación
+  "Decir las cosas con claridad evita muchos malentendidos.",
+  "Escuchar con atención también es una forma de comunicar respeto.",
+  "Una pregunta a tiempo ahorra errores después.",
+  "Comunicar bien una idea es tan importante como tenerla.",
+  "Hablar con calma ayuda a que el mensaje se entienda mejor.",
+  "Confirmar que te entendieron evita retrabajos innecesarios.",
+  "Una buena comunicación empieza por escuchar primero.",
+  "Expresar lo que necesitas con claridad también facilita ayudarte.",
+  "El tono con el que dices algo a veces importa tanto como lo que dices.",
+  "Preguntar sin miedo mejora cualquier trabajo en equipo.",
+
+  // Adaptabilidad al cambio
+  "Los cambios incomodan al principio, pero casi siempre traen algo bueno.",
+  "Adaptarse con buena actitud facilita cualquier transición.",
+  "Lo nuevo también es una oportunidad para aprender algo distinto.",
+  "Flexibilidad no es debilidad, es saber ajustarse con inteligencia.",
+  "Un plan puede cambiar, pero el compromiso con el resultado no.",
+  "Ver el cambio como oportunidad, no como amenaza, ayuda mucho.",
+  "Las situaciones inesperadas también se resuelven con calma y creatividad.",
+  "Adaptarte rápido hoy te prepara para lo que venga mañana.",
+  "No todo sale como se planeó, y está bien ajustar el camino.",
+  "La mejor respuesta al cambio suele ser la mente abierta.",
+
+  // Celebrar a los demás
+  "Reconocer el logro de alguien más no te resta mérito a ti.",
+  "Un aplauso sincero a un compañero puede alegrarle todo el día.",
+  "Celebrar los logros ajenos fortalece al equipo entero.",
+  "Decirle a alguien 'lo hiciste bien' no cuesta nada y vale mucho.",
+  "Apoyar el éxito de otros también es parte de tu propio éxito.",
+  "Un reconocimiento a tiempo motiva más de lo que se imagina.",
+  "Alegrarte por el logro de un compañero habla bien de ti.",
+  "Compartir el crédito cuando corresponde fortalece la confianza del equipo.",
+  "Notar el esfuerzo ajeno, aunque sea pequeño, también importa.",
+  "Hoy es un buen día para felicitar a alguien que lo merece.",
+
+  // Autocuidado y equilibrio
+  "Cuidar de ti también es parte de hacer bien tu trabajo.",
+  "Un descanso a tiempo rinde más que seguir forzando sin parar.",
+  "El equilibrio entre el trabajo y el descanso también es productividad.",
+  "No tienes que resolverlo todo en un solo día.",
+  "Darte un respiro cuando lo necesitas no es debilidad, es inteligencia.",
+  "Cuidar tu energía hoy te prepara mejor para mañana.",
+  "Escuchar cuándo necesitas pausar también es parte del autocuidado.",
+  "Un buen descanso mejora casi cualquier problema que parecía enorme.",
+  "Tu bienestar también importa, no solo tus pendientes.",
+  "Hacer una pausa breve puede devolverte la claridad que necesitabas.",
+
+  // Valentía
+  "Atreverse a proponer algo nuevo, aunque dé nervios, también es valentía.",
+  "Pedir ayuda cuando la necesitas también requiere valor.",
+  "Dar el primer paso hacia algo difícil ya es parte del logro.",
+  "El miedo no tiene que detenerte, solo acompañarte con cautela.",
+  "Hablar con honestidad cuando algo no está bien también es valiente.",
+  "Intentarlo, aunque no salga perfecto, siempre vale más que no intentarlo.",
+  "La valentía no es no tener miedo, es actuar a pesar de él.",
+  "Asumir un reto nuevo hoy puede sorprenderte de lo que eres capaz.",
+  "Decir 'puedo intentarlo' también es un acto de valor.",
+  "Salir de la rutina, aunque incomode, también enseña mucho.",
+
+  // Enfoque y concentración
+  "Una cosa a la vez, bien hecha, rinde más que muchas a medias.",
+  "El enfoque de hoy evita el retrabajo de mañana.",
+  "Eliminar una distracción pequeña puede mejorar mucho tu rendimiento.",
+  "Concentrarte en lo importante primero simplifica el resto del día.",
+  "Diez minutos de enfoque total valen más que una hora distraída.",
+  "La claridad de objetivo facilita mantener el enfoque.",
+  "No necesitas multiplicar tareas para ser productivo, solo enfocarte mejor.",
+  "Terminar lo que empezaste antes de abrir algo nuevo ayuda mucho.",
+  "Un espacio ordenado también ayuda a ordenar la mente.",
+  "El enfoque se entrena, igual que cualquier otra habilidad.",
+
+  // Amabilidad
+  "Un gesto amable no cuesta nada y puede significar mucho.",
+  "Tratar bien a los demás también mejora tu propio día.",
+  "La amabilidad genuina siempre se nota y se agradece.",
+  "Un 'buenos días' sincero puede cambiar el ánimo de alguien.",
+  "Ser amable, incluso en un mal día, también es una elección valiosa.",
+  "Pequeños gestos de amabilidad construyen grandes ambientes de trabajo.",
+  "Ayudar sin que te lo pidan también es una forma de amabilidad.",
+  "Sonreír a quien lo necesita puede ser justo lo que le faltaba hoy.",
+  "La cortesía cuesta poco y deja una gran impresión.",
+  "Ser considerado con los demás también fortalece al equipo.",
+
+  // Mejora continua
+  "Siempre hay una forma de hacer un poco mejor lo de ayer.",
+  "Preguntarte '¿cómo puedo mejorar esto?' ya es el primer paso.",
+  "Pequeños ajustes constantes generan grandes mejoras con el tiempo.",
+  "No busques la perfección, busca ser un poco mejor cada día.",
+  "Revisar lo hecho con mente abierta ayuda a mejorarlo.",
+  "Cada error corregido es una mejora que se queda contigo.",
+  "La mejora continua empieza por estar dispuesto a cambiar algo pequeño.",
+  "Compara tu avance con tu propio ayer, no con los demás.",
+  "Aceptar retroalimentación con apertura acelera cualquier mejora.",
+  "Hoy puedes mejorar algo que ayer dabas por hecho.",
+
+  // Confianza en uno mismo
+  "Confía en lo que ya has logrado para enfrentar lo que viene.",
+  "Tienes más capacidad de la que a veces te permites reconocer.",
+  "La confianza se construye recordando tus propios logros.",
+  "No necesitas tenerlo todo resuelto para empezar con seguridad.",
+  "Cree en tu criterio: lo has construido con experiencia.",
+  "Equivocarte alguna vez no invalida todo lo que sabes hacer bien.",
+  "Confiar en ti mismo también inspira confianza en los demás.",
+  "Tu esfuerzo de hoy respalda tu confianza de mañana.",
+  "Reconocer tus fortalezas también es parte de trabajar con seguridad.",
+  "Avanza con la confianza de quien ya ha superado cosas difíciles antes.",
+
+  // Paciencia
+  "No todo tiene que resolverse hoy mismo: algunas cosas necesitan tiempo.",
+  "La paciencia también es una forma de fortaleza.",
+  "Esperar el momento correcto a veces rinde más que apresurar las cosas.",
+  "Los buenos resultados casi siempre requieren paciencia y constancia.",
+  "Respirar antes de responder puede evitar muchos conflictos.",
+  "La paciencia con los demás también es paciencia contigo mismo.",
+  "No todo proceso se acelera forzándolo; algunos solo necesitan tiempo.",
+  "Mantener la calma mientras algo se resuelve también es parte del trabajo.",
+  "La paciencia bien puesta convierte la espera en progreso silencioso.",
+  "Confía en el proceso, incluso cuando los resultados tardan en verse.",
+
+  // Curiosidad
+  "Preguntar '¿por qué?' una vez más puede llevarte a una mejor solución.",
+  "La curiosidad mantiene el trabajo interesante, incluso en lo repetitivo.",
+  "Siempre hay algo nuevo que aprender, incluso de lo que ya conoces bien.",
+  "Explorar una idea distinta hoy puede abrirte una puerta mañana.",
+  "La curiosidad es el primer paso hacia cualquier mejora.",
+  "Hacer una pregunta que nadie más hizo también aporta valor.",
+  "Investigar un poco más antes de decidir casi siempre ayuda.",
+  "Mantener la mente curiosa evita que el trabajo se vuelva rutina vacía.",
+  "Nunca está de más preguntarse cómo se podría hacer distinto.",
+  "La curiosidad bien dirigida resuelve problemas antes de que crezcan.",
+
+  // Respeto
+  "Tratar a todos con respeto, sin importar el puesto, dice mucho de ti.",
+  "El respeto mutuo es la base de cualquier buen equipo.",
+  "Escuchar una opinión distinta con respeto enriquece la conversación.",
+  "El respeto se construye en los detalles diarios, no solo en lo formal.",
+  "Valorar el tiempo de los demás también es una forma de respeto.",
+  "Un ambiente de respeto facilita que todos den lo mejor de sí.",
+  "Reconocer el esfuerzo ajeno con respeto fortalece la confianza del equipo.",
+  "El buen trato, incluso en el desacuerdo, también es profesionalismo.",
+  "Respetar los límites de los demás también es parte de un buen equipo.",
+  "El respeto genuino se nota en cómo tratas a quien no puede devolverte nada.",
+
+  // Generosidad
+  "Compartir lo que sabes también hace crecer a quien te rodea.",
+  "Dar una mano sin esperar nada a cambio deja una huella positiva.",
+  "La generosidad con el tiempo de los demás también se agradece.",
+  "Enseñar algo que ya dominas también es un acto generoso.",
+  "Compartir el reconocimiento con quien te ayudó fortalece al equipo.",
+  "Un favor pequeño hoy puede significar mucho para quien lo recibe.",
+  "Ser generoso con tus palabras de aliento no cuesta nada.",
+  "Ayudar sin que te lo pidan también construye confianza.",
+  "La generosidad genuina siempre regresa de alguna forma.",
+  "Compartir tus recursos, tiempo o conocimiento multiplica su valor.",
+
+  // Excelencia y calidad
+  "La excelencia está en cuidar los detalles que otros pasan por alto.",
+  "Hacerlo bien desde el principio ahorra tiempo y dolores de cabeza después.",
+  "La calidad se nota incluso en las tareas más pequeñas.",
+  "No se trata de hacer más rápido, sino de hacerlo bien.",
+  "Buscar la excelencia no significa buscar la perfección imposible.",
+  "Revisar tu trabajo una vez más antes de entregarlo también es calidad.",
+  "La atención al detalle distingue un buen trabajo de uno excelente.",
+  "Hacer las cosas con esmero, aunque tome un poco más de tiempo, vale la pena.",
+  "La excelencia se construye con constancia, no con perfección puntual.",
+  "Cuida la calidad de tu trabajo como tu propia firma.",
+
+  // Optimismo
+  "Buscar el lado bueno de un día difícil también es una decisión.",
+  "El optimismo bien fundado abre más puertas que el pesimismo.",
+  "Ver oportunidades donde otros ven problemas también se entrena.",
+  "Confiar en que las cosas pueden salir bien ya es un buen comienzo.",
+  "El optimismo contagia energía positiva a todo el equipo.",
+  "Esperar lo mejor no quita prepararse para lo inesperado.",
+  "Un poco de esperanza hace más llevadero cualquier reto.",
+  "Creer que hay solución ayuda a encontrarla más rápido.",
+  "El buen ánimo de hoy puede ser el impulso de alguien más.",
+  "Mirar hacia adelante con confianza también es parte del trabajo bien hecho.",
+
+  // Responsabilidad
+  "Cumplir lo que te corresponde, aunque nadie lo supervise, dice mucho de ti.",
+  "Asumir un error con responsabilidad también fortalece la confianza.",
+  "Hacer tu parte, aunque sea pequeña, hace que todo el equipo avance.",
+  "La responsabilidad se nota más cuando nadie está mirando.",
+  "Cumplir tus compromisos, grandes o pequeños, construye tu reputación.",
+  "Hacerte cargo de tus resultados, buenos o malos, también es madurez.",
+  "Un compromiso cumplido vale más que mil promesas sin cumplir.",
+  "La responsabilidad compartida hace más ligera la carga de todos.",
+  "Responder por tu trabajo con honestidad fortalece tu credibilidad.",
+  "Cuidar los detalles que te corresponden también es parte del compromiso.",
+
+  // Ligereza y buen humor
+  "Una sonrisa a tiempo también alivia el peso de un día pesado.",
+  "El buen humor hace más llevaderas las tareas más tediosas.",
+  "Reírse de un pequeño tropiezo también ayuda a seguir adelante.",
+  "No todo tiene que tomarse con tanta seriedad todo el tiempo.",
+  "Un ambiente ligero también favorece la creatividad.",
+  "El buen humor compartido fortalece los lazos del equipo.",
+  "Disfrutar lo que haces también mejora cómo lo haces.",
+  "Una broma oportuna puede aligerar una reunión tensa.",
+  "Reírse un poco en el día también es parte de cuidar el bienestar.",
+  "El buen ánimo también se contagia entre compañeros.",
+
+  // Nuevos comienzos
+  "Cada día es una nueva oportunidad para empezar con buena energía.",
+  "No necesitas un año nuevo para proponerte algo distinto.",
+  "Hoy puedes dejar atrás lo que no funcionó y probar algo nuevo.",
+  "Un nuevo comienzo no borra lo anterior, lo construye con lo aprendido.",
+  "Empezar de nuevo, las veces que haga falta, también es valentía.",
+  "Cada mañana trae la posibilidad de hacerlo un poco mejor.",
+  "No es tarde para intentar algo que llevas tiempo posponiendo.",
+  "Los nuevos comienzos se sienten mejor cuando se acompañan de buena actitud.",
+  "Dejar ir lo que ya no sirve también abre espacio para algo mejor.",
+  "Hoy puede ser el día en que empieces ese cambio que tenías en mente.",
+
+  // Escuchar a los demás
+  "Escuchar de verdad, sin pensar en la respuesta, cambia toda conversación.",
+  "A veces lo que más ayuda a alguien es solo que lo escuchen.",
+  "Prestar atención plena también es una forma de respeto.",
+  "Escuchar antes de opinar suele mejorar cualquier decisión.",
+  "Una buena escucha evita muchos malentendidos innecesarios.",
+  "Dar espacio para que otros hablen también fortalece al equipo.",
+  "Escuchar con mente abierta puede cambiar tu perspectiva de algo.",
+  "A veces la mejor ayuda que puedes dar es simplemente escuchar.",
+  "Validar lo que siente otra persona también es un acto de empatía.",
+  "Escuchar con paciencia también construye confianza duradera.",
+
+  // Resolución de problemas
+  "Todo problema tiene al menos una solución que todavía no has probado.",
+  "Dividir un problema grande en partes pequeñas lo hace más manejable.",
+  "Preguntar '¿qué más podría intentar?' abre nuevas posibilidades.",
+  "La calma ayuda a pensar mejor frente a un problema difícil.",
+  "No tienes que resolverlo todo solo: pedir ayuda también es inteligente.",
+  "Cada problema resuelto deja una herramienta más para el siguiente.",
+  "Ver un obstáculo como un reto, no como un muro, cambia todo.",
+  "A veces la solución más simple es la que menos se considera.",
+  "Mantener la mente flexible ayuda a encontrar salidas creativas.",
+  "Un problema bien entendido ya está medio resuelto.",
+
+  // Constancia
+  "La constancia vence al talento cuando el talento no se esfuerza.",
+  "Seguir intentándolo, aunque despacio, también es avanzar.",
+  "Los resultados duraderos nacen de la constancia diaria.",
+  "No se trata de hacerlo perfecto una vez, sino bien muchas veces.",
+  "Mantener el ritmo, incluso en los días difíciles, también cuenta.",
+  "La constancia transforma pequeños esfuerzos en grandes resultados.",
+  "Seguir presente, día tras día, también es una forma de compromiso.",
+  "Lo que haces con constancia termina por definir tus resultados.",
+  "No abandones justo antes de ver los frutos de tu esfuerzo.",
+  "La repetición disciplinada construye maestría con el tiempo.",
+
+  // Ambición sana
+  "Soñar en grande no quita trabajar paso a paso para lograrlo.",
+  "Proponerte una meta nueva hoy también es una forma de crecer.",
+  "La ambición sana te impulsa sin hacerte perder el disfrute del camino.",
+  "No hay nada de malo en querer más, mientras trabajes por merecerlo.",
+  "Una meta clara da sentido al esfuerzo diario.",
+  "Aspirar a más también significa estar dispuesto a esforzarte más.",
+  "Tus metas de hoy pueden inspirar a alguien más mañana.",
+  "La ambición bien dirigida construye, no compite de forma dañina.",
+  "Permítete querer crecer, y después trabaja por lograrlo.",
+  "Una meta ambiciosa empieza siempre con un primer paso sencillo.",
+
+  // Impacto y legado
+  "Lo que haces hoy, aunque parezca pequeño, deja huella en alguien.",
+  "El buen ejemplo que das hoy puede inspirar a otros después.",
+  "No subestimes el impacto de un buen gesto en el día de alguien más.",
+  "Lo que enseñas hoy puede quedarse con alguien por mucho tiempo.",
+  "Cada acción cuidadosa construye la reputación que dejas detrás.",
+  "El legado no se construye en un solo día, sino en la suma de muchos.",
+  "Tu forma de trabajar también enseña a quienes te observan.",
+  "Dejar las cosas mejor de como las encontraste también es un logro.",
+  "El impacto positivo de hoy puede notarse mucho después.",
+  "Trabajar con propósito deja una huella que trasciende el día a día.",
+
+  // Extra variado (para completar y cubrir años bisiestos)
+  "Hoy también es un buen día para intentarlo con todo.",
+  "Lo simple, bien hecho, vale más que lo complicado a medias.",
+  "El progreso casi nunca es una línea recta, y está bien.",
+  "No necesitas motivación perfecta para empezar, solo un primer paso.",
+  "Cuida tu energía: es tu recurso más valioso hoy.",
+  "El buen trabajo de hoy también construye el de mañana.",
+  "Date permiso de avanzar a tu propio ritmo.",
+  "Lo que haces con cuidado siempre se nota.",
+  "No hay día perdido si aprendiste algo nuevo.",
+  "Confía en el proceso, incluso cuando no ves todo el camino.",
+  "Un buen equipo convierte los problemas en soluciones compartidas.",
+  "El esfuerzo silencioso también merece reconocimiento.",
+  "Hoy es una buena oportunidad para ser mejor que ayer.",
+  "La constancia de hoy es el resultado visible de mañana.",
+  "Pequeñas mejoras diarias, con el tiempo, se vuelven grandes cambios.",
+  "No subestimes lo que puedes lograr con calma y enfoque.",
+];
+
+// UTC-based day-of-year (1-366), matching the UTC date handling already
+// used elsewhere in attendance.ts, so the phrase changes at the same
+// moment everywhere regardless of the viewer's own timezone.
+function dayOfYearUtc(date: Date): number {
+  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 1);
+  const startOfDay = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  return Math.floor((startOfDay - startOfYear) / 86_400_000) + 1;
+}
+
+// Deterministic: everyone sees the same phrase on the same calendar day,
+// and it only changes when the day changes - not on every page refresh.
+export function pickDailyMotivationalPhrase(date: Date = new Date()): string {
+  const index = (dayOfYearUtc(date) - 1) % MOTIVATIONAL_PHRASES.length;
+  return MOTIVATIONAL_PHRASES[index];
+}
