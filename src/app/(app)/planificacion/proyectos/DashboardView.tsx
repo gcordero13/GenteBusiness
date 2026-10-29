@@ -95,10 +95,51 @@ function AvanceGeneralWidget({ tasks }: { tasks: TareaListRow[] }) {
   );
 }
 
+// Counts EVERY task (roots and sub-tasks alike - each has its own
+// estado_id independent of percentComplete being a rollup for parents),
+// grouped by estado. Tasks with no estado_id fall into a "Sin estado"
+// bucket instead of being silently dropped.
+function DesgloseEstadoWidget({ tasks }: { tasks: TareaListRow[] }) {
+  const groups = new Map<string, { name: string; color: string; count: number }>();
+  for (const t of tasks) {
+    const key = t.estadoId ?? "sin-estado";
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      groups.set(key, { name: t.estadoName ?? "Sin estado", color: t.estadoColor ?? "#94a3b8", count: 1 });
+    }
+  }
+  const entries = [...groups.values()].sort((a, b) => b.count - a.count);
+
+  return (
+    <div className="rounded-2xl border bg-card p-4 shadow-sm">
+      <p className="mb-3 text-sm font-semibold text-foreground">Desglose por estado</p>
+      {tasks.length === 0 ? (
+        <p className="py-6 text-center text-xs text-muted-foreground">Sin tareas todavía.</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-4">
+          <Donut segments={entries.map((e) => ({ value: e.count, color: e.color }))} centerLabel={String(tasks.length)} />
+          <div className="min-w-0 flex-1 space-y-1">
+            {entries.map((e) => (
+              <div key={e.name} className="flex items-center gap-1.5 text-xs">
+                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} />
+                <span className="min-w-0 flex-1 truncate text-foreground">{e.name}</span>
+                <span className="shrink-0 font-semibold text-muted-foreground">{e.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DashboardView({ tasks }: { tasks: TareaListRow[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <AvanceGeneralWidget tasks={tasks} />
+      <DesgloseEstadoWidget tasks={tasks} />
     </div>
   );
 }
