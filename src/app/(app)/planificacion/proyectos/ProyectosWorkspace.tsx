@@ -2,23 +2,25 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Download, LayoutGrid, List, Network } from "lucide-react";
+import { Calendar, Download, LayoutDashboard, LayoutGrid, List, Network } from "lucide-react";
 import { updateTareaFecha, updateTareaPercent, type EstadoOption, type PlanificacionRow, type TareaListRow } from "./actions";
 import { ListaView } from "./ListaView";
 import { TableroView, type TableroColumn } from "./TableroView";
 import { CalendarioView } from "./CalendarioView";
 import { JerarquiaView } from "./JerarquiaView";
+import { DashboardView } from "./DashboardView";
 import { TareaDetailModal } from "./TareaDetailModal";
 import type { AssigneeOption } from "./TareaCreateDialog";
 import { celebrateCompletion } from "./celebrate";
 
-type ViewMode = "lista" | "tablero" | "calendario" | "jerarquia";
+type ViewMode = "lista" | "tablero" | "calendario" | "jerarquia" | "dashboard";
 
 const VIEW_OPTIONS: { key: ViewMode; label: string; icon: typeof List }[] = [
   { key: "lista", label: "Lista", icon: List },
   { key: "tablero", label: "Tablero", icon: LayoutGrid },
   { key: "calendario", label: "Calendario", icon: Calendar },
   { key: "jerarquia", label: "Jerarquía", icon: Network },
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
 ];
 
 function csvCell(value: string): string {
@@ -263,6 +265,7 @@ export function ProyectosWorkspace({
       )}
       {view === "calendario" && <CalendarioView tasks={rootFilteredTasks} onSelect={setSelected} onReschedule={reschedule} />}
       {view === "jerarquia" && <JerarquiaView tasks={filteredTasks} onSelect={setSelected} />}
+      {view === "dashboard" && <DashboardView tasks={filteredTasks} />}
 
       <TareaDetailModal
         tarea={selected}
