@@ -1,6 +1,21 @@
 "use client";
 
+import { AlertTriangle, PieChart, TrendingUp, Users } from "lucide-react";
 import type { TareaListRow } from "./actions";
+
+// Icon bubble + title shared by every widget header, themed per widget via
+// `accent` (a Tailwind text-color class) - the colored top border on each
+// widget's own card uses a matching border-t-* class.
+function WidgetHeader({ icon: Icon, accent, title }: { icon: typeof TrendingUp; accent: string; title: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <span className={`flex size-8 shrink-0 items-center justify-center rounded-full bg-current/10 ${accent}`}>
+        <Icon className="size-4" />
+      </span>
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+    </div>
+  );
+}
 
 // Reusable donut: one <circle> per segment, each offset by the cumulative
 // length of every prior segment so they tile around the ring without
@@ -56,7 +71,7 @@ function Donut({
         )}
       </svg>
       {centerLabel && (
-        <div className="absolute inset-0 flex items-center justify-center text-lg font-bold text-foreground">
+        <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-foreground">
           {centerLabel}
         </div>
       )}
@@ -76,8 +91,8 @@ function AvanceGeneralWidget({ tasks }: { tasks: TareaListRow[] }) {
       : 0;
 
   return (
-    <div className="rounded-2xl border bg-card p-4 shadow-sm">
-      <p className="mb-3 text-sm font-semibold text-foreground">Avance general</p>
+    <div className="rounded-2xl border border-t-4 border-t-[#04B1AF] bg-card p-4 shadow-sm">
+      <WidgetHeader icon={TrendingUp} accent="text-[#04B1AF]" title="Avance general" />
       {rootTasks.length === 0 ? (
         <p className="py-6 text-center text-xs text-muted-foreground">Sin tareas todavía.</p>
       ) : (
@@ -113,8 +128,8 @@ function DesgloseEstadoWidget({ tasks }: { tasks: TareaListRow[] }) {
   const entries = [...groups.values()].sort((a, b) => b.count - a.count);
 
   return (
-    <div className="rounded-2xl border bg-card p-4 shadow-sm">
-      <p className="mb-3 text-sm font-semibold text-foreground">Desglose por estado</p>
+    <div className="rounded-2xl border border-t-4 border-t-indigo-400 bg-card p-4 shadow-sm">
+      <WidgetHeader icon={PieChart} accent="text-indigo-500" title="Desglose por estado" />
       {tasks.length === 0 ? (
         <p className="py-6 text-center text-xs text-muted-foreground">Sin tareas todavía.</p>
       ) : (
@@ -149,8 +164,8 @@ function CargaResponsableWidget({ tasks }: { tasks: TareaListRow[] }) {
   const max = entries.length > 0 ? entries[0][1] : 0;
 
   return (
-    <div className="rounded-2xl border bg-card p-4 shadow-sm">
-      <p className="mb-3 text-sm font-semibold text-foreground">Carga por responsable</p>
+    <div className="rounded-2xl border border-t-4 border-t-blue-400 bg-card p-4 shadow-sm">
+      <WidgetHeader icon={Users} accent="text-blue-500" title="Carga por responsable" />
       {entries.length === 0 ? (
         <p className="py-6 text-center text-xs text-muted-foreground">Sin tareas todavía.</p>
       ) : (
@@ -190,15 +205,15 @@ function VencidasWidget({ tasks, onSelect }: { tasks: TareaListRow[]; onSelect: 
     .slice(0, 5);
 
   return (
-    <div className="rounded-2xl border bg-card p-4 shadow-sm">
-      <p className="mb-3 text-sm font-semibold text-foreground">Vencidas / por vencer</p>
+    <div className="rounded-2xl border border-t-4 border-t-red-400 bg-card p-4 shadow-sm">
+      <WidgetHeader icon={AlertTriangle} accent="text-red-500" title="Vencidas / por vencer" />
       <div className="mb-3 grid grid-cols-2 gap-2">
         <div className="rounded-lg bg-red-50 p-3 text-center">
-          <p className="text-2xl font-bold text-red-600">{vencidas.length}</p>
+          <p className="text-3xl font-bold text-red-600">{vencidas.length}</p>
           <p className="text-[11px] text-muted-foreground">Vencidas</p>
         </div>
         <div className="rounded-lg bg-amber-50 p-3 text-center">
-          <p className="text-2xl font-bold text-amber-600">{porVencer.length}</p>
+          <p className="text-3xl font-bold text-amber-600">{porVencer.length}</p>
           <p className="text-[11px] text-muted-foreground">Por vencer (7 días)</p>
         </div>
       </div>
