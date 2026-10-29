@@ -10,8 +10,8 @@ const GEOMETRY = {
   // person's name/date block below it always fit inside the box, with room
   // to spare - this holds at every breakpoint since geometry doesn't change
   // by viewport width, only the horizontal track width does.
-  full: { perspective: 1100, scaleStep: 0.14, maxVisible: 2, depth: 70, stepX: 82, tilt: 10, height: "h-[360px]", avatar: "size-32", avatarText: "text-3xl", nameGap: "mt-5" },
-  compact: { perspective: 800, scaleStep: 0.22, maxVisible: 1, depth: 70, stepX: 80, tilt: 10, height: "h-[300px]", avatar: "size-32", avatarText: "text-3xl", nameGap: "mt-3" },
+  full: { perspective: 1100, scaleStep: 0.14, maxVisible: 2, depth: 70, stepX: 100, tilt: 10, height: "h-[400px]", avatar: "size-40", avatarText: "text-4xl", nameGap: "mt-5" },
+  compact: { perspective: 800, scaleStep: 0.22, maxVisible: 1, depth: 70, stepX: 98, tilt: 10, height: "h-[330px]", avatar: "size-40", avatarText: "text-4xl", nameGap: "mt-3" },
 };
 const AUTOPLAY_MS = 3 * 1000;
 const TRANSITION =
