@@ -350,7 +350,7 @@ export function TareaDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border bg-card p-4 shadow-xl sm:p-5"
+        className="max-h-[90dvh] w-full max-w-4xl overflow-y-auto rounded-2xl border bg-card p-4 shadow-xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
@@ -588,7 +588,7 @@ export function TareaDetailModal({
           </button>
           {subtareasExpanded && (
             <>
-              <div className="space-y-1">
+              <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
                 {subtareas.map((sub) => (
                   <div key={sub.id} className="flex items-center gap-2 rounded-lg border p-2 text-xs">
                     <button type="button" disabled={isPending} onClick={(e) => toggleSubtarea(sub, e.currentTarget)} className="shrink-0 text-muted-foreground">
@@ -669,7 +669,7 @@ export function TareaDetailModal({
             <MessageSquare className="size-3.5" />
             Comentarios
           </p>
-          <div className="space-y-2">
+          <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
             {comentarios.map((c) => (
               <div key={c.id} className="rounded-lg border p-2 text-xs">
                 <div className="mb-0.5 flex items-center justify-between">
