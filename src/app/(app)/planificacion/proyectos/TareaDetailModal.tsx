@@ -35,6 +35,7 @@ import {
   getTarea,
   listAdjuntos,
   listComentarios,
+  listEstados,
   listSubtareas,
   removeAdjunto,
   updateTarea,
@@ -124,6 +125,30 @@ export function TareaDetailModal({
   // overwrite B's correct one, flashing a wrong sub-task/comment/adjunto
   // before the next re-render fixed it.
   const tareaId = tarea?.id ?? null;
+  const tareaProyectoId = tarea?.proyectoId ?? null;
+
+  // `estados` is [] on pages that mix tasks from unrelated projects (e.g.
+  // "Mis tareas" - no single catalog applies there, same restriction
+  // Tablero/Lista already have). But this modal is always scoped to exactly
+  // ONE task's ONE project, so instead of going read-only it fetches that
+  // project's own catalog - re-fetched per task since different rows here
+  // can belong to different projects.
+  const [fetchedEstados, setFetchedEstados] = useState<EstadoOption[]>([]);
+  const effectiveEstados = estados.length > 0 ? estados : fetchedEstados;
+
+  useEffect(() => {
+    // Stale fetchedEstados from a previous task is harmless when estados.length
+    // > 0 here - effectiveEstados ignores it in that case, so there's nothing
+    // to reset.
+    if (!tareaProyectoId || estados.length > 0) return;
+    let cancelled = false;
+    listEstados(tareaProyectoId).then((data) => {
+      if (!cancelled) setFetchedEstados(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tareaProyectoId, estados.length]);
 
   useEffect(() => {
     if (!tareaId) return;
@@ -193,7 +218,7 @@ export function TareaDetailModal({
         proyectoId: tarea.proyectoId,
         title,
         description,
-        estadoId: estados.length > 0 ? estadoId || null : tarea.estadoId,
+        estadoId: effectiveEstados.length > 0 ? estadoId || null : tarea.estadoId,
         priority: priority || null,
         labels: tarea.labels,
         startDate: startDate || null,
@@ -426,13 +451,13 @@ export function TareaDetailModal({
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-muted-foreground">Estado</label>
-                {estados.length > 0 ? (
+                {effectiveEstados.length > 0 ? (
                   <Select value={estadoId} onValueChange={(v) => v && setEstadoId(v)}>
                     <SelectTrigger className="w-full">
-                      <SelectValue>{() => estados.find((e) => e.id === estadoId)?.name ?? "Selecciona"}</SelectValue>
+                      <SelectValue>{() => effectiveEstados.find((e) => e.id === estadoId)?.name ?? "Selecciona"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {estados.map((e) => (
+                      {effectiveEstados.map((e) => (
                         <SelectItem key={e.id} value={e.id}>
                           {e.name}
                         </SelectItem>
