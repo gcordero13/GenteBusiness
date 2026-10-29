@@ -20,6 +20,10 @@ function softTint(hex: string | null): string | undefined {
   return `rgba(${r}, ${g}, ${b}, 0.1)`;
 }
 
+function isClosedKind(kind: string | null): boolean {
+  return kind === "completado" || kind === "cancelado";
+}
+
 // Creator + assignee, deduped (a self-created, self-assigned task shows
 // just one avatar) - the people "involved" with this task per the names
 // this schema actually tracks.
@@ -235,10 +239,15 @@ export function ListaView({
     childrenByParent.get(t.parentTaskId)!.push(t);
   }
 
+  // Closed root tasks (completado/cancelado) sink to the bottom, keeping
+  // their relative order otherwise - Array#sort is a stable sort, so this
+  // only ever moves closed tasks down, never reorders within either group.
+  const sortedTasks = [...tasks].sort((a, b) => Number(isClosedKind(a.estadoKind)) - Number(isClosedKind(b.estadoKind)));
+
   return (
-    <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
+    <div className="max-h-[32rem] overflow-auto rounded-2xl border bg-card shadow-sm">
       <table className="w-full text-sm">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-card">
           <tr className="border-b text-left text-xs text-muted-foreground">
             <th className="w-8 p-3"></th>
             <th className="p-3 font-medium">Título</th>
@@ -252,7 +261,7 @@ export function ListaView({
           </tr>
         </thead>
         <tbody>
-          {tasks.map((t) => (
+          {sortedTasks.map((t) => (
             <TaskRow
               key={t.id}
               task={t}

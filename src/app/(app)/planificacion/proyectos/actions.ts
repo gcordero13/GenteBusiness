@@ -219,6 +219,10 @@ export interface TareaListRow {
   estadoId: string | null;
   estadoName: string | null;
   estadoColor: string | null;
+  // "completado" | "cancelado" | "asignado" | "en_proceso" | "en_espera" |
+  // null (a custom, non-default estado has no kind). Used to sort closed
+  // tasks (completado/cancelado) toward the bottom of Lista.
+  estadoKind: string | null;
   priority: "alta" | "media" | "baja" | null;
   labels: string[];
   startDate: string | null;
@@ -255,7 +259,10 @@ interface RawTareaRow {
   title: string;
   description: string | null;
   estado_id: string | null;
-  plan_estados: { name: string; color: string | null } | { name: string; color: string | null }[] | null;
+  plan_estados:
+    | { name: string; color: string | null; kind: string | null }
+    | { name: string; color: string | null; kind: string | null }[]
+    | null;
   priority: "alta" | "media" | "baja" | null;
   labels: string[] | null;
   start_date: string | null;
@@ -286,6 +293,7 @@ function toTareaListRow(t: RawTareaRow, callerId: string): TareaListRow {
     estadoId: t.estado_id,
     estadoName: estado?.name ?? null,
     estadoColor: estado?.color ?? null,
+    estadoKind: estado?.kind ?? null,
     priority: t.priority,
     labels: t.labels ?? [],
     startDate: t.start_date,
@@ -347,7 +355,7 @@ function upgradeRelationshipForAssignedSubtree(rows: TareaListRow[], callerId: s
 }
 
 const TAREA_SELECT =
-  "id, proyecto_id, plan_proyectos(name), parent_task_id, title, description, estado_id, plan_estados(name, color), priority, labels, start_date, due_date, assignee_id, ciclo_id, planificacion_id, plan_planificaciones(name), created_by, plan_tarea_modulos(modulo_id), percent_complete, color";
+  "id, proyecto_id, plan_proyectos(name), parent_task_id, title, description, estado_id, plan_estados(name, color, kind), priority, labels, start_date, due_date, assignee_id, ciclo_id, planificacion_id, plan_planificaciones(name), created_by, plan_tarea_modulos(modulo_id), percent_complete, color";
 
 // Every task RLS lets the caller see, across every project - the landing
 // screen (a later task) splits this into "Mis tareas" (relationship is
