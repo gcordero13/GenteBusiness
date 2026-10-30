@@ -235,6 +235,7 @@ export interface AttendancePeriodRow {
   workedMinutes: number | null; // exitMinutes - arrivalMinutes when both present, else null
   estado: DayEstado;
   observacion: string; // "—" when there's nothing to note
+  outsideSchedule: boolean; // true when dateIso isn't a day in the person's assigned horario laboral
 }
 
 export interface ApprovedLeaveRange {
@@ -297,19 +298,19 @@ export function buildAttendancePeriodRows(
 
     if (!scheduledDay) {
       if (arrivalMinutes === null) continue;
-      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "puntual", observacion: "—" });
+      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "puntual", observacion: "—", outsideSchedule: true });
       continue;
     }
 
     const onLeave = approvedLeave.some((leave) => isDateInRange(dateIso, leave.dateFrom, leave.dateTo));
 
     if (onLeave) {
-      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "permiso", observacion: "Permiso aprobado" });
+      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "permiso", observacion: "Permiso aprobado", outsideSchedule: false });
       continue;
     }
 
     if (arrivalMinutes === null) {
-      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "ausente", observacion: "Sin justificación" });
+      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "ausente", observacion: "Sin justificación", outsideSchedule: false });
       continue;
     }
 
@@ -324,6 +325,7 @@ export function buildAttendancePeriodRows(
         workedMinutes,
         estado: "llegada_tarde",
         observacion: `${lateByTotal} min tarde`,
+        outsideSchedule: false,
       });
       continue;
     }
@@ -338,12 +340,13 @@ export function buildAttendancePeriodRows(
           workedMinutes,
           estado: "salida_anticipada",
           observacion: `${earlyByTotal} min antes`,
+          outsideSchedule: false,
         });
         continue;
       }
     }
 
-    rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "puntual", observacion: "—" });
+    rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "puntual", observacion: "—", outsideSchedule: false });
   }
   return rows;
 }

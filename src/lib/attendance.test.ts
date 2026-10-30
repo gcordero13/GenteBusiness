@@ -405,6 +405,7 @@ describe("buildAttendancePeriodRows", () => {
         workedMinutes: null,
         estado: "permiso",
         observacion: "Permiso aprobado",
+        outsideSchedule: false,
       },
     ]);
   });
@@ -419,6 +420,7 @@ describe("buildAttendancePeriodRows", () => {
         workedMinutes: null,
         estado: "ausente",
         observacion: "Sin justificación",
+        outsideSchedule: false,
       },
     ]);
   });
@@ -440,6 +442,7 @@ describe("buildAttendancePeriodRows", () => {
         workedMinutes: 17 * 60 - (8 * 60 + 20),
         estado: "llegada_tarde",
         observacion: "20 min tarde",
+        outsideSchedule: false,
       },
     ]);
   });
@@ -461,6 +464,7 @@ describe("buildAttendancePeriodRows", () => {
         workedMinutes: 16 * 60 - 8 * 60,
         estado: "salida_anticipada",
         observacion: "60 min antes",
+        outsideSchedule: false,
       },
     ]);
   });
@@ -494,14 +498,38 @@ describe("buildAttendancePeriodRows", () => {
         workedMinutes: 9 * 60,
         estado: "puntual",
         observacion: "—",
+        outsideSchedule: false,
       },
     ]);
   });
 
-  it("excludes a day that isn't scheduled for this schedule", () => {
+  it("excludes a day that isn't scheduled for this schedule and has no punch", () => {
     // 2026-01-11 is a Sunday - not in schedule.days
     const result = buildAttendancePeriodRows("2026-01-11", "2026-01-11", schedule, [], [], 15);
     expect(result).toEqual([]);
+  });
+
+  it("includes an unscheduled day as a plain puntual row when the person punched in anyway", () => {
+    // 2026-01-11 is a Sunday - not in schedule.days
+    const result = buildAttendancePeriodRows(
+      "2026-01-11",
+      "2026-01-11",
+      schedule,
+      [{ dateIso: "2026-01-11", arrivalMinutes: 9 * 60, exitMinutes: 13 * 60 }],
+      [],
+      15,
+    );
+    expect(result).toEqual([
+      {
+        dateIso: "2026-01-11",
+        arrivalMinutes: 9 * 60,
+        exitMinutes: 13 * 60,
+        workedMinutes: 4 * 60,
+        estado: "puntual",
+        observacion: "—",
+        outsideSchedule: true,
+      },
+    ]);
   });
 
   it("enumerates only scheduled days across a range that includes a weekend", () => {
@@ -519,11 +547,11 @@ describe("buildAttendancePeriodRows", () => {
 describe("summarizeAttendancePeriod", () => {
   it("counts each estado and computes derived stats for a mixed period", () => {
     const rows = [
-      { dateIso: "2026-01-05", arrivalMinutes: 480, exitMinutes: 1020, workedMinutes: 540, estado: "puntual" as const, observacion: "—" },
-      { dateIso: "2026-01-06", arrivalMinutes: 500, exitMinutes: 1020, workedMinutes: 520, estado: "llegada_tarde" as const, observacion: "20 min tarde" },
-      { dateIso: "2026-01-07", arrivalMinutes: 480, exitMinutes: 960, workedMinutes: 480, estado: "salida_anticipada" as const, observacion: "60 min antes" },
-      { dateIso: "2026-01-08", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "ausente" as const, observacion: "Sin justificación" },
-      { dateIso: "2026-01-09", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "permiso" as const, observacion: "Permiso aprobado" },
+      { dateIso: "2026-01-05", arrivalMinutes: 480, exitMinutes: 1020, workedMinutes: 540, estado: "puntual" as const, observacion: "—", outsideSchedule: false },
+      { dateIso: "2026-01-06", arrivalMinutes: 500, exitMinutes: 1020, workedMinutes: 520, estado: "llegada_tarde" as const, observacion: "20 min tarde", outsideSchedule: false },
+      { dateIso: "2026-01-07", arrivalMinutes: 480, exitMinutes: 960, workedMinutes: 480, estado: "salida_anticipada" as const, observacion: "60 min antes", outsideSchedule: false },
+      { dateIso: "2026-01-08", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "ausente" as const, observacion: "Sin justificación", outsideSchedule: false },
+      { dateIso: "2026-01-09", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "permiso" as const, observacion: "Permiso aprobado", outsideSchedule: false },
     ];
     const result = summarizeAttendancePeriod(rows);
     expect(result).toEqual({
@@ -543,8 +571,8 @@ describe("summarizeAttendancePeriod", () => {
 
   it("returns null-safe stats for a period with zero días trabajados", () => {
     const rows = [
-      { dateIso: "2026-01-08", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "ausente" as const, observacion: "Sin justificación" },
-      { dateIso: "2026-01-09", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "permiso" as const, observacion: "Permiso aprobado" },
+      { dateIso: "2026-01-08", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "ausente" as const, observacion: "Sin justificación", outsideSchedule: false },
+      { dateIso: "2026-01-09", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "permiso" as const, observacion: "Permiso aprobado", outsideSchedule: false },
     ];
     const result = summarizeAttendancePeriod(rows);
     expect(result.diasTrabajados).toBe(0);

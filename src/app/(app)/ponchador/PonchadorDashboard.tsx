@@ -20,6 +20,7 @@ export interface PonchadorRow {
   estado: DayEstado;
   estadoLabel: string;
   observacion: string;
+  outsideSchedule: boolean;
 }
 
 export type PonchadorSummary = Pick<
@@ -146,7 +147,10 @@ export function PonchadorDashboard({
               </TableHeader>
               <TableBody>
                 {rows.map((row) => (
-                  <TableRow key={row.dateIso}>
+                  <TableRow
+                    key={row.dateIso}
+                    className={row.outsideSchedule ? "border-l-4 border-l-violet-500 bg-violet-50/50" : ""}
+                  >
                     <TableCell>{row.dateLabel}</TableCell>
                     <TableCell>{row.arrivalLabel ?? "—"}</TableCell>
                     <TableCell>{row.exitLabel ?? "—"}</TableCell>

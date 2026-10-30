@@ -479,6 +479,7 @@ export default async function PonchadorPage({
     estado: r.estado,
     estadoLabel: ESTADO_LABELS[r.estado],
     observacion: r.observacion,
+    outsideSchedule: r.outsideSchedule,
   }));
 
   const summaryDisplay: PonchadorSummary = {
