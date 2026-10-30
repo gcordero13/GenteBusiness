@@ -262,10 +262,13 @@ function isDateInRange(dateIso: string, startIso: string, endIso: string): boole
 }
 
 // Builds one row per scheduled workday between periodStartIso and
-// periodEndIso (inclusive). The caller is responsible for clamping
-// periodEndIso to getBusinessToday() so future days aren't evaluated for
-// absence. Non-workdays for this schedule are not included in the result at
-// all. For each scheduled day, in priority order:
+// periodEndIso (inclusive), plus a row for any day outside the schedule
+// where the person punched in anyway (e.g. came in on a Saturday/Sunday
+// that isn't part of their horario laboral) - those are recorded as plain
+// "puntual" rows since there's no scheduled start/end time to evaluate
+// tardiness against. The caller is responsible for clamping periodEndIso to
+// getBusinessToday() so future days aren't evaluated for absence. For each
+// scheduled day, in priority order:
 //   1. Covered by an approved leave range -> "permiso"
 //   2. No punch that day at all -> "ausente", observación "Sin justificación"
 //   3. Arrival later than schedule start + tolerance_minutes -> "llegada_tarde"
@@ -287,13 +290,18 @@ export function buildAttendancePeriodRows(
   const rows: AttendancePeriodRow[] = [];
   for (const dateIso of enumerateDateRange(periodStartIso, periodEndIso)) {
     const scheduledDay = scheduledDayOfWeeks.get(businessDayOfWeek(dateIso));
-    if (!scheduledDay) continue;
-
-    const onLeave = approvedLeave.some((leave) => isDateInRange(dateIso, leave.dateFrom, leave.dateTo));
     const attendance = rowsByDate.get(dateIso);
     const arrivalMinutes = attendance?.arrivalMinutes ?? null;
     const exitMinutes = attendance?.exitMinutes ?? null;
     const workedMinutes = arrivalMinutes !== null && exitMinutes !== null ? exitMinutes - arrivalMinutes : null;
+
+    if (!scheduledDay) {
+      if (arrivalMinutes === null) continue;
+      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "puntual", observacion: "—" });
+      continue;
+    }
+
+    const onLeave = approvedLeave.some((leave) => isDateInRange(dateIso, leave.dateFrom, leave.dateTo));
 
     if (onLeave) {
       rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "permiso", observacion: "Permiso aprobado" });
