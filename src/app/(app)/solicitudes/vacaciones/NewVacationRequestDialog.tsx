@@ -110,7 +110,11 @@ export function NewVacationRequestDialog() {
                 <button
                   key={t.value}
                   type="button"
-                  onClick={() => setTipo(t.value)}
+                  onClick={() => {
+                    setTipo(t.value);
+                    setAttachment(null);
+                    setAttachmentInputKey((k) => k + 1);
+                  }}
                   className={`rounded-md px-3 py-1.5 text-sm ${
                     tipo === t.value ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"
                   }`}
