@@ -35,6 +35,7 @@ export function NewVacationRequestDialog() {
   const [daysPending, setDaysPending] = useState("");
   const [notes, setNotes] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachmentInputKey, setAttachmentInputKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -50,6 +51,7 @@ export function NewVacationRequestDialog() {
     setDaysPending("");
     setNotes("");
     setAttachment(null);
+    setAttachmentInputKey((k) => k + 1);
   }
 
   function submit() {
@@ -75,7 +77,7 @@ export function NewVacationRequestDialog() {
         returnDate: isVacaciones ? returnDate : null,
         daysPending: isVacaciones && daysPending ? Number(daysPending) : null,
         notes,
-        attachment,
+        attachment: isVacaciones ? null : attachment,
       });
       if (result.error) {
         setError(result.error);
@@ -180,7 +182,7 @@ export function NewVacationRequestDialog() {
               </div>
               <div className="space-y-1">
                 <Label>Adjuntar documento (opcional)</Label>
-                <Input type="file" onChange={(e) => setAttachment(e.target.files?.[0] ?? null)} />
+                <Input key={attachmentInputKey} type="file" onChange={(e) => setAttachment(e.target.files?.[0] ?? null)} />
               </div>
             </>
           )}
