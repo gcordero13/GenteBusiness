@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Clock,
   FileSignature,
+  FileText,
   Fingerprint,
   HardHat,
   Inbox,
@@ -254,7 +255,7 @@ export function Sidebar({
 
   const solicitudesLinks: NavLink[] = [
     ...(canViewSolicitudesVacaciones
-      ? [{ href: "/solicitudes/vacaciones", label: "Vacaciones", icon: Palmtree }]
+      ? [{ href: "/solicitudes/vacaciones", label: "Permisos", icon: FileText }]
       : []),
   ];
 
