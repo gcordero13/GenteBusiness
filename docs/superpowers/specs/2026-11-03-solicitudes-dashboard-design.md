@@ -77,10 +77,12 @@ Controles, todos en una sola barra arriba de la tabla:
 
 - **Buscar** (`<input type="text">`) — filtra por nombre del colaborador
   (`first_name + " " + last_name`, case-insensitive, substring).
-- **Tipo** (`<select>`) — "Todos" + los 7 valores de `TIPO_LABEL` ya
-  existente en `page.tsx`.
-- **Estado** (`<select>`) — "Todos" + los 4 valores de `STATUS_LABEL` ya
-  existente.
+- **Tipo** (componente `Select` de `@/components/ui/select`, el mismo que
+  ya usan `ComplaintsFilterBar.tsx`/`GoservicesFilterBar.tsx`, no un
+  `<select>` nativo) — "Todos" + los 7 valores de `TIPO_LABEL` ya existente
+  en `page.tsx`.
+- **Estado** (mismo componente `Select`) — "Todos" + los 4 valores de
+  `STATUS_LABEL` ya existente.
 
 El filtrado es 100% client-side sobre el arreglo ya cargado (no hay
 paginación ni se espera un volumen de filas que lo justifique). Si el
@@ -90,9 +92,15 @@ el filtro." en vez del mensaje actual de "no hay solicitudes todavía"
 
 ### 3. Rediseño visual
 
-- Las tarjetas de resumen usan `Card`/`CardContent` de
-  `@/components/ui/card` (mismo componente shadcn ya usado en otras partes
-  de la app, p. ej. `MyProfileCard.tsx`).
+- **Corrección tras revisar el código real:** no existe un componente
+  `Card`/`CardContent` en `@/components/ui/` de este proyecto (solo hay
+  `avatar`, `badge`, `button`, `dialog`, `input`, `label`, `select`,
+  `table`). Las tarjetas de resumen se construyen con el patrón de "tarjeta
+  de estadística" que esta app ya usa en el Ponchador
+  (`PonchadorDashboard.tsx`): un `<div>` con clases
+  `rounded-2xl border ... p-5` dentro de un contenedor
+  `grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4`, sin introducir un
+  componente nuevo.
 - La fila de tarjetas y la barra de filtro quedan dentro del mismo
   contenedor `max-w-3xl` que ya usa la página (se amplía a `max-w-4xl` para
   dar más aire a 4 tarjetas en una fila en pantallas grandes).
