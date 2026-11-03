@@ -387,12 +387,13 @@ describe("buildAttendancePeriodRows", () => {
     })),
   };
 
-  it("marks a scheduled day covered by approved leave as permiso, even with no punch", () => {
+  it("marks a scheduled day covered by a permiso range as permiso, even with no punch", () => {
     // 2026-01-12 is a Monday
     const result = buildAttendancePeriodRows(
       "2026-01-12",
       "2026-01-12",
       schedule,
+      [],
       [],
       [{ dateFrom: "2026-01-12", dateTo: "2026-01-12" }],
       15,
@@ -410,8 +411,45 @@ describe("buildAttendancePeriodRows", () => {
     ]);
   });
 
+  it("marks a scheduled day covered by a vacaciones range as vacaciones, even with no punch", () => {
+    // 2026-01-12 is a Monday
+    const result = buildAttendancePeriodRows(
+      "2026-01-12",
+      "2026-01-12",
+      schedule,
+      [],
+      [{ dateFrom: "2026-01-12", dateTo: "2026-01-12" }],
+      [],
+      15,
+    );
+    expect(result).toEqual([
+      {
+        dateIso: "2026-01-12",
+        arrivalMinutes: null,
+        exitMinutes: null,
+        workedMinutes: null,
+        estado: "vacaciones",
+        observacion: "Vacaciones aprobadas",
+        outsideSchedule: false,
+      },
+    ]);
+  });
+
+  it("prioritizes vacaciones over permiso when a date falls in both ranges", () => {
+    const result = buildAttendancePeriodRows(
+      "2026-01-12",
+      "2026-01-12",
+      schedule,
+      [],
+      [{ dateFrom: "2026-01-12", dateTo: "2026-01-12" }],
+      [{ dateFrom: "2026-01-12", dateTo: "2026-01-12" }],
+      15,
+    );
+    expect(result[0].estado).toBe("vacaciones");
+  });
+
   it("marks a scheduled day with no punch and no leave as ausente", () => {
-    const result = buildAttendancePeriodRows("2026-01-12", "2026-01-12", schedule, [], [], 15);
+    const result = buildAttendancePeriodRows("2026-01-12", "2026-01-12", schedule, [], [], [], 15);
     expect(result).toEqual([
       {
         dateIso: "2026-01-12",
@@ -431,6 +469,7 @@ describe("buildAttendancePeriodRows", () => {
       "2026-01-12",
       schedule,
       [{ dateIso: "2026-01-12", arrivalMinutes: 8 * 60 + 20, exitMinutes: 17 * 60 }],
+      [],
       [],
       15,
     );
@@ -454,6 +493,7 @@ describe("buildAttendancePeriodRows", () => {
       schedule,
       [{ dateIso: "2026-01-12", arrivalMinutes: 8 * 60, exitMinutes: 16 * 60 }],
       [],
+      [],
       15,
     );
     expect(result).toEqual([
@@ -476,6 +516,7 @@ describe("buildAttendancePeriodRows", () => {
       schedule,
       [{ dateIso: "2026-01-12", arrivalMinutes: 8 * 60 + 20, exitMinutes: 16 * 60 }],
       [],
+      [],
       15,
     );
     expect(result[0].estado).toBe("llegada_tarde");
@@ -487,6 +528,7 @@ describe("buildAttendancePeriodRows", () => {
       "2026-01-12",
       schedule,
       [{ dateIso: "2026-01-12", arrivalMinutes: 8 * 60, exitMinutes: 17 * 60 }],
+      [],
       [],
       15,
     );
@@ -505,7 +547,7 @@ describe("buildAttendancePeriodRows", () => {
 
   it("excludes a day that isn't scheduled for this schedule and has no punch", () => {
     // 2026-01-11 is a Sunday - not in schedule.days
-    const result = buildAttendancePeriodRows("2026-01-11", "2026-01-11", schedule, [], [], 15);
+    const result = buildAttendancePeriodRows("2026-01-11", "2026-01-11", schedule, [], [], [], 15);
     expect(result).toEqual([]);
   });
 
@@ -516,6 +558,7 @@ describe("buildAttendancePeriodRows", () => {
       "2026-01-11",
       schedule,
       [{ dateIso: "2026-01-11", arrivalMinutes: 9 * 60, exitMinutes: 13 * 60 }],
+      [],
       [],
       15,
     );
@@ -534,12 +577,12 @@ describe("buildAttendancePeriodRows", () => {
 
   it("enumerates only scheduled days across a range that includes a weekend", () => {
     // 2026-01-09 Fri, 01-10 Sat, 01-11 Sun, 01-12 Mon - only Fri and Mon are scheduled
-    const result = buildAttendancePeriodRows("2026-01-09", "2026-01-12", schedule, [], [], 15);
+    const result = buildAttendancePeriodRows("2026-01-09", "2026-01-12", schedule, [], [], [], 15);
     expect(result.map((r) => r.dateIso)).toEqual(["2026-01-09", "2026-01-12"]);
   });
 
   it("returns an empty array when periodEndIso is before periodStartIso", () => {
-    const result = buildAttendancePeriodRows("2026-01-12", "2026-01-11", schedule, [], [], 15);
+    const result = buildAttendancePeriodRows("2026-01-12", "2026-01-11", schedule, [], [], [], 15);
     expect(result).toEqual([]);
   });
 });
@@ -552,16 +595,18 @@ describe("summarizeAttendancePeriod", () => {
       { dateIso: "2026-01-07", arrivalMinutes: 480, exitMinutes: 960, workedMinutes: 480, estado: "salida_anticipada" as const, observacion: "60 min antes", outsideSchedule: false },
       { dateIso: "2026-01-08", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "ausente" as const, observacion: "Sin justificación", outsideSchedule: false },
       { dateIso: "2026-01-09", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "permiso" as const, observacion: "Permiso aprobado", outsideSchedule: false },
+      { dateIso: "2026-01-10", arrivalMinutes: null, exitMinutes: null, workedMinutes: null, estado: "vacaciones" as const, observacion: "Vacaciones aprobadas", outsideSchedule: false },
     ];
     const result = summarizeAttendancePeriod(rows);
     expect(result).toEqual({
-      diasHabiles: 5,
+      diasHabiles: 6,
       diasTrabajados: 3,
       puntuales: 1,
       llegadasTarde: 1,
       salidasAnticipadas: 1,
       ausencias: 1,
       permisos: 1,
+      vacacionesDias: 1,
       feriados: 0,
       horasTrabajadasMinutes: 540 + 520 + 480,
       promedioEntradaMinutes: (480 + 500 + 480) / 3,
@@ -580,6 +625,7 @@ describe("summarizeAttendancePeriod", () => {
     expect(result.puntualidadPercent).toBeNull();
     expect(result.horasTrabajadasMinutes).toBe(0);
     expect(result.feriados).toBe(0);
+    expect(result.vacacionesDias).toBe(0);
   });
 });
 
