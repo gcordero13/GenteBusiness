@@ -41,6 +41,7 @@ const ESTADO_LABELS: Record<PonchadorRow["estado"], string> = {
   salida_anticipada: "Salida anticipada",
   ausente: "Ausente",
   permiso: "Permiso",
+  vacaciones: "Vacaciones",
 };
 
 interface PonchadorRosterPerson {
@@ -266,10 +267,10 @@ export default async function PonchadorPage({
     for (const l of rosterLeaveRows ?? []) {
       const entry = leaveByContact.get(l.contact_id) ?? { vacaciones: [], permiso: [] };
       const range: ApprovedLeaveRange = { dateFrom: l.date_from, dateTo: l.date_to };
-      if (l.tipo === "permiso") {
-        entry.permiso.push(range);
-      } else {
+      if (l.tipo === "vacaciones") {
         entry.vacaciones.push(range);
+      } else {
+        entry.permiso.push(range);
       }
       leaveByContact.set(l.contact_id, entry);
     }
@@ -318,7 +319,8 @@ export default async function PonchadorPage({
           periodEndIso,
           personSchedule,
           personArrivalsAndExits,
-          [...personLeave.vacaciones, ...personLeave.permiso],
+          personLeave.vacaciones,
+          personLeave.permiso,
           EARLY_DEPARTURE_THRESHOLD_MINUTES,
         );
         const personSummary = summarizeAttendancePeriod(personPeriodRows);
@@ -438,17 +440,24 @@ export default async function PonchadorPage({
 
   const arrivalsAndExits = buildDailyAttendanceRows((punchRows ?? []).map((p: { punched_at: string }) => p.punched_at));
 
-  const approvedLeave: ApprovedLeaveRange[] = (leaveRows ?? []).map((r: { date_from: string; date_to: string }) => ({
-    dateFrom: r.date_from,
-    dateTo: r.date_to,
-  }));
+  const vacacionesLeave: ApprovedLeaveRange[] = [];
+  const permisoLeave: ApprovedLeaveRange[] = [];
+  for (const r of (leaveRows ?? []) as { date_from: string; date_to: string; tipo: string }[]) {
+    const range: ApprovedLeaveRange = { dateFrom: r.date_from, dateTo: r.date_to };
+    if (r.tipo === "vacaciones") {
+      vacacionesLeave.push(range);
+    } else {
+      permisoLeave.push(range);
+    }
+  }
 
   const periodRows = buildAttendancePeriodRows(
     periodStartIso,
     periodEndIso,
     targetSchedule,
     arrivalsAndExits,
-    approvedLeave,
+    vacacionesLeave,
+    permisoLeave,
     EARLY_DEPARTURE_THRESHOLD_MINUTES,
   );
   const summary = summarizeAttendancePeriod(periodRows);
@@ -490,6 +499,7 @@ export default async function PonchadorPage({
     salidasAnticipadas: summary.salidasAnticipadas,
     ausencias: summary.ausencias,
     permisos: summary.permisos,
+    vacacionesDias: summary.vacacionesDias,
     feriados: summary.feriados,
     horasTrabajadasLabel: formatHoursMinutes(summary.horasTrabajadasMinutes),
     promedioDiarioLabel:
