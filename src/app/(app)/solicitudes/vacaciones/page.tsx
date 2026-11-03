@@ -19,6 +19,16 @@ const STATUS_LABEL: Record<string, string> = {
   rechazado: "Rechazado",
 };
 
+const TIPO_LABEL: Record<string, string> = {
+  vacaciones: "Vacaciones",
+  personal: "Personal",
+  familiar: "Familiar",
+  medico: "Médico",
+  perdida: "Pérdida",
+  tramites: "Trámites",
+  otro: "Otro",
+};
+
 export default async function VacationRequestsPage() {
   const supabase = await createClient();
   const {
@@ -49,10 +59,29 @@ export default async function VacationRequestsPage() {
     }),
   );
 
+  // Signed URLs for any request that has an attachment_path - same pattern
+  // as the signatures above, just keyed by request id instead of signature
+  // id since there's at most one attachment per request.
+  const attachmentUrlByRequestId = new Map<string, string>();
+  await Promise.all(
+    (requests ?? [])
+      .filter((r) => r.attachment_path)
+      .map(async (r) => {
+        const { data, error } = await supabase.storage
+          .from("vacation-request-attachments")
+          .createSignedUrl(r.attachment_path, 14400);
+        if (error) {
+          console.error(`Failed to sign URL for attachment on request ${r.id}:`, error.message);
+          return;
+        }
+        if (data?.signedUrl) attachmentUrlByRequestId.set(r.id, data.signedUrl);
+      }),
+  );
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Solicitudes de vacaciones</h1>
+        <h1 className="text-xl font-semibold">Solicitudes de permisos</h1>
         <NewVacationRequestDialog />
       </div>
       {(requests ?? []).length === 0 ? (
@@ -62,6 +91,7 @@ export default async function VacationRequestsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Colaborador</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Período</TableHead>
               <TableHead>Fechas</TableHead>
               <TableHead>Estado</TableHead>
@@ -76,10 +106,26 @@ export default async function VacationRequestsPage() {
               // respondAsRrhh's own server-side can_authorize check already make clicking
               // safe either way, but hiding it here closes the UX gap for that viewer.
               const isPendingRrhhForMe = r.status === "pendiente_rrhh" && canAuthorize;
+              const attachmentUrl = attachmentUrlByRequestId.get(r.id);
               return (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">
                     {r.first_name} {r.last_name}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <span>{TIPO_LABEL[r.tipo] ?? r.tipo}</span>
+                      {attachmentUrl && (
+                        <a
+                          href={attachmentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-[#04B1AF] hover:underline"
+                        >
+                          Ver documento
+                        </a>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{r.period ?? "-"}</TableCell>
                   <TableCell>
@@ -92,10 +138,10 @@ export default async function VacationRequestsPage() {
                   </TableCell>
                   <TableCell>
                     {isPendingSupervisorForMe && (
-                      <VacationRequestActions requestId={r.id} role="supervisor" signatures={signatures} />
+                      <VacationRequestActions requestId={r.id} role="supervisor" signatures={signatures} tipo={r.tipo} />
                     )}
                     {isPendingRrhhForMe && (
-                      <VacationRequestActions requestId={r.id} role="rrhh" signatures={signatures} />
+                      <VacationRequestActions requestId={r.id} role="rrhh" signatures={signatures} tipo={r.tipo} />
                     )}
                   </TableCell>
                 </TableRow>
