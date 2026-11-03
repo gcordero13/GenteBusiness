@@ -10,15 +10,21 @@ interface Props {
   requestId: string;
   role: "supervisor" | "rrhh";
   signatures: SignatureWithUrl[];
+  tipo: string;
 }
 
-export function VacationRequestActions({ requestId, role, signatures }: Props) {
+export function VacationRequestActions({ requestId, role, signatures, tipo }: Props) {
   const [comment, setComment] = useState("");
   const [periodConfirmed, setPeriodConfirmed] = useState("");
   const [hasCurrentVacation, setHasCurrentVacation] = useState(false);
   const [isAdvance, setIsAdvance] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // The vacation-balance classification only makes sense for tipo =
+  // "vacaciones" - a permiso médico/familiar/etc. has no "período",
+  // "vacaciones vigentes", or "adelanto" concept.
+  const showVacationClassification = role === "rrhh" && tipo === "vacaciones";
 
   function approve(signatureDataUrl: string) {
     startTransition(async () => {
@@ -51,7 +57,7 @@ export function VacationRequestActions({ requestId, role, signatures }: Props) {
   return (
     <div className="space-y-3 rounded-lg border p-3">
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {role === "rrhh" && (
+      {showVacationClassification && (
         <div className="space-y-2 text-sm">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Período al que responde</label>
