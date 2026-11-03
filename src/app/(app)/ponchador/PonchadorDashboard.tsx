@@ -32,18 +32,23 @@ export type PonchadorSummary = Pick<
   | "salidasAnticipadas"
   | "ausencias"
   | "permisos"
+  | "vacacionesDias"
   | "feriados"
 > & {
   horasTrabajadasLabel: string;
   promedioDiarioLabel: string;
 };
 
+// Blue = vacaciones, orange = permiso - matches the color convention the
+// Vista general grid (PonchadorOverviewTable's CELL_STATUS_CLASSNAMES)
+// already uses, now that this table also distinguishes the two.
 const ESTADO_BADGE_CLASSNAMES: Record<PonchadorRow["estado"], string> = {
   puntual: "bg-emerald-100 text-emerald-700",
   llegada_tarde: "bg-amber-100 text-amber-700",
   salida_anticipada: "bg-orange-100 text-orange-700",
   ausente: "bg-red-100 text-red-700",
-  permiso: "bg-blue-100 text-blue-700",
+  permiso: "bg-orange-100 text-orange-700",
+  vacaciones: "bg-blue-100 text-blue-700",
 };
 
 export function PonchadorDashboard({
@@ -193,6 +198,10 @@ export function PonchadorDashboard({
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Permisos</dt>
                 <dd className="font-medium">{summary.permisos}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Vacaciones</dt>
+                <dd className="font-medium">{summary.vacacionesDias}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Feriados</dt>
