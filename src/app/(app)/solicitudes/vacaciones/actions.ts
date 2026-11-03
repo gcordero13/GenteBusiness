@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveVacationSupervisor } from "@/lib/resolveVacationSupervisor";
+import { sanitizeFileName } from "@/lib/storagePath";
 import {
   sendVacationRequestSubmittedEmail,
   sendVacationRequestSupervisorDecisionEmail,
@@ -15,15 +16,39 @@ interface ActionResult {
   error?: string;
 }
 
+// The 7 request types the company recognizes (infographic "Solicitud de
+// Permisos y Vacaciones"). Only "vacaciones" uses the full vacation-balance
+// form (período/días solicitados/días pendientes/fecha de regreso) - the
+// other 6 use a simple date-range + motivo form.
+export type SolicitudTipo = "vacaciones" | "personal" | "familiar" | "medico" | "perdida" | "tramites" | "otro";
+
 export interface CreateVacationRequestInput {
-  tipo: "vacaciones" | "permiso";
+  tipo: SolicitudTipo;
   period: string;
-  daysRequested: number;
+  daysRequested: number | null;
   dateFrom: string;
   dateTo: string;
-  returnDate: string;
+  returnDate: string | null;
   daysPending: number | null;
   notes: string;
+  attachment?: File | null;
+}
+
+async function uploadRequestAttachment(
+  admin: ReturnType<typeof createAdminClient>,
+  file: File,
+): Promise<{ path?: string; error?: string }> {
+  const bytes = Buffer.from(await file.arrayBuffer());
+  if (bytes.length === 0) return { error: "Archivo inválido" };
+
+  // Globally-unique path (not keyed by request id, which doesn't exist yet
+  // at upload time) - same pattern ContactForm's photo upload already uses.
+  const path = `${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+  const { error } = await admin.storage.from("vacation-request-attachments").upload(path, bytes, {
+    contentType: file.type || "application/octet-stream",
+  });
+  if (error) return { error: error.message };
+  return { path };
 }
 
 export async function createVacationRequest(input: CreateVacationRequestInput): Promise<ActionResult> {
@@ -33,13 +58,26 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
   } = await supabase.auth.getUser();
   if (!user?.email) return { error: "No autorizado" };
 
-  if (input.daysRequested <= 0) return { error: "La cantidad de días debe ser mayor a cero" };
   if (input.dateTo < input.dateFrom) return { error: "La fecha de fin debe ser posterior o igual a la fecha de inicio" };
-  if (input.returnDate < input.dateTo) return { error: "La fecha de regreso debe ser posterior o igual a la fecha de fin" };
+
+  if (input.tipo === "vacaciones") {
+    if (!input.daysRequested || input.daysRequested <= 0) return { error: "La cantidad de días debe ser mayor a cero" };
+    if (!input.returnDate) return { error: "La fecha de regreso debe ser posterior o igual a la fecha de fin" };
+    if (input.returnDate < input.dateTo) return { error: "La fecha de regreso debe ser posterior o igual a la fecha de fin" };
+  } else if (!input.notes.trim()) {
+    return { error: "El motivo es obligatorio para este tipo de solicitud" };
+  }
 
   const admin = createAdminClient();
   const resolved = await resolveVacationSupervisor(admin, user.email);
   if (!resolved.ok) return { error: resolved.error };
+
+  let attachmentPath: string | null = null;
+  if (input.attachment && input.attachment.size > 0) {
+    const uploaded = await uploadRequestAttachment(admin, input.attachment);
+    if (uploaded.error) return { error: uploaded.error };
+    attachmentPath = uploaded.path ?? null;
+  }
 
   const { error } = await supabase
     .from("vacation_requests")
@@ -59,6 +97,7 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
       return_date: input.returnDate,
       days_pending: input.daysPending,
       notes: input.notes || null,
+      attachment_path: attachmentPath,
       status: "pendiente_supervisor",
       supervisor_app_user_id: resolved.data.supervisorAppUserId,
     })
