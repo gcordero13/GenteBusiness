@@ -26,6 +26,7 @@ const VALID_INPUT = {
   returnDate: "2026-11-17",
   daysPending: 5,
   notes: "",
+  attachment: null,
 };
 
 function mockSupabase({ userEmail = "ana@example.com" }: { userEmail?: string | null } = {}) {
@@ -150,7 +151,7 @@ describe("createVacationRequest", () => {
     expect(sendVacationRequestSubmittedEmail).toHaveBeenCalled();
   });
 
-  it("stores tipo = 'permiso' when explicitly requested", async () => {
+  it("stores a non-vacaciones tipo with a motivo and no vacation-balance fields", async () => {
     const supabase = mockSupabase();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
     vi.mocked(resolveVacationSupervisor).mockResolvedValue({
@@ -166,14 +167,132 @@ describe("createVacationRequest", () => {
       },
     });
 
-    const result = await createVacationRequest({ ...VALID_INPUT, tipo: "permiso" });
+    const result = await createVacationRequest({
+      tipo: "medico",
+      period: "",
+      daysRequested: null,
+      dateFrom: "2026-11-13",
+      dateTo: "2026-11-13",
+      returnDate: null,
+      daysPending: null,
+      notes: "Cita con cardiólogo",
+      attachment: null,
+    });
 
     expect(result.error).toBeUndefined();
     expect(supabase._mocks.insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        tipo: "permiso",
+        tipo: "medico",
+        days_requested: null,
+        return_date: null,
+        notes: "Cita con cardiólogo",
+        attachment_path: null,
       }),
     );
+  });
+
+  it("rejects a non-vacaciones tipo with an empty motivo, before touching the resolver", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await createVacationRequest({
+      tipo: "personal",
+      period: "",
+      daysRequested: null,
+      dateFrom: "2026-11-13",
+      dateTo: "2026-11-13",
+      returnDate: null,
+      daysPending: null,
+      notes: "   ",
+      attachment: null,
+    });
+
+    expect(result.error).toBe("El motivo es obligatorio para este tipo de solicitud");
+    expect(resolveVacationSupervisor).not.toHaveBeenCalled();
+    expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
+  });
+
+  it("uploads an attachment and stores its path when one is provided", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(resolveVacationSupervisor).mockResolvedValue({
+      ok: true,
+      data: {
+        contactId: "contact-1",
+        firstName: "Ana",
+        lastName: "García",
+        position: "Analista",
+        companyName: "Sanchez Business Corp",
+        departmentName: "TI",
+        supervisorAppUserId: "sup-1",
+      },
+    });
+    const uploadMock = vi.fn().mockResolvedValue({ error: null });
+    vi.mocked(createAdminClient).mockReturnValue({
+      storage: { from: vi.fn().mockReturnValue({ upload: uploadMock }) },
+      from: mockAdmin().from,
+    } as never);
+    const file = new File(["contenido"], "comprobante médico.pdf", { type: "application/pdf" });
+
+    const result = await createVacationRequest({
+      tipo: "medico",
+      period: "",
+      daysRequested: null,
+      dateFrom: "2026-11-13",
+      dateTo: "2026-11-13",
+      returnDate: null,
+      daysPending: null,
+      notes: "Cita médica",
+      attachment: file,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringContaining("comprobante-medico.pdf"),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "application/pdf" }),
+    );
+    expect(supabase._mocks.insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ attachment_path: expect.stringContaining("comprobante-medico.pdf") }),
+    );
+  });
+
+  it("surfaces a storage error when the attachment upload fails, without inserting the request", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(resolveVacationSupervisor).mockResolvedValue({
+      ok: true,
+      data: {
+        contactId: "contact-1",
+        firstName: "Ana",
+        lastName: "García",
+        position: "Analista",
+        companyName: "Sanchez Business Corp",
+        departmentName: "TI",
+        supervisorAppUserId: "sup-1",
+      },
+    });
+    const uploadMock = vi.fn().mockResolvedValue({ error: { message: "Bucket no encontrado" } });
+    vi.mocked(createAdminClient).mockReturnValue({
+      storage: { from: vi.fn().mockReturnValue({ upload: uploadMock }) },
+      from: mockAdmin().from,
+    } as never);
+    const file = new File(["contenido"], "nota.pdf", { type: "application/pdf" });
+
+    const result = await createVacationRequest({
+      tipo: "otro",
+      period: "",
+      daysRequested: null,
+      dateFrom: "2026-11-13",
+      dateTo: "2026-11-13",
+      returnDate: null,
+      daysPending: null,
+      notes: "Trámite personal",
+      attachment: file,
+    });
+
+    expect(result.error).toBe("Bucket no encontrado");
+    expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
   });
 
   it("still succeeds when the notification email fails to send", async () => {
