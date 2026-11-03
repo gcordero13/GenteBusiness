@@ -226,7 +226,7 @@ export function rankEarlyArrivals(candidates: EarlyArrivalCandidate[], limit: nu
     .slice(0, limit);
 }
 
-export type DayEstado = "puntual" | "llegada_tarde" | "salida_anticipada" | "ausente" | "permiso";
+export type DayEstado = "puntual" | "llegada_tarde" | "salida_anticipada" | "ausente" | "permiso" | "vacaciones";
 
 export interface AttendancePeriodRow {
   dateIso: string;
@@ -268,21 +268,28 @@ function isDateInRange(dateIso: string, startIso: string, endIso: string): boole
 // that isn't part of their horario laboral) - those are recorded as plain
 // "puntual" rows since there's no scheduled start/end time to evaluate
 // tardiness against. The caller is responsible for clamping periodEndIso to
-// getBusinessToday() so future days aren't evaluated for absence. For each
-// scheduled day, in priority order:
-//   1. Covered by an approved leave range -> "permiso"
-//   2. No punch that day at all -> "ausente", observación "Sin justificación"
-//   3. Arrival later than schedule start + tolerance_minutes -> "llegada_tarde"
-//   4. Exit earlier than schedule end - earlyDepartureThresholdMinutes ->
+// getBusinessToday() so future days aren't evaluated for absence.
+//
+// vacacionesLeave and permisoLeave are kept as two separate arrays (instead
+// of one list with a tipo tag) so a scheduled day falling in either one
+// short-circuits before any punch/tardiness logic runs - vacaciones takes
+// priority if a date somehow appears in both. For each scheduled day, in
+// priority order:
+//   1. Covered by a vacaciones range -> "vacaciones"
+//   2. Covered by a permiso range -> "permiso"
+//   3. No punch that day at all -> "ausente", observación "Sin justificación"
+//   4. Arrival later than schedule start + tolerance_minutes -> "llegada_tarde"
+//   5. Exit earlier than schedule end - earlyDepartureThresholdMinutes ->
 //      "salida_anticipada" (only checked if the day wasn't already
 //      "llegada_tarde" - arrival problems take priority over departure ones)
-//   5. Otherwise -> "puntual"
+//   6. Otherwise -> "puntual"
 export function buildAttendancePeriodRows(
   periodStartIso: string,
   periodEndIso: string,
   schedule: ScheduleTemplate,
   arrivalsAndExits: DailyAttendanceRow[],
-  approvedLeave: ApprovedLeaveRange[],
+  vacacionesLeave: ApprovedLeaveRange[],
+  permisoLeave: ApprovedLeaveRange[],
   earlyDepartureThresholdMinutes: number,
 ): AttendancePeriodRow[] {
   const scheduledDayOfWeeks = new Map(schedule.days.map((d) => [d.day_of_week, d]));
@@ -302,9 +309,15 @@ export function buildAttendancePeriodRows(
       continue;
     }
 
-    const onLeave = approvedLeave.some((leave) => isDateInRange(dateIso, leave.dateFrom, leave.dateTo));
+    const onVacaciones = vacacionesLeave.some((leave) => isDateInRange(dateIso, leave.dateFrom, leave.dateTo));
+    const onPermiso = permisoLeave.some((leave) => isDateInRange(dateIso, leave.dateFrom, leave.dateTo));
 
-    if (onLeave) {
+    if (onVacaciones) {
+      rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "vacaciones", observacion: "Vacaciones aprobadas", outsideSchedule: false });
+      continue;
+    }
+
+    if (onPermiso) {
       rows.push({ dateIso, arrivalMinutes, exitMinutes, workedMinutes, estado: "permiso", observacion: "Permiso aprobado", outsideSchedule: false });
       continue;
     }
@@ -359,6 +372,7 @@ export interface AttendancePeriodSummary {
   salidasAnticipadas: number;
   ausencias: number;
   permisos: number;
+  vacacionesDias: number;
   feriados: number; // always 0 - no holiday calendar exists yet
   horasTrabajadasMinutes: number;
   promedioEntradaMinutes: number | null;
@@ -373,6 +387,7 @@ export function summarizeAttendancePeriod(rows: AttendancePeriodRow[]): Attendan
   const salidasAnticipadas = rows.filter((r) => r.estado === "salida_anticipada").length;
   const ausencias = rows.filter((r) => r.estado === "ausente").length;
   const permisos = rows.filter((r) => r.estado === "permiso").length;
+  const vacacionesDias = rows.filter((r) => r.estado === "vacaciones").length;
   const diasTrabajados = puntuales + llegadasTarde + salidasAnticipadas;
   const horasTrabajadasMinutes = rows.reduce((sum, r) => sum + (r.workedMinutes ?? 0), 0);
 
@@ -393,6 +408,7 @@ export function summarizeAttendancePeriod(rows: AttendancePeriodRow[]): Attendan
     salidasAnticipadas,
     ausencias,
     permisos,
+    vacacionesDias,
     feriados: 0,
     horasTrabajadasMinutes,
     promedioEntradaMinutes,
