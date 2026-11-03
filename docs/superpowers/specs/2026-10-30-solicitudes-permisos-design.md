@@ -135,7 +135,7 @@ Validación en el cliente antes de enviar:
 
 ### 7. Efecto en el Ponchador
 
-Hoy, en `page.tsx` (rama `overview` y la rama individual), el código
+**Vista general.** Hoy, en `page.tsx` (rama `overview`), el código
 bucketiza cualquier permiso aprobado así:
 
 ```ts
@@ -158,15 +158,40 @@ if (l.tipo === "vacaciones") {
 }
 ```
 
-Esto es exactamente el comportamiento pedido: si la persona está de
-vacaciones, su Ponchador lo muestra como vacaciones (celda azul en la
-Vista general, estado "Permiso aprobado" ya genérico en el detalle
-individual no distingue tipo tampoco). Si es cualquier otro tipo de
-permiso, se muestra como "permiso" (celda naranja / estado "Permiso") sin
-revelar cuál de los 6 tipos específicos fue — ni la Vista general ni el
-detalle individual exponen el `tipo` en ningún texto visible, así que no
-hace falta ningún cambio adicional ahí más que esta corrección del
-bucketing.
+Esta vista ya pinta la celda del día en azul (vacaciones) o naranja
+(permiso) sin revelar cuál de los 6 tipos específicos fue — solo hay que
+corregir qué tipo cae en qué balde, nada más cambia aquí.
+
+**Detalle individual (corrección añadida al spec tras revisar el código
+real — este hueco no estaba cubierto en la primera versión de este
+documento).** A diferencia de la Vista general, el detalle individual de
+una persona **nunca ha distinguido** vacaciones de permiso: la función
+`get_ponchador_approved_leave(p_contact_id, p_period_start, p_period_end)`
+(la que alimenta esta vista) ni siquiera devuelve la columna `tipo` —
+cualquier solicitud aprobada, sea vacaciones o cualquier tipo de permiso,
+siempre se renderiza como el único estado `"permiso"` existente
+("Permiso aprobado"). No existe hoy un estado `"vacaciones"` en
+`DayEstado`.
+
+Para que el detalle individual muestre "Vacaciones" cuando corresponda (sin
+tampoco revelar cuál de los 6 tipos de permiso específicos fue, igual que
+la Vista general):
+
+- `get_ponchador_approved_leave` se modifica para devolver también `tipo`
+  (mismo cambio que ya se le hizo a `get_ponchador_team_approved_leave` /
+  `get_ponchador_all_approved_leave` en la migración `20260815100000` —
+  hay que recrear la función porque cambia su `returns table`).
+- Se agrega `"vacaciones"` como nuevo valor de `DayEstado`
+  (`src/lib/attendance.ts`), con su propio label/badge ("Vacaciones",
+  color distinto de "Permiso").
+- `buildAttendancePeriodRows` deja de recibir un único arreglo
+  `approvedLeave`; en su lugar recibe `vacacionesLeave` y `permisoLeave`
+  por separado (mismo patrón que `buildAttendanceGridDays` ya usa para la
+  Vista general), y emite `estado: "vacaciones"` u `estado: "permiso"`
+  según en cuál de los dos arreglos cae la fecha.
+- `page.tsx` (rama individual) separa `leaveRows` en dos arreglos antes de
+  llamar a `buildAttendancePeriodRows`, igual que ya hace la rama
+  `overview` con `leaveByContact`.
 
 ## Fuera de alcance (Fase 2)
 
@@ -188,7 +213,11 @@ de vacaciones ausentes). Verificación manual adicional:
 - Adjuntar un documento y confirmar que aparece el enlace en la lista.
 - Aprobar una solicitud no-vacaciones como RRHH y confirmar que no
   aparecen los 3 campos de clasificación de vacaciones.
-- Confirmar en el Ponchador (Vista general y detalle individual) que una
-  solicitud de tipo `medico` aprobada se ve como "permiso" (naranja/
-  etiqueta genérica), y una de tipo `vacaciones` se ve como "vacaciones"
-  (azul).
+- Confirmar en el Ponchador (Vista general) que una solicitud de tipo
+  `medico` aprobada se ve como "permiso" (naranja), y una de tipo
+  `vacaciones` se ve como "vacaciones" (azul).
+- Confirmar en el detalle individual de una persona que una solicitud de
+  tipo `medico` aprobada aparece como estado "Permiso" en su tabla de
+  días, y una de tipo `vacaciones` aparece como un estado "Vacaciones"
+  distinto — sin que ningún texto revele cuál de los 6 tipos de permiso
+  específicos fue.
