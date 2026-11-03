@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   Table,
   TableBody,
@@ -63,11 +64,12 @@ export default async function VacationRequestsPage() {
   // as the signatures above, just keyed by request id instead of signature
   // id since there's at most one attachment per request.
   const attachmentUrlByRequestId = new Map<string, string>();
+  const admin = createAdminClient();
   await Promise.all(
     (requests ?? [])
       .filter((r) => r.attachment_path)
       .map(async (r) => {
-        const { data, error } = await supabase.storage
+        const { data, error } = await admin.storage
           .from("vacation-request-attachments")
           .createSignedUrl(r.attachment_path, 14400);
         if (error) {
