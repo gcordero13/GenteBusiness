@@ -437,10 +437,8 @@ export interface AttendanceGridDay {
 
 // Builds one cell-pair per CALENDAR day in the period (including weekends -
 // unlike buildAttendancePeriodRows, which only enumerates scheduled
-// workdays), for the Vista general grid. Distinguishes vacaciones from
-// permiso - buildAttendancePeriodRows deliberately keeps merging both into a
-// single "permiso" Estado for the single-person dashboard, so this is a
-// separate, additive function rather than a change to that one.
+// workdays plus any punched outside-schedule days), for the Vista general
+// grid. Distinguishes vacaciones from permiso, same as buildAttendancePeriodRows.
 export function buildAttendanceGridDays(
   periodStartIso: string,
   periodEndIso: string,
