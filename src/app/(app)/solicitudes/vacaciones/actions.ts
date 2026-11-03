@@ -64,7 +64,7 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
     if (!input.daysRequested || input.daysRequested <= 0) return { error: "La cantidad de días debe ser mayor a cero" };
     if (!input.returnDate) return { error: "La fecha de regreso debe ser posterior o igual a la fecha de fin" };
     if (input.returnDate < input.dateTo) return { error: "La fecha de regreso debe ser posterior o igual a la fecha de fin" };
-  } else if (!input.notes.trim()) {
+  } else if (typeof input.notes !== "string" || !input.notes.trim()) {
     return { error: "El motivo es obligatorio para este tipo de solicitud" };
   }
 
