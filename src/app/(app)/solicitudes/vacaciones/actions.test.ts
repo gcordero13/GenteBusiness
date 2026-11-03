@@ -555,7 +555,7 @@ describe("respondAsSupervisor", () => {
 });
 
 describe("respondAsRrhh", () => {
-  const RRHH_REQUEST = { ...BASE_REQUEST, status: "pendiente_rrhh" };
+  const RRHH_REQUEST = { ...BASE_REQUEST, status: "pendiente_rrhh", tipo: "vacaciones" };
 
   it("rejects a caller who lacks can_authorize before even looking up the request", async () => {
     const supabase = mockSupabaseForRespond({ request: RRHH_REQUEST, canAuthorize: false });

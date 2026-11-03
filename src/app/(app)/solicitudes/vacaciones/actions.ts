@@ -288,21 +288,22 @@ export async function respondAsRrhh(
 
   const { data: request, error: fetchError } = await supabase
     .from("vacation_requests")
-    .select("id, status, requester_app_user_id, first_name, last_name")
+    .select("id, status, requester_app_user_id, first_name, last_name, tipo")
     .eq("id", requestId)
     .single();
   if (fetchError || !request) return { error: "Solicitud no encontrada" };
   if (request.status !== "pendiente_rrhh") return { error: "Esta solicitud no está pendiente de RRHH" };
 
   const admin = createAdminClient();
+  const isVacacionesRequest = request.tipo === "vacaciones";
   const update: Record<string, unknown> = {
     rrhh_decision: decision,
     rrhh_decided_at: new Date().toISOString(),
     rrhh_decided_by: user.id,
     rrhh_comments: comment || null,
-    rrhh_period_confirmed: classification.periodConfirmed || null,
-    rrhh_has_current_vacation: classification.hasCurrentVacation,
-    rrhh_is_advance: classification.isAdvance,
+    rrhh_period_confirmed: isVacacionesRequest ? classification.periodConfirmed || null : null,
+    rrhh_has_current_vacation: isVacacionesRequest ? classification.hasCurrentVacation : null,
+    rrhh_is_advance: isVacacionesRequest ? classification.isAdvance : null,
     status: decision === "aprobado" ? "aprobado" : "rechazado",
   };
 
