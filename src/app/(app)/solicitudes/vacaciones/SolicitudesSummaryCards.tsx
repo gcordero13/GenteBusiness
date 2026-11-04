@@ -1,12 +1,18 @@
-import { CalendarCheck, ClipboardCheck, Hourglass, Plane } from "lucide-react";
-import type { ApprovedDaysSummary, AwaitingApprovalSummary } from "@/lib/vacationRequestSummary";
+import { CalendarCheck, ClipboardCheck, History, Hourglass, Plane } from "lucide-react";
+import {
+  formatFechaEs,
+  type ApprovedDaysSummary,
+  type AwaitingApprovalSummary,
+  type VacationDateRange,
+} from "@/lib/vacationRequestSummary";
 
 interface SolicitudesSummaryCardsProps {
   year: number;
   inProgressCount: number;
   approval: AwaitingApprovalSummary;
   approvedDays: ApprovedDaysSummary;
-  nextVacationDate: string | null;
+  lastVacation: VacationDateRange | null;
+  nextVacation: VacationDateRange | null;
 }
 
 export function SolicitudesSummaryCards({
@@ -14,13 +20,14 @@ export function SolicitudesSummaryCards({
   inProgressCount,
   approval,
   approvedDays,
-  nextVacationDate,
+  lastVacation,
+  nextVacation,
 }: SolicitudesSummaryCardsProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          <Hourglass className="size-4 text-[#04B1AF]" />
+          <Hourglass className="size-4 text-[#04B1AF]" aria-hidden="true" />
           Mis solicitudes en trámite
         </div>
         <p className="mt-2 text-2xl font-bold">{inProgressCount}</p>
@@ -29,7 +36,7 @@ export function SolicitudesSummaryCards({
       {approval.visible && (
         <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5">
           <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            <ClipboardCheck className="size-4 text-orange-600" />
+            <ClipboardCheck className="size-4 text-orange-600" aria-hidden="true" />
             Por aprobar
           </div>
           <p className="mt-2 text-2xl font-bold">{approval.count}</p>
@@ -38,7 +45,7 @@ export function SolicitudesSummaryCards({
 
       <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          <CalendarCheck className="size-4 text-blue-600" />
+          <CalendarCheck className="size-4 text-blue-600" aria-hidden="true" />
           Días aprobados ({year})
         </div>
         <div className="mt-2 flex gap-6">
@@ -53,13 +60,27 @@ export function SolicitudesSummaryCards({
         </div>
       </div>
 
-      {nextVacationDate && (
+      {lastVacation && (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
           <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            <Plane className="size-4 text-blue-600" />
+            <History className="size-4 text-blue-600" aria-hidden="true" />
+            Última vacación
+          </div>
+          <p className="mt-2 text-sm font-medium">
+            Del {formatFechaEs(lastVacation.date_from)} al {formatFechaEs(lastVacation.date_to)}
+          </p>
+        </div>
+      )}
+
+      {nextVacation && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+          <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <Plane className="size-4 text-blue-600" aria-hidden="true" />
             Próxima vacación
           </div>
-          <p className="mt-2 text-sm font-medium">Tus vacaciones empiezan el {nextVacationDate}</p>
+          <p className="mt-2 text-sm font-medium">
+            Del {formatFechaEs(nextVacation.date_from)} al {formatFechaEs(nextVacation.date_to)}
+          </p>
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import { SolicitudesTable } from "./SolicitudesTable";
 import type { SignatureWithUrl } from "@/app/(app)/(admin)/document-stamps/page";
 import {
   countOwnRequestsInProgress,
+  findLastTakenVacation,
   findNextApprovedVacation,
   summarizeApprovedDaysForYear,
   summarizeAwaitingMyApproval,
@@ -69,6 +70,7 @@ export default async function VacationRequestsPage() {
   const inProgressCount = countOwnRequestsInProgress(allRequests, user!.id);
   const approval = summarizeAwaitingMyApproval(allRequests, user!.id, canAuthorize);
   const approvedDays = summarizeApprovedDaysForYear(allRequests, user!.id, year);
+  const lastVacation = findLastTakenVacation(allRequests, user!.id, todayIso);
   const nextVacation = findNextApprovedVacation(allRequests, user!.id, todayIso);
 
   return (
@@ -82,7 +84,8 @@ export default async function VacationRequestsPage() {
         inProgressCount={inProgressCount}
         approval={approval}
         approvedDays={approvedDays}
-        nextVacationDate={nextVacation?.date_from ?? null}
+        lastVacation={lastVacation}
+        nextVacation={nextVacation}
       />
       <SolicitudesTable
         requests={allRequests}
