@@ -40,6 +40,13 @@ const TIPO_LABEL: Record<string, string> = {
 
 const ALL_VALUE = "__all__";
 
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
 export interface SolicitudRequestRow {
   id: string;
   first_name: string;
@@ -75,13 +82,13 @@ export function SolicitudesTable({
     return <p className="text-sm text-muted-foreground">No hay solicitudes todavía.</p>;
   }
 
-  const normalizedSearch = search.trim().toLowerCase();
+  const searchTokens = normalizeForSearch(search.trim()).split(/\s+/).filter(Boolean);
   const filtered = requests.filter((r) => {
     if (tipoFilter !== ALL_VALUE && r.tipo !== tipoFilter) return false;
     if (estadoFilter !== ALL_VALUE && r.status !== estadoFilter) return false;
-    if (normalizedSearch) {
-      const fullName = `${r.first_name} ${r.last_name}`.toLowerCase();
-      if (!fullName.includes(normalizedSearch)) return false;
+    if (searchTokens.length > 0) {
+      const fullName = normalizeForSearch(`${r.first_name} ${r.last_name}`);
+      if (!searchTokens.every((token) => fullName.includes(token))) return false;
     }
     return true;
   });
@@ -94,9 +101,10 @@ export function SolicitudesTable({
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por colaborador..."
           className="w-64"
+          aria-label="Buscar por colaborador"
         />
         <Select value={tipoFilter} onValueChange={(value) => value && setTipoFilter(value)}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-48" aria-label="Filtrar por tipo">
             <SelectValue>
               {(value: string) => (value === ALL_VALUE ? "Todos los tipos" : (TIPO_LABEL[value] ?? value))}
             </SelectValue>
@@ -111,7 +119,7 @@ export function SolicitudesTable({
           </SelectContent>
         </Select>
         <Select value={estadoFilter} onValueChange={(value) => value && setEstadoFilter(value)}>
-          <SelectTrigger className="w-56">
+          <SelectTrigger className="w-56" aria-label="Filtrar por estado">
             <SelectValue>
               {(value: string) => (value === ALL_VALUE ? "Todos los estados" : (STATUS_LABEL[value] ?? value))}
             </SelectValue>
