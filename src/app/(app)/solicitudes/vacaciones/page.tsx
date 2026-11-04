@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatTenure } from "@/lib/contacts";
 import { NewVacationRequestDialog } from "./NewVacationRequestDialog";
+import { SolicitudesHeroBanner } from "./SolicitudesHeroBanner";
 import { SolicitudesProfileHeader } from "./SolicitudesProfileHeader";
 import { SolicitudesSummaryCards } from "./SolicitudesSummaryCards";
 import { SolicitudesTable } from "./SolicitudesTable";
@@ -91,20 +92,8 @@ export default async function VacationRequestsPage() {
   const lastVacation = findLastTakenVacation(allRequests, user!.id, todayIso);
   const nextVacation = findNextApprovedVacation(allRequests, user!.id, todayIso);
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Solicitudes de permisos</h1>
-        <NewVacationRequestDialog />
-      </div>
-      {myContact && (
-        <SolicitudesProfileHeader
-          name={`${myContact.first_name} ${myContact.last_name}`}
-          position={myContact.position}
-          photoUrl={myContact.photo_url}
-          tenure={myContact.hire_date ? formatTenure(myContact.hire_date, today) : null}
-        />
-      )}
+  const summaryAndTable = (
+    <div className="space-y-6">
       <SolicitudesSummaryCards
         year={year}
         inProgressCount={inProgressCount}
@@ -120,6 +109,27 @@ export default async function VacationRequestsPage() {
         userId={user!.id}
         canAuthorize={canAuthorize}
       />
+    </div>
+  );
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 p-6">
+      <SolicitudesHeroBanner>
+        <NewVacationRequestDialog triggerClassName="border-white/30 bg-white/15 text-white hover:bg-white/25" />
+      </SolicitudesHeroBanner>
+      {myContact ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+          <SolicitudesProfileHeader
+            name={`${myContact.first_name} ${myContact.last_name}`}
+            position={myContact.position}
+            photoUrl={myContact.photo_url}
+            tenure={myContact.hire_date ? formatTenure(myContact.hire_date, today) : null}
+          />
+          {summaryAndTable}
+        </div>
+      ) : (
+        summaryAndTable
+      )}
     </div>
   );
 }
