@@ -9,7 +9,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  FileText,
+  MoreHorizontal,
+  Plane,
+  Stethoscope,
+  User,
+  Users,
+  XCircle,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -40,6 +51,45 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 const ALL_VALUE = "__all__";
+
+const TIPO_PILL: Record<string, { icon: typeof Plane; className: string }> = {
+  vacaciones: { icon: Plane, className: "bg-blue-50 text-blue-700" },
+  personal: { icon: User, className: "bg-violet-50 text-violet-700" },
+  familiar: { icon: Users, className: "bg-pink-50 text-pink-700" },
+  medico: { icon: Stethoscope, className: "bg-red-50 text-red-700" },
+  perdida: { icon: AlertTriangle, className: "bg-slate-100 text-slate-700" },
+  tramites: { icon: FileText, className: "bg-amber-50 text-amber-700" },
+  otro: { icon: MoreHorizontal, className: "bg-slate-100 text-slate-700" },
+};
+
+const ESTADO_PILL: Record<string, { icon: typeof CheckCircle2; className: string }> = {
+  aprobado: { icon: CheckCircle2, className: "bg-green-50 text-green-700" },
+  rechazado: { icon: XCircle, className: "bg-red-50 text-red-700" },
+  pendiente_supervisor: { icon: Clock, className: "bg-amber-50 text-amber-700" },
+  pendiente_rrhh: { icon: Clock, className: "bg-amber-50 text-amber-700" },
+};
+
+function TipoPill({ tipo }: { tipo: string }) {
+  const pill = TIPO_PILL[tipo] ?? { icon: MoreHorizontal, className: "bg-slate-100 text-slate-700" };
+  const Icon = pill.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${pill.className}`}>
+      <Icon className="size-3.5" aria-hidden="true" />
+      {TIPO_LABEL[tipo] ?? tipo}
+    </span>
+  );
+}
+
+function EstadoPill({ status }: { status: string }) {
+  const pill = ESTADO_PILL[status] ?? { icon: Clock, className: "bg-slate-100 text-slate-700" };
+  const Icon = pill.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${pill.className}`}>
+      <Icon className="size-3.5" aria-hidden="true" />
+      {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
 
 function normalizeForSearch(value: string): string {
   return value
@@ -172,8 +222,8 @@ export function SolicitudesTable({
                     {r.first_name} {r.last_name}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <span>{TIPO_LABEL[r.tipo] ?? r.tipo}</span>
+                    <div className="flex flex-col gap-1">
+                      <TipoPill tipo={r.tipo} />
                       {attachmentUrl && (
                         <a
                           href={attachmentUrl}
@@ -191,9 +241,7 @@ export function SolicitudesTable({
                     {r.date_from} → {r.date_to}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={r.status === "aprobado" ? "default" : r.status === "rechazado" ? "secondary" : "outline"}>
-                      {STATUS_LABEL[r.status] ?? r.status}
-                    </Badge>
+                    <EstadoPill status={r.status} />
                   </TableCell>
                   <TableCell>
                     {isPendingSupervisorForMe && (
