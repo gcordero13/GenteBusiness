@@ -30,7 +30,7 @@ export function SolicitudesSummaryCards({
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#04B1AF]/20">
             <Hourglass className="size-5 text-[#04B1AF]" aria-hidden="true" />
           </div>
-          <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <span className="text-xs font-semibold tracking-wide text-neutral-600 uppercase">
             Mis solicitudes en trámite
           </span>
         </div>
@@ -43,7 +43,7 @@ export function SolicitudesSummaryCards({
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-orange-200">
               <ClipboardCheck className="size-5 text-orange-600" aria-hidden="true" />
             </div>
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Por aprobar</span>
+            <span className="text-xs font-semibold tracking-wide text-neutral-600 uppercase">Por aprobar</span>
           </div>
           <p className="mt-3 text-2xl font-bold">{approval.count}</p>
         </div>
@@ -54,7 +54,7 @@ export function SolicitudesSummaryCards({
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-200">
             <CalendarCheck className="size-5 text-emerald-700" aria-hidden="true" />
           </div>
-          <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <span className="text-xs font-semibold tracking-wide text-neutral-600 uppercase">
             Días aprobados ({year})
           </span>
         </div>
@@ -76,7 +76,7 @@ export function SolicitudesSummaryCards({
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-200">
               <History className="size-5 text-blue-700" aria-hidden="true" />
             </div>
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Última vacación</span>
+            <span className="text-xs font-semibold tracking-wide text-neutral-600 uppercase">Última vacación</span>
           </div>
           <p className="mt-3 text-sm font-medium">
             Del {formatFechaEs(lastVacation.date_from)} al {formatFechaEs(lastVacation.date_to)}
@@ -90,7 +90,7 @@ export function SolicitudesSummaryCards({
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-200">
               <Plane className="size-5 text-blue-700" aria-hidden="true" />
             </div>
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Próxima vacación</span>
+            <span className="text-xs font-semibold tracking-wide text-neutral-600 uppercase">Próxima vacación</span>
           </div>
           <p className="mt-3 text-sm font-medium">
             Del {formatFechaEs(nextVacation.date_from)} al {formatFechaEs(nextVacation.date_to)}
