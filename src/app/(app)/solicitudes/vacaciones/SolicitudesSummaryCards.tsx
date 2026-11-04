@@ -61,11 +61,11 @@ export function SolicitudesSummaryCards({
         <div className="mt-3 flex gap-6">
           <div>
             <p className="text-2xl font-bold">{approvedDays.vacacionesDias}</p>
-            <p className="text-xs text-muted-foreground">Vacaciones</p>
+            <p className="text-xs text-neutral-600">Vacaciones</p>
           </div>
           <div>
             <p className="text-2xl font-bold">{approvedDays.permisoDias}</p>
-            <p className="text-xs text-muted-foreground">Permisos</p>
+            <p className="text-xs text-neutral-600">Permisos</p>
           </div>
         </div>
       </div>
