@@ -157,6 +157,12 @@ describe("findNextApprovedVacation", () => {
 
     expect(findNextApprovedVacation(requests, USER_ID, TODAY_ISO)).toBeNull();
   });
+
+  it("excludes a vacation that starts exactly today (date_from === todayIso is not upcoming)", () => {
+    const requests = [row({ tipo: "vacaciones", status: "aprobado", date_from: TODAY_ISO, date_to: "2026-11-07" })];
+
+    expect(findNextApprovedVacation(requests, USER_ID, TODAY_ISO)).toBeNull();
+  });
 });
 
 describe("findLastTakenVacation", () => {
@@ -196,6 +202,12 @@ describe("findLastTakenVacation", () => {
     ];
 
     expect(findLastTakenVacation(requests, USER_ID, TODAY_ISO)).toBeNull();
+  });
+
+  it("includes a vacation that starts exactly today (date_from === todayIso counts as taken)", () => {
+    const requests = [row({ tipo: "vacaciones", status: "aprobado", date_from: TODAY_ISO, date_to: "2026-11-07" })];
+
+    expect(findLastTakenVacation(requests, USER_ID, TODAY_ISO)).toEqual({ date_from: TODAY_ISO, date_to: "2026-11-07" });
   });
 });
 
