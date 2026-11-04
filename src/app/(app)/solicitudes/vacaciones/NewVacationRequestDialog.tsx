@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,7 @@ const TIPO_OPTIONS: { value: SolicitudTipo; label: string }[] = [
   { value: "otro", label: "Otro" },
 ];
 
-export function NewVacationRequestDialog() {
+export function NewVacationRequestDialog({ triggerClassName }: { triggerClassName?: string } = {}) {
   const [open, setOpen] = useState(false);
   const [tipo, setTipo] = useState<SolicitudTipo>("vacaciones");
   const [period, setPeriod] = useState("");
@@ -96,7 +97,14 @@ export function NewVacationRequestDialog() {
         setError(null);
       }}
     >
-      <DialogTrigger render={<Button>Nueva solicitud</Button>} />
+      <DialogTrigger
+        render={
+          <Button className={triggerClassName}>
+            <Plus className="size-4" aria-hidden="true" />
+            Nueva solicitud
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nueva solicitud de permiso</DialogTitle>
