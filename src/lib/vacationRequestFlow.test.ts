@@ -141,4 +141,41 @@ describe("deriveRequestFlowSteps", () => {
       extra: [],
     });
   });
+
+  it("does not leak stale supervisor decision data when 'Jefe directo' is still pending on an inconsistent row", () => {
+    const steps = deriveRequestFlowSteps(
+      request({
+        status: "pendiente_supervisor",
+        supervisor_decided_at: "2026-10-02T09:00:00Z",
+        supervisor_comments: "Decisión fantasma",
+      }),
+    );
+
+    expect(steps[1]).toEqual({
+      label: "Jefe directo",
+      state: "pending",
+      decidedAt: null,
+      comments: null,
+      extra: [],
+    });
+  });
+
+  it("does not leak stale RRHH decision data when 'RRHH' is still pending on an inconsistent row", () => {
+    const steps = deriveRequestFlowSteps(
+      request({
+        status: "pendiente_rrhh",
+        supervisor_decision: "aprobado",
+        rrhh_decided_at: "2026-10-03T14:00:00Z",
+        rrhh_comments: "Decisión fantasma",
+      }),
+    );
+
+    expect(steps[2]).toEqual({
+      label: "RRHH",
+      state: "pending",
+      decidedAt: null,
+      comments: null,
+      extra: [],
+    });
+  });
 });

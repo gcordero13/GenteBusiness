@@ -39,11 +39,13 @@ export function deriveRequestFlowSteps(request: RequestFlowInput): FlowStep[] {
         ? "rejected"
         : "completed";
 
+  const jefeReached = jefeState === "completed" || jefeState === "rejected";
+
   const jefe: FlowStep = {
     label: "Jefe directo",
     state: jefeState,
-    decidedAt: request.supervisor_decided_at,
-    comments: request.supervisor_comments,
+    decidedAt: jefeReached ? request.supervisor_decided_at : null,
+    comments: jefeReached ? request.supervisor_comments : null,
     extra: [],
   };
 
@@ -56,7 +58,7 @@ export function deriveRequestFlowSteps(request: RequestFlowInput): FlowStep[] {
           ? "rejected"
           : "completed";
 
-  const rrhhReached = rrhhState !== "not_reached" && rrhhState !== "pending";
+  const rrhhReached = rrhhState === "completed" || rrhhState === "rejected";
   const extra: string[] = [];
   if (request.tipo === "vacaciones" && rrhhReached) {
     if (request.rrhh_period_confirmed) extra.push(`Período confirmado: ${request.rrhh_period_confirmed}`);
@@ -67,8 +69,8 @@ export function deriveRequestFlowSteps(request: RequestFlowInput): FlowStep[] {
   const rrhh: FlowStep = {
     label: "RRHH",
     state: rrhhState,
-    decidedAt: rrhhState === "not_reached" ? null : request.rrhh_decided_at,
-    comments: rrhhState === "not_reached" ? null : request.rrhh_comments,
+    decidedAt: rrhhReached ? request.rrhh_decided_at : null,
+    comments: rrhhReached ? request.rrhh_comments : null,
     extra,
   };
 
