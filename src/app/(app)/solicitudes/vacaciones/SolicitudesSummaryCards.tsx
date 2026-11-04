@@ -25,30 +25,40 @@ export function SolicitudesSummaryCards({
 }: SolicitudesSummaryCardsProps) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <div className="rounded-2xl border border-[#04B1AF]/20 bg-[#04B1AF]/5 p-5">
-        <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          <Hourglass className="size-4 text-[#04B1AF]" aria-hidden="true" />
-          Mis solicitudes en trámite
+      <div className="rounded-2xl border border-[#04B1AF]/20 bg-gradient-to-br from-[#04B1AF]/10 to-[#04B1AF]/5 p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#04B1AF]/20">
+            <Hourglass className="size-5 text-[#04B1AF]" aria-hidden="true" />
+          </div>
+          <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Mis solicitudes en trámite
+          </span>
         </div>
-        <p className="mt-2 text-2xl font-bold">{inProgressCount}</p>
+        <p className="mt-3 text-2xl font-bold">{inProgressCount}</p>
       </div>
 
       {approval.visible && (
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5">
-          <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            <ClipboardCheck className="size-4 text-orange-600" aria-hidden="true" />
-            Por aprobar
+        <div className="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-100 to-orange-50 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-orange-200">
+              <ClipboardCheck className="size-5 text-orange-600" aria-hidden="true" />
+            </div>
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Por aprobar</span>
           </div>
-          <p className="mt-2 text-2xl font-bold">{approval.count}</p>
+          <p className="mt-3 text-2xl font-bold">{approval.count}</p>
         </div>
       )}
 
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-        <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          <CalendarCheck className="size-4 text-blue-600" aria-hidden="true" />
-          Días aprobados ({year})
+      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-100 to-emerald-50 p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-200">
+            <CalendarCheck className="size-5 text-emerald-700" aria-hidden="true" />
+          </div>
+          <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Días aprobados ({year})
+          </span>
         </div>
-        <div className="mt-2 flex gap-6">
+        <div className="mt-3 flex gap-6">
           <div>
             <p className="text-2xl font-bold">{approvedDays.vacacionesDias}</p>
             <p className="text-xs text-muted-foreground">Vacaciones</p>
@@ -61,24 +71,28 @@ export function SolicitudesSummaryCards({
       </div>
 
       {lastVacation && (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-          <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            <History className="size-4 text-blue-600" aria-hidden="true" />
-            Última vacación
+        <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-100 to-blue-50 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-200">
+              <History className="size-5 text-blue-700" aria-hidden="true" />
+            </div>
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Última vacación</span>
           </div>
-          <p className="mt-2 text-sm font-medium">
+          <p className="mt-3 text-sm font-medium">
             Del {formatFechaEs(lastVacation.date_from)} al {formatFechaEs(lastVacation.date_to)}
           </p>
         </div>
       )}
 
       {nextVacation && (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-          <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            <Plane className="size-4 text-blue-600" aria-hidden="true" />
-            Próxima vacación
+        <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-100 to-blue-50 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-200">
+              <Plane className="size-5 text-blue-700" aria-hidden="true" />
+            </div>
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Próxima vacación</span>
           </div>
-          <p className="mt-2 text-sm font-medium">
+          <p className="mt-3 text-sm font-medium">
             Del {formatFechaEs(nextVacation.date_from)} al {formatFechaEs(nextVacation.date_to)}
           </p>
         </div>
