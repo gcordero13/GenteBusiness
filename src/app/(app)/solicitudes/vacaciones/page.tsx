@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatTenure } from "@/lib/contacts";
 import { NewVacationRequestDialog } from "./NewVacationRequestDialog";
+import { SolicitudesProfileHeader } from "./SolicitudesProfileHeader";
 import { SolicitudesSummaryCards } from "./SolicitudesSummaryCards";
 import { SolicitudesTable } from "./SolicitudesTable";
 import type { SignatureWithUrl } from "@/app/(app)/(admin)/document-stamps/page";
@@ -28,6 +30,25 @@ export default async function VacationRequestsPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
+  // Same email-join pattern already used for the home page's "my profile"
+  // card (src/app/(app)/page.tsx) - deliberately without the schedule_id
+  // join, since this page has no use for "Horario".
+  let myContact: {
+    first_name: string;
+    last_name: string;
+    position: string | null;
+    photo_url: string | null;
+    hire_date: string | null;
+  } | null = null;
+  if (user?.email) {
+    const { data } = await supabase
+      .from("contacts")
+      .select("first_name, last_name, position, photo_url, hire_date")
+      .eq("email", user.email)
+      .maybeSingle();
+    myContact = data;
+  }
+
   const { data: signatureRows } = await supabase
     .from("user_signatures")
     .select("id, storage_path")
@@ -42,9 +63,6 @@ export default async function VacationRequestsPage() {
     }),
   );
 
-  // Signed URLs for any request that has an attachment_path - same pattern
-  // as the signatures above, just keyed by request id instead of signature
-  // id since there's at most one attachment per request.
   const attachmentUrlByRequestId = new Map<string, string>();
   const admin = createAdminClient();
   await Promise.all(
@@ -74,11 +92,19 @@ export default async function VacationRequestsPage() {
   const nextVacation = findNextApprovedVacation(allRequests, user!.id, todayIso);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Solicitudes de permisos</h1>
         <NewVacationRequestDialog />
       </div>
+      {myContact && (
+        <SolicitudesProfileHeader
+          name={`${myContact.first_name} ${myContact.last_name}`}
+          position={myContact.position}
+          photoUrl={myContact.photo_url}
+          tenure={myContact.hire_date ? formatTenure(myContact.hire_date, today) : null}
+        />
+      )}
       <SolicitudesSummaryCards
         year={year}
         inProgressCount={inProgressCount}
