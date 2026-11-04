@@ -19,9 +19,11 @@ export interface ApprovedDaysSummary {
   permisoDias: number;
 }
 
-// date_from/date_to are plain "YYYY-MM-DD" date strings (no time component),
-// so this parses them as UTC calendar dates to avoid any local-timezone
-// off-by-one when computing the inclusive day span.
+export interface VacationDateRange {
+  date_from: string;
+  date_to: string;
+}
+
 function daysBetweenInclusive(dateFrom: string, dateTo: string): number {
   const [fy, fm, fd] = dateFrom.split("-").map(Number);
   const [ty, tm, td] = dateTo.split("-").map(Number);
@@ -38,12 +40,6 @@ export function countOwnRequestsInProgress(requests: VacationRequestSummaryRow[]
   ).length;
 }
 
-// The "Por aprobar" card is visible whenever the viewer has any approval
-// role at all - either they're resolved as someone's supervisor on at least
-// one request (regardless of that request's current status), or they hold
-// can_authorize (RRHH). It stays visible even when the current count is 0,
-// since "0 pendientes" is still meaningful information for an approver -
-// only a viewer with no approval role at all gets the card hidden entirely.
 export function summarizeAwaitingMyApproval(
   requests: VacationRequestSummaryRow[],
   userId: string,
@@ -59,9 +55,6 @@ export function summarizeAwaitingMyApproval(
   return { visible, count };
 }
 
-// Vacaciones days come from days_requested (always set for that tipo).
-// The other 6 tipos never set days_requested - it's computed from the date
-// range instead, inclusive of both endpoints.
 export function summarizeApprovedDaysForYear(
   requests: VacationRequestSummaryRow[],
   userId: string,
@@ -82,14 +75,11 @@ export function summarizeApprovedDaysForYear(
   return { vacacionesDias, permisoDias };
 }
 
-// todayIso is a "YYYY-MM-DD" string so the "future" comparison is a plain
-// string comparison (works correctly for ISO-formatted dates) rather than
-// Date parsing with its timezone pitfalls.
-export function findNextApprovedVacationDate(
+export function findNextApprovedVacation(
   requests: VacationRequestSummaryRow[],
   userId: string,
   todayIso: string,
-): string | null {
+): VacationDateRange | null {
   const upcoming = requests
     .filter(
       (r) =>
@@ -98,7 +88,35 @@ export function findNextApprovedVacationDate(
         r.status === "aprobado" &&
         r.date_from > todayIso,
     )
-    .map((r) => r.date_from)
-    .sort();
-  return upcoming[0] ?? null;
+    .sort((a, b) => a.date_from.localeCompare(b.date_from));
+  const next = upcoming[0];
+  return next ? { date_from: next.date_from, date_to: next.date_to } : null;
+}
+
+export function findLastTakenVacation(
+  requests: VacationRequestSummaryRow[],
+  userId: string,
+  todayIso: string,
+): VacationDateRange | null {
+  const taken = requests
+    .filter(
+      (r) =>
+        r.requester_app_user_id === userId &&
+        r.tipo === "vacaciones" &&
+        r.status === "aprobado" &&
+        r.date_from <= todayIso,
+    )
+    .sort((a, b) => b.date_from.localeCompare(a.date_from));
+  const last = taken[0];
+  return last ? { date_from: last.date_from, date_to: last.date_to } : null;
+}
+
+export function formatFechaEs(dateIso: string): string {
+  const [y, m, d] = dateIso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("es-DO", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   countOwnRequestsInProgress,
-  findNextApprovedVacationDate,
+  findLastTakenVacation,
+  findNextApprovedVacation,
+  formatFechaEs,
   summarizeApprovedDaysForYear,
   summarizeAwaitingMyApproval,
   type VacationRequestSummaryRow,
@@ -124,27 +126,27 @@ describe("summarizeApprovedDaysForYear", () => {
   });
 });
 
-describe("findNextApprovedVacationDate", () => {
+describe("findNextApprovedVacation", () => {
   const TODAY_ISO = "2026-11-03";
 
   it("returns null when there are no upcoming approved vacaciones", () => {
-    expect(findNextApprovedVacationDate([], USER_ID, TODAY_ISO)).toBeNull();
+    expect(findNextApprovedVacation([], USER_ID, TODAY_ISO)).toBeNull();
   });
 
   it("excludes a vacation that already started or ended in the past", () => {
     const requests = [row({ tipo: "vacaciones", status: "aprobado", date_from: "2026-10-01", date_to: "2026-10-05" })];
 
-    expect(findNextApprovedVacationDate(requests, USER_ID, TODAY_ISO)).toBeNull();
+    expect(findNextApprovedVacation(requests, USER_ID, TODAY_ISO)).toBeNull();
   });
 
-  it("returns the nearest future approved vacaciones date_from among several", () => {
+  it("returns the nearest future approved vacation's full date range among several", () => {
     const requests = [
-      row({ id: "a", tipo: "vacaciones", status: "aprobado", date_from: "2026-12-20" }),
-      row({ id: "b", tipo: "vacaciones", status: "aprobado", date_from: "2026-11-15" }),
-      row({ id: "c", tipo: "vacaciones", status: "aprobado", date_from: "2027-01-10" }),
+      row({ id: "a", tipo: "vacaciones", status: "aprobado", date_from: "2026-12-20", date_to: "2026-12-27" }),
+      row({ id: "b", tipo: "vacaciones", status: "aprobado", date_from: "2026-11-15", date_to: "2026-11-22" }),
+      row({ id: "c", tipo: "vacaciones", status: "aprobado", date_from: "2027-01-10", date_to: "2027-01-15" }),
     ];
 
-    expect(findNextApprovedVacationDate(requests, USER_ID, TODAY_ISO)).toBe("2026-11-15");
+    expect(findNextApprovedVacation(requests, USER_ID, TODAY_ISO)).toEqual({ date_from: "2026-11-15", date_to: "2026-11-22" });
   });
 
   it("ignores a future request that isn't tipo vacaciones or isn't aprobado yet", () => {
@@ -153,6 +155,60 @@ describe("findNextApprovedVacationDate", () => {
       row({ id: "b", tipo: "vacaciones", status: "pendiente_rrhh", date_from: "2026-11-20" }),
     ];
 
-    expect(findNextApprovedVacationDate(requests, USER_ID, TODAY_ISO)).toBeNull();
+    expect(findNextApprovedVacation(requests, USER_ID, TODAY_ISO)).toBeNull();
+  });
+});
+
+describe("findLastTakenVacation", () => {
+  const TODAY_ISO = "2026-11-03";
+
+  it("returns null when none have been taken yet", () => {
+    expect(findLastTakenVacation([], USER_ID, TODAY_ISO)).toBeNull();
+  });
+
+  it("excludes a vacation that hasn't started yet", () => {
+    const requests = [row({ tipo: "vacaciones", status: "aprobado", date_from: "2026-11-15", date_to: "2026-11-20" })];
+
+    expect(findLastTakenVacation(requests, USER_ID, TODAY_ISO)).toBeNull();
+  });
+
+  it("counts a vacation currently in progress (date_from <= today <= date_to) as taken", () => {
+    const requests = [row({ tipo: "vacaciones", status: "aprobado", date_from: "2026-11-01", date_to: "2026-11-05" })];
+
+    expect(findLastTakenVacation(requests, USER_ID, TODAY_ISO)).toEqual({ date_from: "2026-11-01", date_to: "2026-11-05" });
+  });
+
+  it("returns the most recent among several past approved vacations", () => {
+    const requests = [
+      row({ id: "a", tipo: "vacaciones", status: "aprobado", date_from: "2026-01-05", date_to: "2026-01-10" }),
+      row({ id: "b", tipo: "vacaciones", status: "aprobado", date_from: "2026-09-01", date_to: "2026-09-08" }),
+      row({ id: "c", tipo: "vacaciones", status: "aprobado", date_from: "2025-06-01", date_to: "2025-06-08" }),
+    ];
+
+    expect(findLastTakenVacation(requests, USER_ID, TODAY_ISO)).toEqual({ date_from: "2026-09-01", date_to: "2026-09-08" });
+  });
+
+  it("ignores a past request that isn't tipo vacaciones, isn't aprobado, or belongs to someone else", () => {
+    const requests = [
+      row({ id: "a", tipo: "medico", status: "aprobado", date_from: "2026-09-01", date_to: "2026-09-02" }),
+      row({ id: "b", tipo: "vacaciones", status: "rechazado", date_from: "2026-09-01", date_to: "2026-09-02" }),
+      row({ id: "c", tipo: "vacaciones", status: "aprobado", date_from: "2026-09-01", date_to: "2026-09-02", requester_app_user_id: OTHER_USER_ID }),
+    ];
+
+    expect(findLastTakenVacation(requests, USER_ID, TODAY_ISO)).toBeNull();
+  });
+});
+
+describe("formatFechaEs", () => {
+  it("formats a single-digit day and month with the full Spanish month name and no leading zeros", () => {
+    expect(formatFechaEs("2026-01-05")).toBe("5 de enero de 2026");
+  });
+
+  it("formats a double-digit day", () => {
+    expect(formatFechaEs("2026-11-22")).toBe("22 de noviembre de 2026");
+  });
+
+  it("is not affected by the local timezone (uses UTC explicitly)", () => {
+    expect(formatFechaEs("2026-11-01")).toBe("1 de noviembre de 2026");
   });
 });

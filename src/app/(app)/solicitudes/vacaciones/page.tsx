@@ -6,7 +6,7 @@ import { SolicitudesTable } from "./SolicitudesTable";
 import type { SignatureWithUrl } from "@/app/(app)/(admin)/document-stamps/page";
 import {
   countOwnRequestsInProgress,
-  findNextApprovedVacationDate,
+  findNextApprovedVacation,
   summarizeApprovedDaysForYear,
   summarizeAwaitingMyApproval,
 } from "@/lib/vacationRequestSummary";
@@ -69,7 +69,7 @@ export default async function VacationRequestsPage() {
   const inProgressCount = countOwnRequestsInProgress(allRequests, user!.id);
   const approval = summarizeAwaitingMyApproval(allRequests, user!.id, canAuthorize);
   const approvedDays = summarizeApprovedDaysForYear(allRequests, user!.id, year);
-  const nextVacationDate = findNextApprovedVacationDate(allRequests, user!.id, todayIso);
+  const nextVacation = findNextApprovedVacation(allRequests, user!.id, todayIso);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
@@ -82,7 +82,7 @@ export default async function VacationRequestsPage() {
         inProgressCount={inProgressCount}
         approval={approval}
         approvedDays={approvedDays}
-        nextVacationDate={nextVacationDate}
+        nextVacationDate={nextVacation?.date_from ?? null}
       />
       <SolicitudesTable
         requests={allRequests}
