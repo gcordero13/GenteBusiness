@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RequestFlowDialog } from "./RequestFlowDialog";
 import { VacationRequestActions } from "./VacationRequestActions";
 import type { SignatureWithUrl } from "@/app/(app)/(admin)/document-stamps/page";
 
@@ -57,6 +58,16 @@ export interface SolicitudRequestRow {
   date_to: string;
   status: string;
   supervisor_app_user_id: string;
+  created_at: string;
+  supervisor_decision: string | null;
+  supervisor_decided_at: string | null;
+  supervisor_comments: string | null;
+  rrhh_decision: string | null;
+  rrhh_decided_at: string | null;
+  rrhh_comments: string | null;
+  rrhh_period_confirmed: string | null;
+  rrhh_has_current_vacation: boolean | null;
+  rrhh_is_advance: boolean | null;
 }
 
 interface SolicitudesTableProps {
@@ -147,6 +158,7 @@ export function SolicitudesTable({
               <TableHead>Fechas</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead />
+              <TableHead>Flujo</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -190,6 +202,9 @@ export function SolicitudesTable({
                     {isPendingRrhhForMe && (
                       <VacationRequestActions requestId={r.id} role="rrhh" signatures={signatures} tipo={r.tipo} />
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <RequestFlowDialog request={r} />
                   </TableCell>
                 </TableRow>
               );
