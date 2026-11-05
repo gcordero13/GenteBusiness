@@ -15,6 +15,7 @@ import {
   Clock,
   FileText,
   MoreHorizontal,
+  Paperclip,
   Plane,
   Stethoscope,
   User,
@@ -207,6 +208,7 @@ export function SolicitudesTable({
               <TableHead>Período</TableHead>
               <TableHead>Fechas</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Adjunto</TableHead>
               <TableHead />
               <TableHead>Flujo</TableHead>
             </TableRow>
@@ -222,19 +224,7 @@ export function SolicitudesTable({
                     {r.first_name} {r.last_name}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <TipoPill tipo={r.tipo} />
-                      {attachmentUrl && (
-                        <a
-                          href={attachmentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-[#04B1AF] hover:underline"
-                        >
-                          Ver documento
-                        </a>
-                      )}
-                    </div>
+                    <TipoPill tipo={r.tipo} />
                   </TableCell>
                   <TableCell>{r.period ?? "-"}</TableCell>
                   <TableCell>
@@ -242,6 +232,23 @@ export function SolicitudesTable({
                   </TableCell>
                   <TableCell>
                     <EstadoPill status={r.status} />
+                  </TableCell>
+                  <TableCell>
+                    {attachmentUrl ? (
+                      <a
+                        href={attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800 hover:bg-teal-100"
+                      >
+                        <Paperclip className="size-3.5" aria-hidden="true" />
+                        Ver documento
+                      </a>
+                    ) : (
+                      <span className="text-sm text-neutral-400" aria-hidden="true">
+                        —
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {isPendingSupervisorForMe && (

@@ -115,7 +115,7 @@ export default async function VacationRequestsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       <SolicitudesHeroBanner>
-        <NewVacationRequestDialog triggerClassName="border-white/30 bg-white/15 text-white hover:bg-white/25" />
+        <NewVacationRequestDialog triggerClassName="border-transparent bg-white text-teal-800 shadow-md hover:bg-white/90" />
       </SolicitudesHeroBanner>
       {myContact ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
