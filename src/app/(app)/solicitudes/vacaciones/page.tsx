@@ -5,7 +5,7 @@ import { NewVacationRequestDialog } from "./NewVacationRequestDialog";
 import { SolicitudesHeroBanner } from "./SolicitudesHeroBanner";
 import { SolicitudesProfileHeader } from "./SolicitudesProfileHeader";
 import { SolicitudesSummaryCards } from "./SolicitudesSummaryCards";
-import { SolicitudesTable } from "./SolicitudesTable";
+import { SolicitudesTicketExplorer } from "./SolicitudesTicketExplorer";
 import type { SignatureWithUrl } from "@/app/(app)/(admin)/document-stamps/page";
 import {
   countOwnRequestsInProgress,
@@ -102,7 +102,7 @@ export default async function VacationRequestsPage() {
         lastVacation={lastVacation}
         nextVacation={nextVacation}
       />
-      <SolicitudesTable
+      <SolicitudesTicketExplorer
         requests={allRequests}
         attachmentUrlByRequestId={Object.fromEntries(attachmentUrlByRequestId)}
         signatures={signatures}

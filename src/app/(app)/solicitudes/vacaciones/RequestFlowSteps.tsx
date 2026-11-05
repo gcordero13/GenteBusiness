@@ -1,14 +1,4 @@
-"use client";
-
-import { ListChecks, CheckCircle2, Clock, MinusCircle, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { CheckCircle2, Clock, MinusCircle, XCircle } from "lucide-react";
 import { formatFechaEs } from "@/lib/vacationRequestSummary";
 import {
   deriveRequestFlowSteps,
@@ -31,34 +21,14 @@ const STATE_STYLE: Record<FlowStepState, { badge: string; icon: string; line: st
   not_reached: { badge: "bg-slate-100", icon: "text-slate-400", line: "bg-border" },
 };
 
-export function RequestFlowDialog({ request }: { request: RequestFlowInput }) {
+export function RequestFlowSteps({ request }: { request: RequestFlowInput }) {
   const steps = deriveRequestFlowSteps(request);
-
   return (
-    <Dialog>
-      <DialogTrigger
-        render={
-          <Button variant="ghost" size="icon-sm" title="Ver flujo" aria-label="Ver flujo de la solicitud">
-            <ListChecks className="size-4" aria-hidden="true" />
-          </Button>
-        }
-      />
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#04B1AF]/10">
-              <ListChecks className="size-5 text-[#04B1AF]" aria-hidden="true" />
-            </div>
-            <DialogTitle>Flujo de la solicitud</DialogTitle>
-          </div>
-        </DialogHeader>
-        <ol className="space-y-0">
-          {steps.map((step, index) => (
-            <FlowStepItem key={step.label} step={step} isLast={index === steps.length - 1} />
-          ))}
-        </ol>
-      </DialogContent>
-    </Dialog>
+    <ol className="space-y-0">
+      {steps.map((step, index) => (
+        <FlowStepItem key={step.label} step={step} isLast={index === steps.length - 1} />
+      ))}
+    </ol>
   );
 }
 
