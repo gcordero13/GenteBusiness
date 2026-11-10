@@ -92,6 +92,9 @@ export default async function VacationRequestsPage() {
   const lastVacation = findLastTakenVacation(allRequests, user!.id, todayIso);
   const nextVacation = findNextApprovedVacation(allRequests, user!.id, todayIso);
 
+  // The profile sidebar shows "Última vacación" itself, so the summary
+  // cards only need it as a fallback when there's no sidebar to show it in
+  // (no matching contacts row for this user).
   const content = (
     <div className="space-y-6">
       <SolicitudesHeroBanner>
@@ -102,7 +105,7 @@ export default async function VacationRequestsPage() {
         inProgressCount={inProgressCount}
         approval={approval}
         approvedDays={approvedDays}
-        lastVacation={lastVacation}
+        lastVacation={myContact ? null : lastVacation}
         nextVacation={nextVacation}
       />
       <SolicitudesTicketExplorer
@@ -124,6 +127,7 @@ export default async function VacationRequestsPage() {
             position={myContact.position}
             photoUrl={myContact.photo_url}
             tenure={myContact.hire_date ? formatTenure(myContact.hire_date, today) : null}
+            lastVacation={lastVacation}
           />
           {content}
         </div>

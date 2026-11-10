@@ -1,15 +1,23 @@
-import { Building2, Handshake } from "lucide-react";
+import { Building2, Handshake, History } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/contacts";
+import { formatFechaEs, type VacationDateRange } from "@/lib/vacationRequestSummary";
 
 export interface SolicitudesProfileHeaderProps {
   name: string;
   position: string | null;
   photoUrl: string | null;
   tenure: string | null;
+  lastVacation: VacationDateRange | null;
 }
 
-export function SolicitudesProfileHeader({ name, position, photoUrl, tenure }: SolicitudesProfileHeaderProps) {
+export function SolicitudesProfileHeader({
+  name,
+  position,
+  photoUrl,
+  tenure,
+  lastVacation,
+}: SolicitudesProfileHeaderProps) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-2xl border bg-card p-6 text-center">
       <Avatar className="size-32 border-4 border-white shadow-lg">
@@ -33,6 +41,18 @@ export function SolicitudesProfileHeader({ name, position, photoUrl, tenure }: S
         <Handshake className="size-5 shrink-0 text-[#04B1AF]" aria-hidden="true" />
         Tu bienestar también es parte de nuestro equipo
       </div>
+
+      {lastVacation && (
+        <div className="mt-2 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-left text-sm">
+          <History className="size-5 shrink-0 text-blue-700" aria-hidden="true" />
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-neutral-600 uppercase">Última vacación</p>
+            <p className="mt-0.5 font-medium text-foreground">
+              Del {formatFechaEs(lastVacation.date_from)} al {formatFechaEs(lastVacation.date_to)}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
