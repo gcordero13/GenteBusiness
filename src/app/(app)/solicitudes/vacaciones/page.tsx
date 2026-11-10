@@ -6,6 +6,7 @@ import { SolicitudesHeroBanner } from "./SolicitudesHeroBanner";
 import { SolicitudesProfileHeader } from "./SolicitudesProfileHeader";
 import { SolicitudesSummaryCards } from "./SolicitudesSummaryCards";
 import { SolicitudesTicketExplorer } from "./SolicitudesTicketExplorer";
+import { resolveSupervisorChain } from "@/lib/resolveVacationSupervisor";
 import type { SignatureWithUrl } from "@/app/(app)/(admin)/document-stamps/page";
 import {
   countOwnRequestsInProgress,
@@ -40,15 +41,19 @@ export default async function VacationRequestsPage() {
     position: string | null;
     photo_url: string | null;
     hire_date: string | null;
+    reports_to_id: string | null;
   } | null = null;
   if (user?.email) {
     const { data } = await supabase
       .from("contacts")
-      .select("first_name, last_name, position, photo_url, hire_date")
+      .select("first_name, last_name, position, photo_url, hire_date, reports_to_id")
       .eq("email", user.email)
       .maybeSingle();
     myContact = data;
   }
+
+  const admin = createAdminClient();
+  const supervisorOptions = myContact ? await resolveSupervisorChain(admin, myContact.reports_to_id) : [];
 
   const { data: signatureRows } = await supabase
     .from("user_signatures")
@@ -65,7 +70,6 @@ export default async function VacationRequestsPage() {
   );
 
   const attachmentUrlByRequestId = new Map<string, string>();
-  const admin = createAdminClient();
   await Promise.all(
     (requests ?? [])
       .filter((r) => r.attachment_path)
@@ -98,7 +102,10 @@ export default async function VacationRequestsPage() {
   const content = (
     <div className="space-y-6">
       <SolicitudesHeroBanner>
-        <NewVacationRequestDialog triggerClassName="border-transparent bg-white text-teal-800 shadow-md hover:bg-white/90" />
+        <NewVacationRequestDialog
+          triggerClassName="border-transparent bg-white text-teal-800 shadow-md hover:bg-white/90"
+          supervisorOptions={supervisorOptions}
+        />
       </SolicitudesHeroBanner>
       <SolicitudesSummaryCards
         year={year}

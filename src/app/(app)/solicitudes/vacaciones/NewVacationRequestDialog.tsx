@@ -13,7 +13,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createVacationRequest, type SolicitudTipo } from "./actions";
+import type { SupervisorChainOption } from "@/lib/resolveVacationSupervisor";
 
 const TIPO_OPTIONS: { value: SolicitudTipo; label: string }[] = [
   { value: "vacaciones", label: "Vacaciones" },
@@ -25,9 +33,15 @@ const TIPO_OPTIONS: { value: SolicitudTipo; label: string }[] = [
   { value: "otro", label: "Otro" },
 ];
 
-export function NewVacationRequestDialog({ triggerClassName }: { triggerClassName?: string } = {}) {
+interface Props {
+  triggerClassName?: string;
+  supervisorOptions: SupervisorChainOption[];
+}
+
+export function NewVacationRequestDialog({ triggerClassName, supervisorOptions }: Props) {
   const [open, setOpen] = useState(false);
   const [tipo, setTipo] = useState<SolicitudTipo>("vacaciones");
+  const [supervisorAppUserId, setSupervisorAppUserId] = useState(supervisorOptions[0]?.appUserId ?? "");
   const [period, setPeriod] = useState("");
   const [daysRequested, setDaysRequested] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -44,6 +58,7 @@ export function NewVacationRequestDialog({ triggerClassName }: { triggerClassNam
 
   function reset() {
     setTipo("vacaciones");
+    setSupervisorAppUserId(supervisorOptions[0]?.appUserId ?? "");
     setPeriod("");
     setDaysRequested("");
     setDateFrom("");
@@ -56,6 +71,10 @@ export function NewVacationRequestDialog({ triggerClassName }: { triggerClassNam
   }
 
   function submit() {
+    if (!supervisorAppUserId) {
+      setError("No hay nadie por encima de ti en el organigrama con una cuenta activa para aprobar tu solicitud");
+      return;
+    }
     if (!dateFrom || !dateTo) {
       setError("Completa la fecha desde y hasta");
       return;
@@ -79,6 +98,7 @@ export function NewVacationRequestDialog({ triggerClassName }: { triggerClassNam
         daysPending: isVacaciones && daysPending ? Number(daysPending) : null,
         notes,
         attachment: isVacaciones ? null : attachment,
+        supervisorAppUserId,
       });
       if (result.error) {
         setError(result.error);
@@ -131,6 +151,39 @@ export function NewVacationRequestDialog({ triggerClassName }: { triggerClassNam
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label>¿Quién debe aprobar tu solicitud?</Label>
+            {supervisorOptions.length > 0 ? (
+              <Select value={supervisorAppUserId} onValueChange={(value) => value && setSupervisorAppUserId(value)}>
+                <SelectTrigger className="w-full" aria-label="Aprobador">
+                  <SelectValue>
+                    {(value: string) => {
+                      const picked = supervisorOptions.find((o) => o.appUserId === value);
+                      return picked ? `${picked.firstName} ${picked.lastName}` : "Selecciona un aprobador";
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {supervisorOptions.map((option, index) => (
+                    <SelectItem key={option.appUserId} value={option.appUserId}>
+                      {option.firstName} {option.lastName}
+                      {index === 0 ? " (tu jefe directo)" : " (jefe de tu jefe)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="text-sm text-red-600">
+                No hay nadie por encima de ti en el organigrama con una cuenta activa. Pide a un administrador que lo corrija.
+              </p>
+            )}
+            {supervisorOptions.length > 1 && (
+              <p className="text-xs text-muted-foreground">
+                Si tu jefe directo está de licencia o permiso, puedes elegir a quien esté por encima de él.
+              </p>
+            )}
           </div>
 
           {isVacaciones ? (
@@ -200,7 +253,7 @@ export function NewVacationRequestDialog({ triggerClassName }: { triggerClassNam
           )}
         </div>
         <DialogFooter>
-          <Button onClick={submit} disabled={isPending}>
+          <Button onClick={submit} disabled={isPending || supervisorOptions.length === 0}>
             Enviar para aprobación
           </Button>
         </DialogFooter>

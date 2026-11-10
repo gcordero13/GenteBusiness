@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { resolveVacationSupervisor } from "@/lib/resolveVacationSupervisor";
+import { resolveRequesterContact, resolveSupervisorChain } from "@/lib/resolveVacationSupervisor";
 import { sanitizeFileName } from "@/lib/storagePath";
 import {
   sendVacationRequestSubmittedEmail,
@@ -32,6 +32,11 @@ export interface CreateVacationRequestInput {
   daysPending: number | null;
   notes: string;
   attachment?: File | null;
+  // Chosen by the requester from the list of people above them in the org
+  // chart (lets them pick an alternate approver if their direct boss is on
+  // leave) - re-validated server-side against the real chain below, never
+  // trusted as-is.
+  supervisorAppUserId: string;
 }
 
 async function uploadRequestAttachment(
@@ -69,8 +74,20 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
   }
 
   const admin = createAdminClient();
-  const resolved = await resolveVacationSupervisor(admin, user.email);
+  const resolved = await resolveRequesterContact(admin, user.email);
   if (!resolved.ok) return { error: resolved.error };
+  if (!resolved.data.reportsToId) {
+    return {
+      error: "No tienes un jefe directo asignado en tu ficha de contacto. Pide a un administrador que lo asigne antes de enviar una solicitud.",
+    };
+  }
+
+  const chain = await resolveSupervisorChain(admin, resolved.data.reportsToId);
+  if (chain.length === 0) {
+    return { error: "No hay nadie por encima de ti en el organigrama con una cuenta activa. Pide a un administrador que lo corrija." };
+  }
+  const chosenSupervisor = chain.find((c) => c.appUserId === input.supervisorAppUserId);
+  if (!chosenSupervisor) return { error: "Selección de aprobador inválida." };
 
   let attachmentPath: string | null = null;
   if (input.attachment && input.attachment.size > 0) {
@@ -99,15 +116,15 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
       notes: input.notes || null,
       attachment_path: attachmentPath,
       status: "pendiente_supervisor",
-      supervisor_app_user_id: resolved.data.supervisorAppUserId,
-      supervisor_first_name: resolved.data.supervisorFirstName,
-      supervisor_last_name: resolved.data.supervisorLastName,
+      supervisor_app_user_id: chosenSupervisor.appUserId,
+      supervisor_first_name: chosenSupervisor.firstName,
+      supervisor_last_name: chosenSupervisor.lastName,
     })
     .select()
     .single();
   if (error) return { error: error.message };
 
-  const { data: supervisor } = await admin.from("app_users").select("email").eq("id", resolved.data.supervisorAppUserId).maybeSingle();
+  const { data: supervisor } = await admin.from("app_users").select("email").eq("id", chosenSupervisor.appUserId).maybeSingle();
   if (supervisor?.email) {
     const siteUrl = await getSiteUrl();
     try {

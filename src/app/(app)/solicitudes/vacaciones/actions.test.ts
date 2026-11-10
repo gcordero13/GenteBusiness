@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
-vi.mock("@/lib/resolveVacationSupervisor", () => ({ resolveVacationSupervisor: vi.fn() }));
+vi.mock("@/lib/resolveVacationSupervisor", () => ({ resolveRequesterContact: vi.fn(), resolveSupervisorChain: vi.fn() }));
 vi.mock("@/lib/sendVacationRequestEmail", () => ({
   sendVacationRequestSubmittedEmail: vi.fn(),
   sendVacationRequestSupervisorDecisionEmail: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { resolveVacationSupervisor } from "@/lib/resolveVacationSupervisor";
+import { resolveRequesterContact, resolveSupervisorChain } from "@/lib/resolveVacationSupervisor";
 import { sendVacationRequestSubmittedEmail, sendVacationRequestSupervisorDecisionEmail, sendVacationRequestRrhhDecisionEmail } from "@/lib/sendVacationRequestEmail";
 import { createVacationRequest, respondAsRrhh, respondAsSupervisor } from "./actions";
 
@@ -27,7 +27,28 @@ const VALID_INPUT = {
   daysPending: 5,
   notes: "",
   attachment: null,
+  supervisorAppUserId: "sup-1",
 };
+
+// Shared "happy path" setup for the requester-info + supervisor-chain
+// resolvers, used by every test that reaches the insert.
+function mockValidResolvers() {
+  vi.mocked(resolveRequesterContact).mockResolvedValue({
+    ok: true,
+    data: {
+      contactId: "contact-1",
+      firstName: "Ana",
+      lastName: "García",
+      position: "Analista",
+      companyName: "Sanchez Business Corp",
+      departmentName: "TI",
+      reportsToId: "boss-contact-1",
+    },
+  });
+  vi.mocked(resolveSupervisorChain).mockResolvedValue([
+    { contactId: "boss-contact-1", appUserId: "sup-1", firstName: "Carlos", lastName: "Jefe" },
+  ]);
+}
 
 function mockSupabase({ userEmail = "ana@example.com" }: { userEmail?: string | null } = {}) {
   const insertSelectSingle = vi.fn().mockResolvedValue({ error: null });
@@ -44,7 +65,7 @@ function mockSupabase({ userEmail = "ana@example.com" }: { userEmail?: string | 
 // The action looks up the resolved supervisor's email via the admin client
 // after inserting the request (a regular user's session can't read a
 // coworker's app_users row under RLS, same reasoning as
-// resolveVacationSupervisor's use of the admin client). Support that chained
+// resolveVacationSupervisor.ts's resolvers using the admin client). Support that chained
 // call here so tests can exercise the notification path.
 function mockAdmin() {
   const maybeSingle = vi.fn().mockResolvedValue({ data: { email: "jefe@example.com" } });
@@ -78,7 +99,7 @@ describe("createVacationRequest", () => {
     const result = await createVacationRequest({ ...VALID_INPUT, daysRequested: 0 });
 
     expect(result.error).toBe("La cantidad de días debe ser mayor a cero");
-    expect(resolveVacationSupervisor).not.toHaveBeenCalled();
+    expect(resolveRequesterContact).not.toHaveBeenCalled();
     expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
   });
 
@@ -89,7 +110,7 @@ describe("createVacationRequest", () => {
     const result = await createVacationRequest({ ...VALID_INPUT, dateFrom: "2026-11-14", dateTo: "2026-11-13" });
 
     expect(result.error).toBe("La fecha de fin debe ser posterior o igual a la fecha de inicio");
-    expect(resolveVacationSupervisor).not.toHaveBeenCalled();
+    expect(resolveRequesterContact).not.toHaveBeenCalled();
     expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
   });
 
@@ -100,24 +121,26 @@ describe("createVacationRequest", () => {
     const result = await createVacationRequest({ ...VALID_INPUT, dateTo: "2026-11-14", returnDate: "2026-11-13" });
 
     expect(result.error).toBe("La fecha de regreso debe ser posterior o igual a la fecha de fin");
-    expect(resolveVacationSupervisor).not.toHaveBeenCalled();
+    expect(resolveRequesterContact).not.toHaveBeenCalled();
     expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
   });
 
-  it("surfaces the resolver's error when the supervisor chain is broken", async () => {
+  it("surfaces the resolver's error when the requester has no matching contact", async () => {
     vi.mocked(createClient).mockResolvedValue(mockSupabase() as never);
-    vi.mocked(resolveVacationSupervisor).mockResolvedValue({ ok: false, error: "No tienes un jefe directo asignado en tu ficha de contacto. Pide a un administrador que lo asigne antes de enviar una solicitud." });
+    vi.mocked(resolveRequesterContact).mockResolvedValue({
+      ok: false,
+      error: "No se encontró tu contacto en la Agenda. Pide a un administrador que lo cree con tu correo.",
+    });
 
     const result = await createVacationRequest(VALID_INPUT);
 
-    expect(result.error).toBe("No tienes un jefe directo asignado en tu ficha de contacto. Pide a un administrador que lo asigne antes de enviar una solicitud.");
+    expect(result.error).toBe("No se encontró tu contacto en la Agenda. Pide a un administrador que lo cree con tu correo.");
     expect(sendVacationRequestSubmittedEmail).not.toHaveBeenCalled();
   });
 
-  it("creates the request and emails the resolved supervisor", async () => {
-    const supabase = mockSupabase();
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
-    vi.mocked(resolveVacationSupervisor).mockResolvedValue({
+  it("rejects when the requester has no reports_to_id at all", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockSupabase() as never);
+    vi.mocked(resolveRequesterContact).mockResolvedValue({
       ok: true,
       data: {
         contactId: "contact-1",
@@ -126,11 +149,52 @@ describe("createVacationRequest", () => {
         position: "Analista",
         companyName: "Sanchez Business Corp",
         departmentName: "TI",
-        supervisorAppUserId: "sup-1",
-        supervisorFirstName: "Carlos",
-        supervisorLastName: "Jefe",
+        reportsToId: null,
       },
     });
+
+    const result = await createVacationRequest(VALID_INPUT);
+
+    expect(result.error).toContain("jefe directo asignado");
+    expect(resolveSupervisorChain).not.toHaveBeenCalled();
+  });
+
+  it("rejects when nobody above the requester has an active account", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockSupabase() as never);
+    vi.mocked(resolveRequesterContact).mockResolvedValue({
+      ok: true,
+      data: {
+        contactId: "contact-1",
+        firstName: "Ana",
+        lastName: "García",
+        position: "Analista",
+        companyName: "Sanchez Business Corp",
+        departmentName: "TI",
+        reportsToId: "boss-contact-1",
+      },
+    });
+    vi.mocked(resolveSupervisorChain).mockResolvedValue([]);
+
+    const result = await createVacationRequest(VALID_INPUT);
+
+    expect(result.error).toContain("organigrama");
+  });
+
+  it("rejects a chosen supervisorAppUserId that isn't actually in the requester's chain", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    mockValidResolvers();
+
+    const result = await createVacationRequest({ ...VALID_INPUT, supervisorAppUserId: "not-in-chain" });
+
+    expect(result.error).toBe("Selección de aprobador inválida.");
+    expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
+  });
+
+  it("creates the request and emails the resolved supervisor", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    mockValidResolvers();
 
     const result = await createVacationRequest(VALID_INPUT);
 
@@ -158,20 +222,7 @@ describe("createVacationRequest", () => {
   it("stores a non-vacaciones tipo with a motivo and no vacation-balance fields", async () => {
     const supabase = mockSupabase();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
-    vi.mocked(resolveVacationSupervisor).mockResolvedValue({
-      ok: true,
-      data: {
-        contactId: "contact-1",
-        firstName: "Ana",
-        lastName: "García",
-        position: "Analista",
-        companyName: "Sanchez Business Corp",
-        departmentName: "TI",
-        supervisorAppUserId: "sup-1",
-        supervisorFirstName: "Carlos",
-        supervisorLastName: "Jefe",
-      },
-    });
+    mockValidResolvers();
 
     const result = await createVacationRequest({
       tipo: "medico",
@@ -183,6 +234,7 @@ describe("createVacationRequest", () => {
       daysPending: null,
       notes: "Cita con cardiólogo",
       attachment: null,
+      supervisorAppUserId: "sup-1",
     });
 
     expect(result.error).toBeUndefined();
@@ -211,30 +263,18 @@ describe("createVacationRequest", () => {
       daysPending: null,
       notes: "   ",
       attachment: null,
+      supervisorAppUserId: "sup-1",
     });
 
     expect(result.error).toBe("El motivo es obligatorio para este tipo de solicitud");
-    expect(resolveVacationSupervisor).not.toHaveBeenCalled();
+    expect(resolveRequesterContact).not.toHaveBeenCalled();
     expect(supabase._mocks.insertMock).not.toHaveBeenCalled();
   });
 
   it("uploads an attachment and stores its path when one is provided", async () => {
     const supabase = mockSupabase();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
-    vi.mocked(resolveVacationSupervisor).mockResolvedValue({
-      ok: true,
-      data: {
-        contactId: "contact-1",
-        firstName: "Ana",
-        lastName: "García",
-        position: "Analista",
-        companyName: "Sanchez Business Corp",
-        departmentName: "TI",
-        supervisorAppUserId: "sup-1",
-        supervisorFirstName: "Carlos",
-        supervisorLastName: "Jefe",
-      },
-    });
+    mockValidResolvers();
     const uploadMock = vi.fn().mockResolvedValue({ error: null });
     vi.mocked(createAdminClient).mockReturnValue({
       storage: { from: vi.fn().mockReturnValue({ upload: uploadMock }) },
@@ -252,6 +292,7 @@ describe("createVacationRequest", () => {
       daysPending: null,
       notes: "Cita médica",
       attachment: file,
+      supervisorAppUserId: "sup-1",
     });
 
     expect(result.error).toBeUndefined();
@@ -268,20 +309,7 @@ describe("createVacationRequest", () => {
   it("surfaces a storage error when the attachment upload fails, without inserting the request", async () => {
     const supabase = mockSupabase();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
-    vi.mocked(resolveVacationSupervisor).mockResolvedValue({
-      ok: true,
-      data: {
-        contactId: "contact-1",
-        firstName: "Ana",
-        lastName: "García",
-        position: "Analista",
-        companyName: "Sanchez Business Corp",
-        departmentName: "TI",
-        supervisorAppUserId: "sup-1",
-        supervisorFirstName: "Carlos",
-        supervisorLastName: "Jefe",
-      },
-    });
+    mockValidResolvers();
     const uploadMock = vi.fn().mockResolvedValue({ error: { message: "Bucket no encontrado" } });
     vi.mocked(createAdminClient).mockReturnValue({
       storage: { from: vi.fn().mockReturnValue({ upload: uploadMock }) },
@@ -299,6 +327,7 @@ describe("createVacationRequest", () => {
       daysPending: null,
       notes: "Trámite personal",
       attachment: file,
+      supervisorAppUserId: "sup-1",
     });
 
     expect(result.error).toBe("Bucket no encontrado");
@@ -308,20 +337,7 @@ describe("createVacationRequest", () => {
   it("still succeeds when the notification email fails to send", async () => {
     const supabase = mockSupabase();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
-    vi.mocked(resolveVacationSupervisor).mockResolvedValue({
-      ok: true,
-      data: {
-        contactId: "contact-1",
-        firstName: "Ana",
-        lastName: "García",
-        position: "Analista",
-        companyName: "Sanchez Business Corp",
-        departmentName: "TI",
-        supervisorAppUserId: "sup-1",
-        supervisorFirstName: "Carlos",
-        supervisorLastName: "Jefe",
-      },
-    });
+    mockValidResolvers();
     vi.mocked(sendVacationRequestSubmittedEmail).mockRejectedValue(new Error("Configuración SMTP incompleta"));
 
     const result = await createVacationRequest(VALID_INPUT);
