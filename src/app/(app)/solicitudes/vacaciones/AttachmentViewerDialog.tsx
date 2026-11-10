@@ -20,10 +20,19 @@ function getExtension(url: string): string {
   return lastDot === -1 ? "" : withoutQuery.slice(lastDot + 1).toLowerCase();
 }
 
-export function AttachmentViewerDialog({ url }: { url: string }) {
+interface Props {
+  url: string;
+  label?: string;
+  title?: string;
+  // The constancia's download URL has no file extension to sniff (it's an
+  // API route, not a direct storage path), so its caller states the type.
+  forcedType?: "pdf" | "image";
+}
+
+export function AttachmentViewerDialog({ url, label = "Ver documento adjunto", title = "Documento adjunto", forcedType }: Props) {
   const extension = getExtension(url);
-  const isImage = IMAGE_EXTENSIONS.includes(extension);
-  const isPdf = extension === "pdf";
+  const isImage = forcedType ? forcedType === "image" : IMAGE_EXTENSIONS.includes(extension);
+  const isPdf = forcedType ? forcedType === "pdf" : extension === "pdf";
 
   return (
     <Dialog>
@@ -36,11 +45,11 @@ export function AttachmentViewerDialog({ url }: { url: string }) {
         }
       >
         <Paperclip className="size-4" aria-hidden="true" />
-        Ver documento adjunto
+        {label}
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Documento adjunto</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         {isImage ? (
           <img src={url} alt="Documento adjunto" className="max-h-[75vh] w-full object-contain" />

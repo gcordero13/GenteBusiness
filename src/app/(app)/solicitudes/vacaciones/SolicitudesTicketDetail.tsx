@@ -60,7 +60,17 @@ export function SolicitudesTicketDetail({ request, attachmentUrl, signatures, us
         </Field>
       </div>
 
-      {attachmentUrl && <AttachmentViewerDialog url={attachmentUrl} />}
+      <div className="flex flex-wrap gap-2">
+        {attachmentUrl && <AttachmentViewerDialog url={attachmentUrl} />}
+        {request.constancia_drive_id && request.constancia_item_id && (
+          <AttachmentViewerDialog
+            url={`/api/solicitudes/constancia/${request.constancia_drive_id}/${request.constancia_item_id}`}
+            label="Ver constancia firmada"
+            title="Constancia firmada"
+            forcedType="pdf"
+          />
+        )}
+      </div>
 
       <div>
         <p className="mb-3 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">

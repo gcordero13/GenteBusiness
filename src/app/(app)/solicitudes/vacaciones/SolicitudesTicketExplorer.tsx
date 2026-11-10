@@ -62,6 +62,8 @@ export interface SolicitudRequestRow {
   rrhh_period_confirmed: string | null;
   rrhh_has_current_vacation: boolean | null;
   rrhh_is_advance: boolean | null;
+  constancia_drive_id: string | null;
+  constancia_item_id: string | null;
 }
 
 interface SolicitudesTicketExplorerProps {

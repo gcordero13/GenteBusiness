@@ -9,12 +9,18 @@ vi.mock("@/lib/sendVacationRequestEmail", () => ({
   sendVacationRequestRrhhDecisionEmail: vi.fn(),
 }));
 vi.mock("@/lib/siteUrl", () => ({ getSiteUrl: vi.fn().mockResolvedValue("https://example.com") }));
+vi.mock("@/lib/platformSettings", () => ({ getPlatformLogoUrl: vi.fn() }));
+vi.mock("@/lib/sharepoint", () => ({ uploadToSharePoint: vi.fn() }));
+vi.mock("@/lib/generateVacationCertificate", () => ({ generateVacationCertificatePdf: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveRequesterContact, resolveSupervisorChain } from "@/lib/resolveVacationSupervisor";
 import { sendVacationRequestSubmittedEmail, sendVacationRequestSupervisorDecisionEmail, sendVacationRequestRrhhDecisionEmail } from "@/lib/sendVacationRequestEmail";
+import { getPlatformLogoUrl } from "@/lib/platformSettings";
+import { uploadToSharePoint } from "@/lib/sharepoint";
+import { generateVacationCertificatePdf } from "@/lib/generateVacationCertificate";
 import { createVacationRequest, respondAsRrhh, respondAsSupervisor, updateRequestAsSupervisor } from "./actions";
 
 const VALID_INPUT = {
@@ -77,6 +83,9 @@ function mockAdmin() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(createAdminClient).mockReturnValue(mockAdmin() as never);
+  vi.mocked(getPlatformLogoUrl).mockResolvedValue(null);
+  vi.mocked(generateVacationCertificatePdf).mockResolvedValue(new Uint8Array([1, 2, 3]));
+  vi.mocked(uploadToSharePoint).mockResolvedValue({ webUrl: "https://sharepoint.example.com/x", driveId: "drive-1", itemId: "item-1" });
 });
 
 afterEach(() => {
@@ -385,9 +394,14 @@ function mockSupabaseForRespond({
 // employee's email, so its mock needs to support both chain shapes.
 function mockAdminForRespond({ rrhhEmails = [] }: { rrhhEmails?: string[] } = {}) {
   const uploadMock = vi.fn().mockResolvedValue({ error: null });
+  const downloadMock = vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } });
+  const constanciaUpdateMock = vi.fn().mockReturnValue({ eq: () => Promise.resolve({ data: null, error: null }) });
   return {
-    storage: { from: vi.fn().mockReturnValue({ upload: uploadMock }) },
+    storage: { from: vi.fn().mockReturnValue({ upload: uploadMock, download: downloadMock }) },
     from: vi.fn((table: string) => {
+      if (table === "vacation_requests") {
+        return { update: constanciaUpdateMock };
+      }
       if (table === "modules") {
         return {
           select: () => ({
@@ -421,7 +435,7 @@ function mockAdminForRespond({ rrhhEmails = [] }: { rrhhEmails?: string[] } = {}
       }
       throw new Error(`unexpected table ${table}`);
     }),
-    _mocks: { uploadMock },
+    _mocks: { uploadMock, downloadMock, constanciaUpdateMock },
   };
 }
 
@@ -631,6 +645,57 @@ describe("respondAsRrhh", () => {
       }),
     );
     expect(sendVacationRequestRrhhDecisionEmail).toHaveBeenCalledWith(expect.objectContaining({ approved: true }));
+  });
+
+  it("generates and stores the signed constancia on approval", async () => {
+    const supabase = mockSupabaseForRespond({ request: RRHH_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    const admin = mockAdminForRespond();
+    vi.mocked(createAdminClient).mockReturnValue(admin as never);
+
+    const result = await respondAsRrhh("req-1", "aprobado", "data:image/png;base64,AAAA", "", {
+      periodConfirmed: "2026",
+      hasCurrentVacation: true,
+      isAdvance: false,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(generateVacationCertificatePdf).toHaveBeenCalled();
+    expect(uploadToSharePoint).toHaveBeenCalledWith(expect.anything(), expect.stringContaining("req-1"), "application/pdf");
+    expect(admin._mocks.constanciaUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ constancia_drive_id: "drive-1", constancia_item_id: "item-1" }),
+    );
+  });
+
+  it("still approves successfully even if generating the constancia fails", async () => {
+    const supabase = mockSupabaseForRespond({ request: RRHH_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(mockAdminForRespond() as never);
+    vi.mocked(uploadToSharePoint).mockRejectedValue(new Error("SharePoint outage"));
+
+    const result = await respondAsRrhh("req-1", "aprobado", "data:image/png;base64,AAAA", "", {
+      periodConfirmed: "2026",
+      hasCurrentVacation: true,
+      isAdvance: false,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(supabase._mocks.updateMock).toHaveBeenCalled();
+  });
+
+  it("does not generate a constancia when RRHH rejects the request", async () => {
+    const supabase = mockSupabaseForRespond({ request: RRHH_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(mockAdminForRespond() as never);
+
+    const result = await respondAsRrhh("req-1", "rechazado", "", "No cumple los requisitos", {
+      periodConfirmed: "",
+      hasCurrentVacation: false,
+      isAdvance: false,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(generateVacationCertificatePdf).not.toHaveBeenCalled();
   });
 
   it("approves using a picked, previously-saved signature (a signed HTTPS URL, not a data URI)", async () => {

@@ -11,6 +11,9 @@ import {
   sendVacationRequestRrhhDecisionEmail,
 } from "@/lib/sendVacationRequestEmail";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { getPlatformLogoUrl } from "@/lib/platformSettings";
+import { uploadToSharePoint } from "@/lib/sharepoint";
+import { generateVacationCertificatePdf } from "@/lib/generateVacationCertificate";
 
 interface ActionResult {
   error?: string;
@@ -351,6 +354,96 @@ export async function respondAsSupervisor(
   return {};
 }
 
+async function fetchLogoBytes(url: string | null): Promise<Uint8Array | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return new Uint8Array(await res.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+async function downloadStorageBytes(
+  admin: ReturnType<typeof createAdminClient>,
+  bucket: string,
+  path: string,
+): Promise<Uint8Array | null> {
+  const { data, error } = await admin.storage.from(bucket).download(path);
+  if (error || !data) return null;
+  return new Uint8Array(await data.arrayBuffer());
+}
+
+// Generates the signed "constancia" PDF and uploads it to SharePoint (same
+// mechanism GoServices already uses), storing the driveId/itemId back on the
+// request. Never thrown to the caller - the RRHH approval itself is already
+// committed by the time this runs, same reasoning as the notification email.
+async function generateAndStoreConstancia(
+  admin: ReturnType<typeof createAdminClient>,
+  requestId: string,
+  request: {
+    first_name: string;
+    last_name: string;
+    position: string | null;
+    company_name: string | null;
+    tipo: string;
+    period: string | null;
+    date_from: string;
+    date_to: string;
+    days_requested: number | null;
+    supervisor_first_name: string | null;
+    supervisor_last_name: string | null;
+    supervisor_decided_at: string | null;
+  },
+  rrhhDecidedAt: string,
+): Promise<void> {
+  try {
+    const [logoBytes, supervisorSignatureBytes, rrhhSignatureBytes] = await Promise.all([
+      fetchLogoBytes(await getPlatformLogoUrl()),
+      downloadStorageBytes(admin, "vacation-request-signatures", `${requestId}/supervisor.png`),
+      downloadStorageBytes(admin, "vacation-request-signatures", `${requestId}/rrhh.png`),
+    ]);
+
+    const pdfBytes = await generateVacationCertificatePdf(
+      {
+        firstName: request.first_name,
+        lastName: request.last_name,
+        position: request.position,
+        companyName: request.company_name,
+        tipo: request.tipo,
+        period: request.period,
+        dateFrom: request.date_from,
+        dateTo: request.date_to,
+        daysRequested: request.days_requested,
+        supervisorFirstName: request.supervisor_first_name,
+        supervisorLastName: request.supervisor_last_name,
+        supervisorDecidedAt: request.supervisor_decided_at,
+        rrhhDecidedAt,
+      },
+      logoBytes,
+      supervisorSignatureBytes,
+      rrhhSignatureBytes,
+    );
+
+    const uploadResult = await uploadToSharePoint(
+      pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength) as ArrayBuffer,
+      `constancia-${request.first_name}-${request.last_name}-${requestId}.pdf`,
+      "application/pdf",
+    );
+
+    // The admin client, not the request-scoped one: by now status is already
+    // "aprobado", so vacation_requests_update_rrhh's RLS (which requires
+    // status = pendiente_rrhh) would silently block this follow-up write.
+    await admin
+      .from("vacation_requests")
+      .update({ constancia_drive_id: uploadResult.driveId, constancia_item_id: uploadResult.itemId })
+      .eq("id", requestId);
+  } catch (err) {
+    console.error("Failed to generate/upload the vacation certificate:", err);
+  }
+}
+
 export async function respondAsRrhh(
   requestId: string,
   decision: "aprobado" | "rechazado",
@@ -371,7 +464,9 @@ export async function respondAsRrhh(
 
   const { data: request, error: fetchError } = await supabase
     .from("vacation_requests")
-    .select("id, status, requester_app_user_id, first_name, last_name, tipo")
+    .select(
+      "id, status, requester_app_user_id, first_name, last_name, tipo, position, company_name, period, date_from, date_to, days_requested, supervisor_first_name, supervisor_last_name, supervisor_decided_at",
+    )
     .eq("id", requestId)
     .single();
   if (fetchError || !request) return { error: "Solicitud no encontrada" };
@@ -400,6 +495,10 @@ export async function respondAsRrhh(
   const { data: updated, error: updateError } = await supabase.from("vacation_requests").update(update).eq("id", requestId).select();
   if (updateError) return { error: updateError.message };
   if (!updated || updated.length === 0) return { error: "No autorizado" };
+
+  if (decision === "aprobado") {
+    await generateAndStoreConstancia(admin, requestId, request, update.rrhh_decided_at as string);
+  }
 
   const { data: employee } = await admin.from("app_users").select("email").eq("id", request.requester_app_user_id).maybeSingle();
   if (employee?.email) {
