@@ -199,6 +199,70 @@ async function uploadDecisionSignature(
   return { path };
 }
 
+export interface UpdateVacationRequestInput {
+  tipo: SolicitudTipo;
+  period: string;
+  daysRequested: number | null;
+  dateFrom: string;
+  dateTo: string;
+  returnDate: string | null;
+  daysPending: number | null;
+  notes: string;
+}
+
+// Lets the jefe directo correct a request's own details (not the decision
+// itself - that's respondAsSupervisor's job) while it's still awaiting them.
+// vacation_requests_update_supervisor already permits this at the RLS level
+// (any column, while status = pendiente_supervisor and they're the resolved
+// supervisor) - these checks exist for a clear user-facing error message.
+export async function updateRequestAsSupervisor(requestId: string, input: UpdateVacationRequestInput): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+
+  const { data: request, error: fetchError } = await supabase
+    .from("vacation_requests")
+    .select("id, status, supervisor_app_user_id")
+    .eq("id", requestId)
+    .single();
+  if (fetchError || !request) return { error: "Solicitud no encontrada" };
+  if (request.supervisor_app_user_id !== user.id) return { error: "No autorizado" };
+  if (request.status !== "pendiente_supervisor") return { error: "Esta solicitud ya no está pendiente de tu aprobación" };
+
+  if (input.dateTo < input.dateFrom) return { error: "La fecha de fin debe ser posterior o igual a la fecha de inicio" };
+  if (input.tipo === "vacaciones") {
+    if (!input.daysRequested || input.daysRequested <= 0) return { error: "La cantidad de días debe ser mayor a cero" };
+    if (!input.returnDate || input.returnDate < input.dateTo) {
+      return { error: "La fecha de regreso debe ser posterior o igual a la fecha de fin" };
+    }
+  } else if (!input.notes.trim()) {
+    return { error: "El motivo es obligatorio para este tipo de solicitud" };
+  }
+
+  const isVacacionesRequest = input.tipo === "vacaciones";
+  const { data: updated, error: updateError } = await supabase
+    .from("vacation_requests")
+    .update({
+      tipo: input.tipo,
+      period: isVacacionesRequest ? input.period || null : null,
+      days_requested: isVacacionesRequest ? input.daysRequested : null,
+      date_from: input.dateFrom,
+      date_to: input.dateTo,
+      return_date: isVacacionesRequest ? input.returnDate : null,
+      days_pending: isVacacionesRequest ? input.daysPending : null,
+      notes: input.notes || null,
+    })
+    .eq("id", requestId)
+    .select();
+  if (updateError) return { error: updateError.message };
+  if (!updated || updated.length === 0) return { error: "No autorizado" };
+
+  revalidatePath("/solicitudes/vacaciones");
+  return {};
+}
+
 export async function respondAsSupervisor(
   requestId: string,
   decision: "aprobado" | "rechazado",

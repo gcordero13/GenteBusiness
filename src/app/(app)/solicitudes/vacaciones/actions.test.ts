@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveRequesterContact, resolveSupervisorChain } from "@/lib/resolveVacationSupervisor";
 import { sendVacationRequestSubmittedEmail, sendVacationRequestSupervisorDecisionEmail, sendVacationRequestRrhhDecisionEmail } from "@/lib/sendVacationRequestEmail";
-import { createVacationRequest, respondAsRrhh, respondAsSupervisor } from "./actions";
+import { createVacationRequest, respondAsRrhh, respondAsSupervisor, updateRequestAsSupervisor } from "./actions";
 
 const VALID_INPUT = {
   tipo: "vacaciones" as const,
@@ -677,5 +677,86 @@ describe("respondAsRrhh", () => {
 
     expect(result.error).toBeUndefined();
     expect(supabase._mocks.updateMock).toHaveBeenCalled();
+  });
+});
+
+describe("updateRequestAsSupervisor", () => {
+  const VALID_UPDATE = {
+    tipo: "vacaciones" as const,
+    period: "2027",
+    daysRequested: 3,
+    dateFrom: "2026-12-01",
+    dateTo: "2026-12-03",
+    returnDate: "2026-12-06",
+    daysPending: 2,
+    notes: "Corregido",
+  };
+
+  it("rejects when the caller is not the request's resolved supervisor", async () => {
+    vi.mocked(createClient).mockResolvedValue(mockSupabaseForRespond({ userId: "someone-else", request: BASE_REQUEST }) as never);
+
+    const result = await updateRequestAsSupervisor("req-1", VALID_UPDATE);
+
+    expect(result.error).toBe("No autorizado");
+  });
+
+  it("rejects when the request is no longer pendiente_supervisor", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      mockSupabaseForRespond({ request: { ...BASE_REQUEST, status: "pendiente_rrhh" } }) as never,
+    );
+
+    const result = await updateRequestAsSupervisor("req-1", VALID_UPDATE);
+
+    expect(result.error).toBe("Esta solicitud ya no está pendiente de tu aprobación");
+  });
+
+  it("rejects an invalid date range before updating anything", async () => {
+    const supabase = mockSupabaseForRespond({ request: BASE_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await updateRequestAsSupervisor("req-1", { ...VALID_UPDATE, dateFrom: "2026-12-03", dateTo: "2026-12-01" });
+
+    expect(result.error).toBe("La fecha de fin debe ser posterior o igual a la fecha de inicio");
+    expect(supabase._mocks.updateMock).not.toHaveBeenCalled();
+  });
+
+  it("requires a motivo for a non-vacaciones tipo", async () => {
+    const supabase = mockSupabaseForRespond({ request: BASE_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await updateRequestAsSupervisor("req-1", { ...VALID_UPDATE, tipo: "medico", notes: "   " });
+
+    expect(result.error).toBe("El motivo es obligatorio para este tipo de solicitud");
+    expect(supabase._mocks.updateMock).not.toHaveBeenCalled();
+  });
+
+  it("saves the corrected details while the request is still pendiente_supervisor", async () => {
+    const supabase = mockSupabaseForRespond({ request: BASE_REQUEST });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await updateRequestAsSupervisor("req-1", VALID_UPDATE);
+
+    expect(result.error).toBeUndefined();
+    expect(supabase._mocks.updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo: "vacaciones",
+        period: "2027",
+        days_requested: 3,
+        date_from: "2026-12-01",
+        date_to: "2026-12-03",
+        return_date: "2026-12-06",
+        days_pending: 2,
+        notes: "Corregido",
+      }),
+    );
+  });
+
+  it("rejects when the update is silently blocked by RLS (zero rows affected)", async () => {
+    const supabase = mockSupabaseForRespond({ request: BASE_REQUEST, updatedRows: [] });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await updateRequestAsSupervisor("req-1", VALID_UPDATE);
+
+    expect(result.error).toBe("No autorizado");
   });
 });

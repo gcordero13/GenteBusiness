@@ -44,6 +44,10 @@ export interface SolicitudRequestRow {
   period: string | null;
   date_from: string;
   date_to: string;
+  return_date: string | null;
+  days_requested: number | null;
+  days_pending: number | null;
+  notes: string | null;
   status: string;
   supervisor_app_user_id: string;
   created_at: string;

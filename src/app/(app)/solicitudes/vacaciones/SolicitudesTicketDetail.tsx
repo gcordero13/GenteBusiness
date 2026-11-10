@@ -7,6 +7,7 @@ import { getInitials } from "@/lib/contacts";
 import { EstadoPill, TipoPill } from "./SolicitudesPills";
 import { RequestFlowSteps } from "./RequestFlowSteps";
 import { VacationRequestActions } from "./VacationRequestActions";
+import { EditVacationRequestForm } from "./EditVacationRequestForm";
 import type { SolicitudRequestRow } from "./SolicitudesTicketExplorer";
 import type { SignatureWithUrl } from "@/app/(app)/(admin)/document-stamps/page";
 
@@ -77,6 +78,25 @@ export function SolicitudesTicketDetail({ request, attachmentUrl, signatures, us
         </p>
         <RequestFlowSteps request={request} />
       </div>
+
+      {isPendingSupervisorForMe && (
+        <div>
+          <p className="mb-3 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Corregir solicitud
+          </p>
+          <EditVacationRequestForm
+            requestId={request.id}
+            tipo={request.tipo}
+            period={request.period}
+            daysRequested={request.days_requested}
+            dateFrom={request.date_from}
+            dateTo={request.date_to}
+            returnDate={request.return_date}
+            daysPending={request.days_pending}
+            notes={request.notes}
+          />
+        </div>
+      )}
 
       {(isPendingSupervisorForMe || isPendingRrhhForMe) && (
         <div>
