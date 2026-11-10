@@ -113,7 +113,7 @@ export default async function VacationRequestsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
+    <div className="w-full min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
       <SolicitudesHeroBanner>
         <NewVacationRequestDialog triggerClassName="border-transparent bg-white text-teal-800 shadow-md hover:bg-white/90" />
       </SolicitudesHeroBanner>
