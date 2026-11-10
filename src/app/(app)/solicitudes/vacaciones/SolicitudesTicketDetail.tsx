@@ -1,13 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Paperclip } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/contacts";
 import { EstadoPill, TipoPill } from "./SolicitudesPills";
 import { RequestFlowSteps } from "./RequestFlowSteps";
 import { VacationRequestActions } from "./VacationRequestActions";
 import { EditVacationRequestForm } from "./EditVacationRequestForm";
+import { AttachmentViewerDialog } from "./AttachmentViewerDialog";
 import type { SolicitudRequestRow } from "./SolicitudesTicketExplorer";
 import type { SignatureWithUrl } from "@/app/(app)/(admin)/document-stamps/page";
 
@@ -60,17 +60,7 @@ export function SolicitudesTicketDetail({ request, attachmentUrl, signatures, us
         </Field>
       </div>
 
-      {attachmentUrl && (
-        <a
-          href={attachmentUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex w-fit items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1.5 text-sm font-medium text-teal-800 hover:bg-teal-100"
-        >
-          <Paperclip className="size-4" aria-hidden="true" />
-          Ver documento adjunto
-        </a>
-      )}
+      {attachmentUrl && <AttachmentViewerDialog url={attachmentUrl} />}
 
       <div>
         <p className="mb-3 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
