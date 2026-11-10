@@ -127,6 +127,8 @@ describe("createVacationRequest", () => {
         companyName: "Sanchez Business Corp",
         departmentName: "TI",
         supervisorAppUserId: "sup-1",
+        supervisorFirstName: "Carlos",
+        supervisorLastName: "Jefe",
       },
     });
 
@@ -141,6 +143,8 @@ describe("createVacationRequest", () => {
         first_name: "Ana",
         last_name: "García",
         supervisor_app_user_id: "sup-1",
+        supervisor_first_name: "Carlos",
+        supervisor_last_name: "Jefe",
         status: "pendiente_supervisor",
         days_requested: 2,
         date_from: "2026-11-13",
@@ -164,6 +168,8 @@ describe("createVacationRequest", () => {
         companyName: "Sanchez Business Corp",
         departmentName: "TI",
         supervisorAppUserId: "sup-1",
+        supervisorFirstName: "Carlos",
+        supervisorLastName: "Jefe",
       },
     });
 
@@ -225,6 +231,8 @@ describe("createVacationRequest", () => {
         companyName: "Sanchez Business Corp",
         departmentName: "TI",
         supervisorAppUserId: "sup-1",
+        supervisorFirstName: "Carlos",
+        supervisorLastName: "Jefe",
       },
     });
     const uploadMock = vi.fn().mockResolvedValue({ error: null });
@@ -270,6 +278,8 @@ describe("createVacationRequest", () => {
         companyName: "Sanchez Business Corp",
         departmentName: "TI",
         supervisorAppUserId: "sup-1",
+        supervisorFirstName: "Carlos",
+        supervisorLastName: "Jefe",
       },
     });
     const uploadMock = vi.fn().mockResolvedValue({ error: { message: "Bucket no encontrado" } });
@@ -308,6 +318,8 @@ describe("createVacationRequest", () => {
         companyName: "Sanchez Business Corp",
         departmentName: "TI",
         supervisorAppUserId: "sup-1",
+        supervisorFirstName: "Carlos",
+        supervisorLastName: "Jefe",
       },
     });
     vi.mocked(sendVacationRequestSubmittedEmail).mockRejectedValue(new Error("Configuración SMTP incompleta"));

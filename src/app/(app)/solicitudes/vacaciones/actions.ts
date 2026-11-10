@@ -100,6 +100,8 @@ export async function createVacationRequest(input: CreateVacationRequestInput): 
       attachment_path: attachmentPath,
       status: "pendiente_supervisor",
       supervisor_app_user_id: resolved.data.supervisorAppUserId,
+      supervisor_first_name: resolved.data.supervisorFirstName,
+      supervisor_last_name: resolved.data.supervisorLastName,
     })
     .select()
     .single();

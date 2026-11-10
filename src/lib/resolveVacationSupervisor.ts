@@ -9,6 +9,8 @@ export interface ResolvedVacationSupervisor {
   companyName: string | null;
   departmentName: string | null;
   supervisorAppUserId: string;
+  supervisorFirstName: string;
+  supervisorLastName: string;
 }
 
 type ResolveResult = { ok: true; data: ResolvedVacationSupervisor } | { ok: false; error: string };
@@ -35,7 +37,7 @@ export async function resolveVacationSupervisor(
 
   const { data: supervisorContact } = await admin
     .from("contacts")
-    .select("email")
+    .select("email, first_name, last_name")
     .eq("id", contact.reports_to_id)
     .maybeSingle();
 
@@ -63,6 +65,8 @@ export async function resolveVacationSupervisor(
       companyName: (contact.companies as unknown as { name: string } | null)?.name ?? null,
       departmentName: (contact.departments as unknown as { name: string } | null)?.name ?? null,
       supervisorAppUserId: supervisorUser.id,
+      supervisorFirstName: supervisorContact.first_name,
+      supervisorLastName: supervisorContact.last_name,
     },
   };
 }

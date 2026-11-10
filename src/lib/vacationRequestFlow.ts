@@ -15,6 +15,8 @@ export interface RequestFlowInput {
   supervisor_decision: string | null;
   supervisor_decided_at: string | null;
   supervisor_comments: string | null;
+  supervisor_first_name: string | null;
+  supervisor_last_name: string | null;
   rrhh_decision: string | null;
   rrhh_decided_at: string | null;
   rrhh_comments: string | null;
@@ -41,12 +43,18 @@ export function deriveRequestFlowSteps(request: RequestFlowInput): FlowStep[] {
 
   const jefeReached = jefeState === "completed" || jefeState === "rejected";
 
+  // Shown regardless of state (including "pending") so the requester always
+  // knows exactly who, at the top of their org chart, is responsible for
+  // this approval - not just "jefe directo" in the abstract.
+  const supervisorName = [request.supervisor_first_name, request.supervisor_last_name].filter(Boolean).join(" ");
+  const jefeExtra = supervisorName ? [`Aprobador: ${supervisorName}`] : [];
+
   const jefe: FlowStep = {
     label: "Jefe directo",
     state: jefeState,
     decidedAt: jefeReached ? request.supervisor_decided_at : null,
     comments: jefeReached ? request.supervisor_comments : null,
-    extra: [],
+    extra: jefeExtra,
   };
 
   const rrhhState: FlowStepState =

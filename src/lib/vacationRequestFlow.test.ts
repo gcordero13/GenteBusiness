@@ -9,6 +9,8 @@ function request(overrides: Partial<RequestFlowInput>): RequestFlowInput {
     supervisor_decision: null,
     supervisor_decided_at: null,
     supervisor_comments: null,
+    supervisor_first_name: null,
+    supervisor_last_name: null,
     rrhh_decision: null,
     rrhh_decided_at: null,
     rrhh_comments: null,
@@ -139,6 +141,24 @@ describe("deriveRequestFlowSteps", () => {
       decidedAt: "2026-10-03T14:00:00Z",
       comments: "Documentación incompleta",
       extra: [],
+    });
+  });
+
+  it("shows the resolved supervisor's name on 'Jefe directo' even while still pending", () => {
+    const steps = deriveRequestFlowSteps(
+      request({
+        status: "pendiente_supervisor",
+        supervisor_first_name: "Carlos",
+        supervisor_last_name: "Jefe",
+      }),
+    );
+
+    expect(steps[1]).toEqual({
+      label: "Jefe directo",
+      state: "pending",
+      decidedAt: null,
+      comments: null,
+      extra: ["Aprobador: Carlos Jefe"],
     });
   });
 

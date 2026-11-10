@@ -50,6 +50,8 @@ export interface SolicitudRequestRow {
   supervisor_decision: string | null;
   supervisor_decided_at: string | null;
   supervisor_comments: string | null;
+  supervisor_first_name: string | null;
+  supervisor_last_name: string | null;
   rrhh_decision: string | null;
   rrhh_decided_at: string | null;
   rrhh_comments: string | null;
