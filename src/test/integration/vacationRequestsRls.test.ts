@@ -179,4 +179,62 @@ describe("vacation_requests RLS", () => {
       .select();
     expect(updated).toEqual([]);
   });
+
+  it("blocks a user with only can_view (no can_authorize) from reading someone else's request", async () => {
+    employee = await createTestUser("Viewer");
+    supervisor = await createTestUser("Viewer");
+    outsider = await createTestUser("Editor");
+    ({ companyId, supervisorContactId, employeeContactId } = await makeContactPair(supervisor.email, employee.email));
+
+    const admin = createAdminClient();
+    const { data: created } = await admin
+      .from("vacation_requests")
+      .insert({
+        contact_id: employeeContactId,
+        requester_app_user_id: employee.id,
+        first_name: "Emp",
+        last_name: "Loyee",
+        days_requested: 2,
+        date_from: "2026-11-13",
+        date_to: "2026-11-14",
+        return_date: "2026-11-17",
+        status: "pendiente_supervisor",
+        supervisor_app_user_id: supervisor.id,
+      })
+      .select()
+      .single();
+    requestId = created!.id;
+
+    const { data: moduleRow } = await admin
+      .from("modules")
+      .select("id")
+      .eq("key", "solicitudes_vacaciones")
+      .single();
+    const { data: editorProfile } = await admin.from("role_profiles").select("id").eq("name", "Editor").single();
+    const { data: originalPerm } = await admin
+      .from("role_profile_permissions")
+      .select("can_view, can_authorize")
+      .eq("role_profile_id", editorProfile!.id)
+      .eq("module_id", moduleRow!.id)
+      .single();
+
+    // Grant can_view (but not can_authorize) to Editor, scoped to this one
+    // module, to prove can_view alone no longer grants oversight here.
+    await admin
+      .from("role_profile_permissions")
+      .update({ can_view: true, can_authorize: false })
+      .eq("role_profile_id", editorProfile!.id)
+      .eq("module_id", moduleRow!.id);
+
+    try {
+      const { data: outsiderRead } = await outsider.client.from("vacation_requests").select("*").eq("id", requestId);
+      expect(outsiderRead).toEqual([]);
+    } finally {
+      await admin
+        .from("role_profile_permissions")
+        .update({ can_view: originalPerm!.can_view, can_authorize: originalPerm!.can_authorize })
+        .eq("role_profile_id", editorProfile!.id)
+        .eq("module_id", moduleRow!.id);
+    }
+  });
 });
