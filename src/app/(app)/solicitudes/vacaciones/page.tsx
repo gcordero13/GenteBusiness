@@ -92,8 +92,11 @@ export default async function VacationRequestsPage() {
   const lastVacation = findLastTakenVacation(allRequests, user!.id, todayIso);
   const nextVacation = findNextApprovedVacation(allRequests, user!.id, todayIso);
 
-  const summaryAndTable = (
+  const content = (
     <div className="space-y-6">
+      <SolicitudesHeroBanner>
+        <NewVacationRequestDialog triggerClassName="border-transparent bg-white text-teal-800 shadow-md hover:bg-white/90" />
+      </SolicitudesHeroBanner>
       <SolicitudesSummaryCards
         year={year}
         inProgressCount={inProgressCount}
@@ -113,10 +116,7 @@ export default async function VacationRequestsPage() {
   );
 
   return (
-    <div className="w-full min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
-      <SolicitudesHeroBanner>
-        <NewVacationRequestDialog triggerClassName="border-transparent bg-white text-teal-800 shadow-md hover:bg-white/90" />
-      </SolicitudesHeroBanner>
+    <div className="w-full min-w-0 p-4 sm:p-6 lg:p-8">
       {myContact ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
           <SolicitudesProfileHeader
@@ -125,10 +125,10 @@ export default async function VacationRequestsPage() {
             photoUrl={myContact.photo_url}
             tenure={myContact.hire_date ? formatTenure(myContact.hire_date, today) : null}
           />
-          {summaryAndTable}
+          {content}
         </div>
       ) : (
-        summaryAndTable
+        content
       )}
     </div>
   );
