@@ -109,3 +109,20 @@ export async function saveLoginBackground(backgroundUrl: string): Promise<Action
   revalidatePath("/login");
   return {};
 }
+
+export async function saveChristmasMode(enabled: boolean): Promise<ActionResult> {
+  if (!(await callerCanManageSettings())) {
+    return { error: "No autorizado" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("platform_settings")
+    .update({ christmas_mode_enabled: enabled })
+    .eq("id", true);
+  if (error) return { error: error.message };
+
+  revalidatePath("/settings");
+  revalidatePath("/", "layout");
+  return {};
+}

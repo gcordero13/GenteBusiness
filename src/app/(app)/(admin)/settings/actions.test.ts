@@ -16,7 +16,7 @@ vi.mock("next/cache", () => ({
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { updateAuthConfig } from "@/lib/supabase/managementApi";
-import { saveSmtpSettings, savePlatformLogo } from "./actions";
+import { saveSmtpSettings, savePlatformLogo, saveChristmasMode } from "./actions";
 
 function mockServerClient(flags: { can_manage: boolean }) {
   return {
@@ -139,6 +139,36 @@ describe("savePlatformLogo", () => {
     expect(supabase.from).toHaveBeenCalledWith("platform_settings");
     expect(supabase.from().update).toHaveBeenCalledWith({
       logo_url: "https://cdn.example.com/logo.png",
+    });
+    expect(eq).toHaveBeenCalledWith("id", true);
+  });
+});
+
+describe("saveChristmasMode", () => {
+  it("rejects callers without can_manage on the settings module", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      mockServerClient({ can_manage: false }) as never,
+    );
+
+    const result = await saveChristmasMode(true);
+
+    expect(result.error).toBe("No autorizado");
+  });
+
+  it("updates the platform_settings row when authorized", async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const supabase = {
+      ...mockServerClient({ can_manage: true }),
+      from: vi.fn().mockReturnValue({ update: vi.fn().mockReturnValue({ eq }) }),
+    };
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await saveChristmasMode(true);
+
+    expect(result.error).toBeUndefined();
+    expect(supabase.from).toHaveBeenCalledWith("platform_settings");
+    expect(supabase.from().update).toHaveBeenCalledWith({
+      christmas_mode_enabled: true,
     });
     expect(eq).toHaveBeenCalledWith("id", true);
   });
