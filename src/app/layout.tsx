@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { RegisterServiceWorker } from "./RegisterServiceWorker";
+import { ChristmasDecor } from "@/components/ChristmasDecor";
+import { getChristmasModeEnabled } from "@/lib/platformSettings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,11 +36,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const christmasModeEnabled = await getChristmasModeEnabled();
+
   return (
     <html
       lang="en"
@@ -46,6 +50,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <RegisterServiceWorker />
+        <ChristmasDecor enabled={christmasModeEnabled} />
         {children}
       </body>
     </html>
