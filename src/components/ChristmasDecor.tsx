@@ -16,7 +16,7 @@ const SNOWFLAKES = [
 ] as const;
 
 const LIGHT_COLORS = ["#ef4444", "#22c55e", "#fbbf24"] as const;
-const BULB_COUNT = 14;
+const BULB_COUNT = 30;
 const ATTACH_Y = 10;
 
 export function ChristmasDecor({ enabled }: { enabled: boolean }) {
@@ -33,7 +33,7 @@ export function ChristmasDecor({ enabled }: { enabled: boolean }) {
   if (!enabled) return null;
 
   const bulbs = Array.from({ length: BULB_COUNT }, (_, i) => {
-    const attachXPercent = `${(i / (BULB_COUNT - 1)) * 100}%`;
+    const attachXPercent = `${1 + (i / (BULB_COUNT - 1)) * 98}%`;
     const cordLength = i % 2 === 0 ? 14 : 22;
     return {
       attachXPercent,
