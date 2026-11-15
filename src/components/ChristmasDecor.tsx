@@ -16,7 +16,21 @@ const SNOWFLAKES = [
 ] as const;
 
 const LIGHT_COLORS = ["#ef4444", "#22c55e", "#fbbf24"] as const;
-const BULB_COUNT = 16;
+const BULB_COUNT = 14;
+const VIEWBOX_W = 1200;
+const WIRE_PEAK_Y = 6;
+const WIRE_DIP_Y = 40;
+
+function buildWirePath(count: number): string {
+  const seg = VIEWBOX_W / count;
+  let d = `M0,${WIRE_PEAK_Y}`;
+  for (let i = 0; i < count; i++) {
+    const midX = seg * i + seg / 2;
+    const endX = seg * (i + 1);
+    d += ` Q${midX},${WIRE_DIP_Y} ${endX},${WIRE_PEAK_Y}`;
+  }
+  return d;
+}
 
 export function ChristmasDecor({ enabled }: { enabled: boolean }) {
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -31,27 +45,67 @@ export function ChristmasDecor({ enabled }: { enabled: boolean }) {
 
   if (!enabled) return null;
 
-  const bulbs = Array.from({ length: BULB_COUNT }, (_, i) => ({
-    cx: `${(i / (BULB_COUNT - 1)) * 100}%`,
-    color: LIGHT_COLORS[i % LIGHT_COLORS.length],
-    cy: i % 2 === 0 ? 6 : 16,
-  }));
+  const seg = VIEWBOX_W / BULB_COUNT;
+  const bulbs = Array.from({ length: BULB_COUNT }, (_, i) => {
+    const attachX = seg * i + seg / 2;
+    const cordLength = i % 2 === 0 ? 14 : 22;
+    return {
+      attachX,
+      attachY: WIRE_DIP_Y,
+      bulbY: WIRE_DIP_Y + cordLength,
+      color: LIGHT_COLORS[i % LIGHT_COLORS.length],
+      swayDuration: 2.4 + (i % 5) * 0.4,
+      swayDelay: -((i % 7) * 0.6),
+      flickerDuration: 3 + (i % 6) * 1.1,
+      flickerDelay: -((i % 5) * 0.7),
+    };
+  });
 
   return (
     <div
       aria-hidden="true"
       style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 40, overflow: "hidden" }}
     >
-      <svg width="100%" height="24" style={{ position: "absolute", top: 0, left: 0 }}>
-        <polyline
-          points={bulbs.map((b) => `${b.cx},${b.cy}`).join(" ")}
-          fill="none"
-          stroke="#d4af37"
-          strokeWidth={1.5}
-          opacity={0.6}
-        />
+      <svg
+        width="100%"
+        height={90}
+        viewBox={`0 0 ${VIEWBOX_W} 90`}
+        preserveAspectRatio="none"
+        style={{ position: "absolute", top: 0, left: 0 }}
+      >
+        <defs>
+          <radialGradient id="christmas-bulb-glow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stopColor="#fff2c4" stopOpacity="0.55" />
+            <stop offset="1" stopColor="#fff2c4" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <path d={buildWirePath(BULB_COUNT)} fill="none" stroke="#3a3a3a" strokeWidth={1.5} opacity={0.6} />
         {bulbs.map((b, i) => (
-          <circle key={i} cx={b.cx} cy={b.cy} r={4} fill={b.color} />
+          <g
+            key={i}
+            style={
+              reducedMotion
+                ? undefined
+                : {
+                    transformOrigin: `${b.attachX}px ${b.attachY}px`,
+                    animation: `christmas-decor-sway ${b.swayDuration}s ease-in-out ${b.swayDelay}s infinite alternate`,
+                  }
+            }
+          >
+            <line x1={b.attachX} y1={b.attachY} x2={b.attachX} y2={b.bulbY} stroke="#3a3a3a" strokeWidth={1} />
+            <circle cx={b.attachX} cy={b.bulbY} r={14} fill="url(#christmas-bulb-glow)" />
+            <circle
+              cx={b.attachX}
+              cy={b.bulbY}
+              r={4.5}
+              fill={b.color}
+              style={
+                reducedMotion
+                  ? undefined
+                  : { animation: `christmas-decor-flicker ${b.flickerDuration}s linear ${b.flickerDelay}s infinite` }
+              }
+            />
+          </g>
         ))}
       </svg>
       {!reducedMotion &&
@@ -76,6 +130,17 @@ export function ChristmasDecor({ enabled }: { enabled: boolean }) {
           0% { transform: translateY(0); opacity: 0; }
           10% { opacity: .9; }
           100% { transform: translateY(100vh); opacity: 0; }
+        }
+        @keyframes christmas-decor-sway {
+          from { transform: rotate(-3deg); }
+          to { transform: rotate(3deg); }
+        }
+        @keyframes christmas-decor-flicker {
+          0%, 5%, 40%, 47%, 100% { opacity: 1; }
+          2% { opacity: .78; }
+          41% { opacity: .62; }
+          43% { opacity: .95; }
+          45% { opacity: .7; }
         }
       `}</style>
     </div>
