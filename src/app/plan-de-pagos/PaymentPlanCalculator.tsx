@@ -12,7 +12,6 @@ import {
   formatPlanDate,
   formatPlanForClipboard,
   formatUsd,
-  type ExtraPaymentMode,
   type PaymentPlanResult,
 } from "@/lib/paymentPlan";
 
@@ -30,13 +29,7 @@ const PERCENTAGE_OPTIONS = [
   { value: "0.10", label: "10% (requiere 20% en cuotas)" },
 ];
 
-const EXTRA_PAYMENT_MODE_OPTIONS: { value: ExtraPaymentMode; label: string }[] = [
-  { value: "reduce_installment", label: "Bajar la cuota mensual (mismas fechas)" },
-  { value: "reduce_count", label: "Reducir el número de cuotas (misma cuota)" },
-  { value: "reduce_disbursement", label: "Reducir el desembolso (70%)" },
-];
-
-interface ExtraPaymentDraft {
+interface FixedInstallmentDraft {
   id: number;
   date: string;
   amount: string;
@@ -92,9 +85,8 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
   const [installmentStartDate, setInstallmentStartDate] = useState(defaultDates.installmentStartDate);
   const [installmentEndDate, setInstallmentEndDate] = useState(defaultDates.installmentEndDate);
   const [disbursementDate, setDisbursementDate] = useState(defaultDates.disbursementDate);
-  const [extraPayments, setExtraPayments] = useState<ExtraPaymentDraft[]>([]);
-  const [extraPaymentMode, setExtraPaymentMode] = useState<ExtraPaymentMode>("reduce_installment");
-  const nextExtraId = useRef(1);
+  const [fixedInstallments, setFixedInstallments] = useState<FixedInstallmentDraft[]>([]);
+  const nextFixedId = useRef(1);
 
   const [plan, setPlan] = useState<GeneratedPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -109,8 +101,7 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
       installmentStartDate,
       installmentEndDate,
       disbursementDate,
-      extraPayments: extraPayments.map((e) => ({ date: e.date, amount: parseFloat(e.amount) })),
-      extraPaymentMode,
+      fixedInstallments: fixedInstallments.map((f) => ({ date: f.date, amount: parseFloat(f.amount) })),
     });
     setCopyStatus("idle");
     if (!result.ok) {
@@ -122,17 +113,17 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
     setPlan(result);
   }
 
-  function addExtraPayment() {
-    const id = nextExtraId.current++;
-    setExtraPayments((prev) => [...prev, { id, date: "", amount: "" }]);
+  function addFixedInstallment() {
+    const id = nextFixedId.current++;
+    setFixedInstallments((prev) => [...prev, { id, date: "", amount: "" }]);
   }
 
-  function updateExtraPayment(id: number, patch: Partial<Omit<ExtraPaymentDraft, "id">>) {
-    setExtraPayments((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  function updateFixedInstallment(id: number, patch: Partial<Omit<FixedInstallmentDraft, "id">>) {
+    setFixedInstallments((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   }
 
-  function removeExtraPayment(id: number) {
-    setExtraPayments((prev) => prev.filter((e) => e.id !== id));
+  function removeFixedInstallment(id: number) {
+    setFixedInstallments((prev) => prev.filter((f) => f.id !== id));
   }
 
   async function copyPlan() {
@@ -232,66 +223,51 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
         <div className="mt-6 space-y-3 border-t pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-sm font-semibold">Pagos extraordinarios (opcional)</h2>
-              <p className="text-xs text-muted-foreground">Abonos únicos en fechas específicas, en USD.</p>
+              <h2 className="text-sm font-semibold">Cuotas con monto fijo (opcional)</h2>
+              <p className="text-xs text-muted-foreground">
+                Si la fecha cae en un mes del rango, reemplaza la cuota de ese mes; si cae fuera (incluso después del
+                desembolso), se agrega como cuota adicional. Las demás cuotas se calculan para completar el 30%.
+              </p>
             </div>
-            <Button variant="outline" size="sm" onClick={addExtraPayment}>
+            <Button variant="outline" size="sm" onClick={addFixedInstallment}>
               <Plus data-icon="inline-start" />
-              Agregar pago
+              Agregar cuota fija
             </Button>
           </div>
 
-          {extraPayments.map((extra, index) => (
-            <div key={extra.id} className="flex flex-wrap items-end gap-2">
+          {fixedInstallments.map((fixed, index) => (
+            <div key={fixed.id} className="flex flex-wrap items-end gap-2">
               <div className="min-w-36 flex-1 space-y-1.5">
-                <Label htmlFor={`extra-date-${extra.id}`}>Fecha del pago {index + 1}</Label>
+                <Label htmlFor={`fixed-date-${fixed.id}`}>Fecha de la cuota fija {index + 1}</Label>
                 <Input
-                  id={`extra-date-${extra.id}`}
+                  id={`fixed-date-${fixed.id}`}
                   type="date"
-                  value={extra.date}
-                  onChange={(e) => updateExtraPayment(extra.id, { date: e.target.value })}
+                  value={fixed.date}
+                  onChange={(e) => updateFixedInstallment(fixed.id, { date: e.target.value })}
                 />
               </div>
               <div className="min-w-36 flex-1 space-y-1.5">
-                <Label htmlFor={`extra-amount-${extra.id}`}>Monto (USD)</Label>
+                <Label htmlFor={`fixed-amount-${fixed.id}`}>Monto de la cuota fija {index + 1} (USD)</Label>
                 <Input
-                  id={`extra-amount-${extra.id}`}
+                  id={`fixed-amount-${fixed.id}`}
                   type="number"
                   inputMode="decimal"
                   min={0}
-                  value={extra.amount}
-                  onChange={(e) => updateExtraPayment(extra.id, { amount: e.target.value })}
-                  placeholder="Ej: 5000"
+                  value={fixed.amount}
+                  onChange={(e) => updateFixedInstallment(fixed.id, { amount: e.target.value })}
+                  placeholder="Ej: 1455"
                 />
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => removeExtraPayment(extra.id)}
-                aria-label={`Quitar pago extraordinario ${index + 1}`}
+                onClick={() => removeFixedInstallment(fixed.id)}
+                aria-label={`Quitar cuota fija ${index + 1}`}
               >
                 <X />
               </Button>
             </div>
           ))}
-
-          {extraPayments.length > 0 && (
-            <div className="space-y-1.5 md:max-w-md">
-              <Label htmlFor="extraPaymentMode">¿Qué hacer con los pagos extraordinarios?</Label>
-              <select
-                id="extraPaymentMode"
-                className={selectClassName}
-                value={extraPaymentMode}
-                onChange={(e) => setExtraPaymentMode(e.target.value as ExtraPaymentMode)}
-              >
-                {EXTRA_PAYMENT_MODE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
@@ -336,16 +312,16 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
               <SummaryItem label="Separación + 5/10%" value={formatUsd(plan.summary.initialPaid)} />
               <SummaryItem label="Remanente para cuotas" value={formatUsd(plan.summary.remainingForInstallments)} />
               <SummaryItem label="Número de cuotas" value={String(plan.summary.installmentCount)} />
-              {plan.summary.extraPaymentsTotal > 0 && (
-                <SummaryItem label="Pagos extraordinarios" value={formatUsd(plan.summary.extraPaymentsTotal)} />
+              {plan.summary.fixedInstallmentsTotal > 0 && (
+                <SummaryItem label="Total en cuotas fijas" value={formatUsd(plan.summary.fixedInstallmentsTotal)} />
               )}
               <SummaryItem
-                label="Cuota mensual"
+                label={plan.summary.fixedInstallmentsTotal > 0 ? "Cuota calculada" : "Cuota mensual"}
                 value={formatUsd(plan.summary.monthlyInstallment)}
                 valueClassName="text-lg text-emerald-600 dark:text-emerald-400"
               />
               <SummaryItem
-                label={plan.rows.at(-1)?.description === "DESEMBOLSO (70%)" ? "Desembolso (70%)" : "Desembolso"}
+                label="Desembolso (70%)"
                 value={formatUsd(plan.summary.disbursement)}
                 valueClassName="text-lg text-[#04B1AF]"
               />

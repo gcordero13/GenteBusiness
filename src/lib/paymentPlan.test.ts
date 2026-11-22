@@ -112,147 +112,150 @@ describe("buildPaymentPlan", () => {
   });
 });
 
-describe("buildPaymentPlan with extraordinary payments", () => {
-  // BASE: R = $25,000 for 12 installments (base cuota $2,083.33), D = $70,000.
-  const EXTRA_JUNE = { date: "2027-06-15", amount: 5000 };
+describe("buildPaymentPlan with fixed installments", () => {
+  // BASE: R = $25,000 over 12 monthly installments (22/12/2026 .. 22/11/2027), disbursement $70,000 on 22/11/2028.
   const installments = (rows: PaymentPlanRow[]) => rows.filter((r) => r.description.startsWith("CUOTA"));
 
-  it.each(["reduce_installment", "reduce_count", "reduce_disbursement"] as const)(
-    "leaves the plan unchanged when there are no extra payments (%s)",
-    (mode) => {
-      expect(buildPaymentPlan({ ...BASE, extraPayments: [], extraPaymentMode: mode })).toEqual(buildPaymentPlan(BASE));
-    },
-  );
+  it("leaves the plan unchanged when there are no fixed installments", () => {
+    expect(buildPaymentPlan({ ...BASE, fixedInstallments: [] })).toEqual(buildPaymentPlan(BASE));
+  });
 
-  it("reduce_installment: spreads R - E over the same installments", () => {
-    const { rows, summary } = ok({ ...BASE, extraPayments: [EXTRA_JUNE], extraPaymentMode: "reduce_installment" });
-
-    expect(summary).toMatchObject({
-      extraPaymentsTotal: 5000,
-      installmentCount: 12,
-      monthlyInstallment: 1666.66,
-      disbursement: 70000,
+  it("reproduces the sales team's real example (fixed 1,455 cuotas, disbursement before the last cuota)", () => {
+    const { rows, summary, warnings } = ok({
+      price: 88413.9,
+      separation: 11968.4,
+      initialPercentage: 0.05,
+      separationDate: "2026-11-18",
+      installmentStartDate: "2027-02-18",
+      installmentEndDate: "2027-05-18",
+      disbursementDate: "2027-06-18",
+      fixedInstallments: [
+        { date: "2026-11-18", amount: 1455 },
+        { date: "2027-01-18", amount: 1455 },
+        { date: "2027-12-18", amount: 1455 },
+      ],
     });
-    expect(installments(rows).at(-1)).toEqual({ date: "2027-11-22", amount: 1666.74, description: "CUOTA 12 de 12" });
-    // sorted by date: between CUOTA 6 (2027-05-22) and CUOTA 7 (2027-06-22)
-    expect(rows[6].description).toBe("CUOTA 6 de 12");
-    expect(rows[7]).toEqual({ date: "2027-06-15", amount: 5000, description: "PAGO EXTRAORDINARIO" });
-    expect(rows[8].description).toBe("CUOTA 7 de 12");
+
+    expect(warnings).toEqual([]);
+    expect(rows).toEqual([
+      { date: "2026-11-18", amount: 11968.4, description: "SEPARACION INICIAL" },
+      { date: "2026-11-18", amount: 1455, description: "CUOTA 1 de 7" },
+      { date: "2027-01-18", amount: 1455, description: "CUOTA 2 de 7" },
+      { date: "2027-02-18", amount: 2547.69, description: "CUOTA 3 de 7" },
+      { date: "2027-03-18", amount: 2547.69, description: "CUOTA 4 de 7" },
+      { date: "2027-04-18", amount: 2547.69, description: "CUOTA 5 de 7" },
+      { date: "2027-05-18", amount: 2547.7, description: "CUOTA 6 de 7" },
+      { date: "2027-06-18", amount: 61889.73, description: "DESEMBOLSO (70%)" },
+      { date: "2027-12-18", amount: 1455, description: "CUOTA 7 de 7" },
+    ]);
+    expect(summary).toMatchObject({ installmentCount: 7, monthlyInstallment: 2547.69, fixedInstallmentsTotal: 4365 });
+  });
+
+  it("a fixed installment inside the range replaces that month's calculated cuota", () => {
+    const { rows, summary } = ok({ ...BASE, fixedInstallments: [{ date: "2027-05-22", amount: 5000 }] });
+    const cuotas = installments(rows);
+
+    expect(cuotas).toHaveLength(12);
+    expect(cuotas[5]).toEqual({ date: "2027-05-22", amount: 5000, description: "CUOTA 6 de 12" });
+    // the other 11 share 25,000 - 5,000
+    expect(cuotas[0].amount).toBe(1818.18);
+    expect(cuotas[11]).toEqual({ date: "2027-11-22", amount: 1818.2, description: "CUOTA 12 de 12" });
+    expect(summary.monthlyInstallment).toBe(1818.18);
+  });
+
+  it("matches the month, not the exact day, when replacing a calculated cuota", () => {
+    const { rows } = ok({ ...BASE, fixedInstallments: [{ date: "2027-05-10", amount: 5000 }] });
+    const cuotas = installments(rows);
+
+    expect(cuotas).toHaveLength(12);
+    expect(cuotas.some((c) => c.date === "2027-05-22")).toBe(false);
+    expect(cuotas[5]).toEqual({ date: "2027-05-10", amount: 5000, description: "CUOTA 6 de 12" });
+  });
+
+  it("adds a fixed installment outside the range, even after the disbursement", () => {
+    const { rows, summary } = ok({ ...BASE, fixedInstallments: [{ date: "2029-01-15", amount: 1000 }] });
+
+    expect(summary.installmentCount).toBe(13);
+    expect(summary.monthlyInstallment).toBe(2000);
+    expect(rows.at(-2)?.description).toBe("DESEMBOLSO (70%)");
+    expect(rows.at(-1)).toEqual({ date: "2029-01-15", amount: 1000, description: "CUOTA 13 de 13" });
+  });
+
+  it("always sums to the unit price", () => {
+    const { rows } = ok({
+      ...BASE,
+      fixedInstallments: [
+        { date: "2027-02-03", amount: 1234.56 },
+        { date: "2027-08-22", amount: 3000 },
+        { date: "2029-01-15", amount: 999.99 },
+      ],
+    });
+    const totalCents = rows.reduce((sum, r) => sum + Math.round(r.amount * 100), 0);
+    expect(totalCents).toBe(100000 * 100);
+  });
+
+  it("puts an installment before the disbursement when both fall on the same date", () => {
+    const { rows } = ok({ ...BASE, fixedInstallments: [{ date: "2028-11-22", amount: 1000 }] });
+    expect(rows.at(-2)?.description).toBe("CUOTA 13 de 13");
     expect(rows.at(-1)?.description).toBe("DESEMBOLSO (70%)");
   });
 
-  it("reduce_count: keeps the base cuota and finishes earlier", () => {
-    const { rows, summary } = ok({ ...BASE, extraPayments: [EXTRA_JUNE], extraPaymentMode: "reduce_count" });
-
-    expect(summary).toMatchObject({ installmentCount: 10, monthlyInstallment: 2083.33, disbursement: 70000 });
-    const cuotas = installments(rows);
-    expect(cuotas).toHaveLength(10);
-    expect(cuotas[0]).toEqual({ date: "2026-12-22", amount: 2083.33, description: "CUOTA 1 de 10" });
-    // 20,000 - 9 * 2,083.33
-    expect(cuotas.at(-1)).toEqual({ date: "2027-09-22", amount: 1250.03, description: "CUOTA 10 de 10" });
+  it("allows a fixed installment on the separation date, listed after the separation", () => {
+    const { rows } = ok({ ...BASE, fixedInstallments: [{ date: "2026-11-22", amount: 1000 }] });
+    expect(rows[0].description).toBe("SEPARACION INICIAL");
+    expect(rows[1]).toEqual({ date: "2026-11-22", amount: 1000, description: "CUOTA 1 de 13" });
   });
 
-  it("reduce_count: an extra payment too small to drop a cuota keeps the base cuota and shrinks only the last one", () => {
-    const { rows, summary } = ok({
-      ...BASE,
-      extraPayments: [{ date: "2027-06-15", amount: 100 }],
-      extraPaymentMode: "reduce_count",
-    });
-    expect(summary).toMatchObject({ installmentCount: 12, monthlyInstallment: 2083.33 });
-    const cuotas = installments(rows);
-    expect(cuotas[10].amount).toBe(2083.33);
-    // 24,900 - 11 * 2,083.33
-    expect(cuotas[11].amount).toBe(1983.37);
+  it("warns and lists no calculated cuotas when the fixed ones cover the whole 30% remainder", () => {
+    const { rows, summary, warnings } = ok({ ...BASE, fixedInstallments: [{ date: "2029-01-15", amount: 25000 }] });
+    expect(installments(rows)).toEqual([{ date: "2029-01-15", amount: 25000, description: "CUOTA 1 de 1" }]);
+    expect(summary.monthlyInstallment).toBe(0);
+    expect(warnings.join(" ")).toContain("no quedan cuotas calculadas");
   });
 
-  it("reduce_disbursement: keeps the cuotas and lowers the final disbursement", () => {
-    const { rows, summary } = ok({ ...BASE, extraPayments: [EXTRA_JUNE], extraPaymentMode: "reduce_disbursement" });
-
-    expect(summary).toMatchObject({ installmentCount: 12, monthlyInstallment: 2083.33, disbursement: 65000 });
-    expect(rows.at(-1)).toEqual({ date: "2028-11-22", amount: 65000, description: "DESEMBOLSO" });
-  });
-
-  it.each(["reduce_installment", "reduce_count", "reduce_disbursement"] as const)(
-    "always sums to the unit price (%s)",
-    (mode) => {
-      const { rows } = ok({
-        ...BASE,
-        extraPayments: [EXTRA_JUNE, { date: "2027-02-03", amount: 1234.56 }],
-        extraPaymentMode: mode,
-      });
-      const totalCents = rows.reduce((sum, r) => sum + Math.round(r.amount * 100), 0);
-      expect(totalCents).toBe(100000 * 100);
-    },
-  );
-
-  it("lists no installments and warns when extra payments cover the whole 30% remainder", () => {
-    const { rows, summary, warnings } = ok({
-      ...BASE,
-      extraPayments: [{ date: "2027-06-15", amount: 25000 }],
-      extraPaymentMode: "reduce_installment",
-    });
-    expect(installments(rows)).toEqual([]);
-    expect(summary.installmentCount).toBe(0);
-    expect(warnings.join(" ")).toContain("no quedan cuotas");
-  });
-
-  it("puts the installment before an extra payment on the same date", () => {
-    const { rows } = ok({ ...BASE, extraPayments: [{ date: "2026-12-22", amount: 1000 }] });
-    expect(rows[1].description).toBe("CUOTA 1 de 12");
-    expect(rows[2].description).toBe("PAGO EXTRAORDINARIO");
-  });
-
-  it("defaults to reduce_installment when no mode is given", () => {
-    const { summary } = ok({ ...BASE, extraPayments: [EXTRA_JUNE] });
-    expect(summary.monthlyInstallment).toBe(1666.66);
-  });
-
-  it.each<[string, PaymentPlanInput["extraPayments"], PaymentPlanInput["extraPaymentMode"], string]>([
-    ["missing date", [{ date: "", amount: 100 }], "reduce_installment", "Cada pago extraordinario debe tener fecha."],
+  it.each<[string, PaymentPlanInput, string]>([
+    ["missing date", { ...BASE, fixedInstallments: [{ date: "", amount: 100 }] }, "Cada cuota fija debe tener fecha."],
     [
       "zero amount",
-      [{ date: "2027-06-15", amount: 0 }],
-      "reduce_installment",
-      "Cada pago extraordinario debe tener un monto mayor a $0.",
+      { ...BASE, fixedInstallments: [{ date: "2027-06-15", amount: 0 }] },
+      "Cada cuota fija debe tener un monto mayor a $0.",
     ],
     [
       "NaN amount",
-      [{ date: "2027-06-15", amount: Number.NaN }],
-      "reduce_installment",
-      "Cada pago extraordinario debe tener un monto mayor a $0.",
+      { ...BASE, fixedInstallments: [{ date: "2027-06-15", amount: Number.NaN }] },
+      "Cada cuota fija debe tener un monto mayor a $0.",
     ],
     [
-      "date on the separation date",
-      [{ date: "2026-11-22", amount: 100 }],
-      "reduce_installment",
-      "Los pagos extraordinarios deben estar entre la fecha de separación y la de desembolso.",
+      "date before the separation",
+      { ...BASE, fixedInstallments: [{ date: "2026-11-21", amount: 100 }] },
+      "Las cuotas fijas no pueden ser antes de la fecha de separación.",
     ],
     [
-      "date on the disbursement date",
-      [{ date: "2028-11-22", amount: 100 }],
-      "reduce_installment",
-      "Los pagos extraordinarios deben estar entre la fecha de separación y la de desembolso.",
+      "more than the 30% remainder",
+      {
+        ...BASE,
+        fixedInstallments: [
+          { date: "2027-06-15", amount: 20000 },
+          { date: "2027-07-15", amount: 5000.01 },
+        ],
+      },
+      "Las cuotas fijas ($25,000.01) superan el remanente del 30% para cuotas ($25,000.00).",
     ],
     [
-      "more than the 30% remainder (reduce_installment)",
-      [{ date: "2027-06-15", amount: 25000.01 }],
-      "reduce_installment",
-      "Los pagos extraordinarios ($25,000.01) superan el remanente del 30% para cuotas ($25,000.00).",
+      "every month fixed but the 30% not covered",
+      {
+        ...BASE,
+        installmentStartDate: "2026-12-22",
+        installmentEndDate: "2027-01-22",
+        fixedInstallments: [
+          { date: "2026-12-22", amount: 1000 },
+          { date: "2027-01-22", amount: 1000 },
+        ],
+      },
+      "Todas las cuotas del rango tienen monto fijo y faltan $23,000.00 para completar el 30%. Ajuste los montos o amplíe el rango de cuotas.",
     ],
-    [
-      "more than the 30% remainder (reduce_count)",
-      [{ date: "2027-06-15", amount: 20000 }, { date: "2027-07-15", amount: 5000.01 }],
-      "reduce_count",
-      "Los pagos extraordinarios ($25,000.01) superan el remanente del 30% para cuotas ($25,000.00).",
-    ],
-    [
-      "more than the disbursement (reduce_disbursement)",
-      [{ date: "2027-06-15", amount: 70000.01 }],
-      "reduce_disbursement",
-      "Los pagos extraordinarios ($70,000.01) superan el desembolso ($70,000.00).",
-    ],
-  ])("rejects %s", (_label, extraPayments, extraPaymentMode, error) => {
-    expect(buildPaymentPlan({ ...BASE, extraPayments, extraPaymentMode })).toEqual({ ok: false, error });
+  ])("rejects %s", (_label, input, error) => {
+    expect(buildPaymentPlan(input)).toEqual({ ok: false, error });
   });
 });
 
