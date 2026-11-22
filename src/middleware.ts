@@ -35,6 +35,7 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/auth/confirm") ||
     request.nextUrl.pathname.startsWith("/mantenimiento") ||
     request.nextUrl.pathname.startsWith("/encuesta") ||
+    request.nextUrl.pathname.startsWith("/plan-de-pagos") ||
     request.nextUrl.pathname.startsWith("/api/attendance");
 
   if (!user && !isAuthRoute) {
