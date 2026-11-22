@@ -15,7 +15,24 @@ export interface PaymentPlanInput {
   installmentStartDate: string;
   installmentEndDate: string;
   disbursementDate: string;
+  /** Optional one-off payments on specific dates. */
+  extraPayments?: ExtraPayment[];
+  /** How extra payments affect the rest of the plan. Defaults to "reduce_installment". */
+  extraPaymentMode?: ExtraPaymentMode;
 }
+
+export interface ExtraPayment {
+  /** YYYY-MM-DD */
+  date: string;
+  amount: number;
+}
+
+/**
+ * - reduce_installment: extras count toward the 30%; installments are recalculated over the same dates.
+ * - reduce_count: extras count toward the 30%; the base installment stays, so the plan finishes earlier.
+ * - reduce_disbursement: installments stay; extras lower the final disbursement instead.
+ */
+export type ExtraPaymentMode = "reduce_installment" | "reduce_count" | "reduce_disbursement";
 
 export interface PaymentPlanRow {
   /** YYYY-MM-DD */
@@ -31,12 +48,13 @@ export interface PaymentPlanSummary {
   installmentCount: number;
   monthlyInstallment: number;
   disbursement: number;
+  extraPaymentsTotal: number;
   /** Date by which the 5%/10% must be completed (separation + 20 days). */
   bridgeDueDate: string;
 }
 
 export type PaymentPlanResult =
-  | { ok: true; rows: PaymentPlanRow[]; summary: PaymentPlanSummary; warning: string | null }
+  | { ok: true; rows: PaymentPlanRow[]; summary: PaymentPlanSummary; warnings: string[] }
   | { ok: false; error: string };
 
 const TOTAL_TARGET_PERCENTAGE = 0.3;
@@ -146,48 +164,158 @@ export function buildPaymentPlan(input: PaymentPlanInput): PaymentPlanResult {
     return { ok: false, error: "El rango de cuotas es muy corto o inválido." };
   }
 
-  const warning =
-    bridgeCents > 0 && installmentStartDate < bridgeDueDate
-      ? `Advertencia: las cuotas inician antes de la fecha límite para completar el ${percentLabel}% (${formatPlanDate(bridgeDueDate)}).`
-      : null;
+  const extraPayments = input.extraPayments ?? [];
+  const extraPaymentMode = input.extraPaymentMode ?? "reduce_installment";
+  for (const extra of extraPayments) {
+    if (!extra.date) return { ok: false, error: "Cada pago extraordinario debe tener fecha." };
+    if (!Number.isFinite(extra.amount) || toCents(extra.amount) <= 0) {
+      return { ok: false, error: "Cada pago extraordinario debe tener un monto mayor a $0." };
+    }
+    if (extra.date <= separationDate || extra.date >= disbursementDate) {
+      return {
+        ok: false,
+        error: "Los pagos extraordinarios deben estar entre la fecha de separación y la de desembolso.",
+      };
+    }
+  }
+  const extrasCents = extraPayments.reduce((sum, e) => sum + toCents(e.amount), 0);
 
-  const monthlyCents = Math.floor(remainingCents / installmentCount);
-  const lastInstallmentCents = remainingCents - monthlyCents * (installmentCount - 1);
+  const schedule = scheduleInstallments({
+    remainingCents,
+    disbursementCents,
+    extrasCents,
+    mode: extraPaymentMode,
+    maxInstallments: installmentCount,
+  });
+  if (!schedule.ok) return schedule;
 
-  const rows: PaymentPlanRow[] = [
+  const warnings: string[] = [];
+  if (bridgeCents > 0 && installmentStartDate < bridgeDueDate) {
+    warnings.push(
+      `Advertencia: las cuotas inician antes de la fecha límite para completar el ${percentLabel}% (${formatPlanDate(bridgeDueDate)}).`,
+    );
+  }
+  if (schedule.installmentCents.length === 0) {
+    warnings.push("Los pagos extraordinarios cubren todo el remanente del 30%: no quedan cuotas mensuales.");
+  }
+
+  const datedRows: PaymentPlanRow[] = [
     { date: separationDate, amount: toDollars(separationCents), description: "SEPARACION INICIAL" },
   ];
   if (bridgeCents > 0) {
-    rows.push({
+    datedRows.push({
       date: bridgeDueDate,
       amount: toDollars(bridgeCents),
       description: `PAGO PUENTE COMPLETA ${percentLabel}%`,
     });
   }
-  for (let i = 0; i < installmentCount; i++) {
-    const isLast = i === installmentCount - 1;
-    rows.push({
+  const count = schedule.installmentCents.length;
+  schedule.installmentCents.forEach((cents, i) => {
+    datedRows.push({
       date: addMonths(installmentStartDate, i),
-      amount: toDollars(isLast ? lastInstallmentCents : monthlyCents),
-      description: `CUOTA ${i + 1} de ${installmentCount}`,
+      amount: toDollars(cents),
+      description: `CUOTA ${i + 1} de ${count}`,
     });
+  });
+  for (const extra of extraPayments) {
+    datedRows.push({ date: extra.date, amount: toDollars(toCents(extra.amount)), description: "PAGO EXTRAORDINARIO" });
   }
-  rows.push({ date: disbursementDate, amount: toDollars(disbursementCents), description: "DESEMBOLSO (70%)" });
+  // Array.prototype.sort is stable, so a cuota stays ahead of an extra payment on the same date.
+  datedRows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+  const disbursementReduced = schedule.disbursementCents !== disbursementCents;
+  const rows: PaymentPlanRow[] = [
+    ...datedRows,
+    {
+      date: disbursementDate,
+      amount: toDollars(schedule.disbursementCents),
+      description: disbursementReduced ? "DESEMBOLSO" : "DESEMBOLSO (70%)",
+    },
+  ];
 
   return {
     ok: true,
     rows,
-    warning,
+    warnings,
     summary: {
       totalTarget: toDollars(targetCents),
       initialPaid: toDollars(initialPaidCents),
       remainingForInstallments: toDollars(remainingCents),
-      installmentCount,
-      monthlyInstallment: toDollars(monthlyCents),
-      disbursement: toDollars(disbursementCents),
+      installmentCount: count,
+      monthlyInstallment: toDollars(schedule.monthlyCents),
+      disbursement: toDollars(schedule.disbursementCents),
+      extraPaymentsTotal: toDollars(extrasCents),
       bridgeDueDate,
     },
   };
+}
+
+/**
+ * Splits what's left of the 30% into monthly installments (in cents), applying
+ * the chosen extra-payment rule. The last installment absorbs rounding.
+ */
+function scheduleInstallments({
+  remainingCents,
+  disbursementCents,
+  extrasCents,
+  mode,
+  maxInstallments,
+}: {
+  remainingCents: number;
+  disbursementCents: number;
+  extrasCents: number;
+  mode: ExtraPaymentMode;
+  maxInstallments: number;
+}):
+  | { ok: true; installmentCents: number[]; monthlyCents: number; disbursementCents: number }
+  | { ok: false; error: string } {
+  const evenSplit = (totalCents: number, count: number) => {
+    if (count <= 0 || totalCents <= 0) return [];
+    const monthly = Math.floor(totalCents / count);
+    return Array.from({ length: count }, (_, i) => (i === count - 1 ? totalCents - monthly * (count - 1) : monthly));
+  };
+
+  if (mode === "reduce_disbursement") {
+    if (extrasCents > disbursementCents) {
+      return {
+        ok: false,
+        error: `Los pagos extraordinarios (${formatUsd(toDollars(extrasCents))}) superan el desembolso (${formatUsd(toDollars(disbursementCents))}).`,
+      };
+    }
+    const installmentCents = evenSplit(remainingCents, maxInstallments);
+    return {
+      ok: true,
+      installmentCents,
+      monthlyCents: installmentCents[0] ?? 0,
+      disbursementCents: disbursementCents - extrasCents,
+    };
+  }
+
+  if (extrasCents > remainingCents) {
+    return {
+      ok: false,
+      error: `Los pagos extraordinarios (${formatUsd(toDollars(extrasCents))}) superan el remanente del 30% para cuotas (${formatUsd(toDollars(remainingCents))}).`,
+    };
+  }
+  const forInstallmentsCents = remainingCents - extrasCents;
+
+  if (mode === "reduce_count") {
+    // The same cuota the plan would have without extras.
+    const baseMonthly = Math.floor(remainingCents / maxInstallments);
+    if (baseMonthly <= 0) {
+      const installmentCents = evenSplit(forInstallmentsCents, maxInstallments);
+      return { ok: true, installmentCents, monthlyCents: installmentCents[0] ?? 0, disbursementCents };
+    }
+    // Capped at the date range: R / floor(R / n) can be slightly above n because of the floor.
+    const count = Math.min(maxInstallments, Math.ceil(forInstallmentsCents / baseMonthly));
+    const installmentCents = Array.from({ length: count }, (_, i) =>
+      i === count - 1 ? forInstallmentsCents - baseMonthly * (count - 1) : baseMonthly,
+    );
+    return { ok: true, installmentCents, monthlyCents: count > 0 ? baseMonthly : 0, disbursementCents };
+  }
+
+  const installmentCents = evenSplit(forInstallmentsCents, maxInstallments);
+  return { ok: true, installmentCents, monthlyCents: installmentCents[0] ?? 0, disbursementCents };
 }
 
 /** One "DD/MM/YYYY<TAB>amount<TAB>description" line per row - pastes into Excel as 3 columns. */

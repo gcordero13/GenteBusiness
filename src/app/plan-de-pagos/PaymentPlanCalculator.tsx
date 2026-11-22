@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Copy, Download } from "lucide-react";
+import { useRef, useState } from "react";
+import { Check, Copy, Download, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import {
   formatPlanDate,
   formatPlanForClipboard,
   formatUsd,
+  type ExtraPaymentMode,
   type PaymentPlanResult,
 } from "@/lib/paymentPlan";
 
@@ -28,6 +29,18 @@ const PERCENTAGE_OPTIONS = [
   { value: "0.05", label: "5% (requiere 25% en cuotas)" },
   { value: "0.10", label: "10% (requiere 20% en cuotas)" },
 ];
+
+const EXTRA_PAYMENT_MODE_OPTIONS: { value: ExtraPaymentMode; label: string }[] = [
+  { value: "reduce_installment", label: "Bajar la cuota mensual (mismas fechas)" },
+  { value: "reduce_count", label: "Reducir el número de cuotas (misma cuota)" },
+  { value: "reduce_disbursement", label: "Reducir el desembolso (70%)" },
+];
+
+interface ExtraPaymentDraft {
+  id: number;
+  date: string;
+  amount: string;
+}
 
 // navigator.clipboard only exists in secure contexts (https/localhost); fall
 // back to the legacy execCommand path so copying still works elsewhere.
@@ -79,6 +92,9 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
   const [installmentStartDate, setInstallmentStartDate] = useState(defaultDates.installmentStartDate);
   const [installmentEndDate, setInstallmentEndDate] = useState(defaultDates.installmentEndDate);
   const [disbursementDate, setDisbursementDate] = useState(defaultDates.disbursementDate);
+  const [extraPayments, setExtraPayments] = useState<ExtraPaymentDraft[]>([]);
+  const [extraPaymentMode, setExtraPaymentMode] = useState<ExtraPaymentMode>("reduce_installment");
+  const nextExtraId = useRef(1);
 
   const [plan, setPlan] = useState<GeneratedPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +109,8 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
       installmentStartDate,
       installmentEndDate,
       disbursementDate,
+      extraPayments: extraPayments.map((e) => ({ date: e.date, amount: parseFloat(e.amount) })),
+      extraPaymentMode,
     });
     setCopyStatus("idle");
     if (!result.ok) {
@@ -102,6 +120,19 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
     }
     setError(null);
     setPlan(result);
+  }
+
+  function addExtraPayment() {
+    const id = nextExtraId.current++;
+    setExtraPayments((prev) => [...prev, { id, date: "", amount: "" }]);
+  }
+
+  function updateExtraPayment(id: number, patch: Partial<Omit<ExtraPaymentDraft, "id">>) {
+    setExtraPayments((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  }
+
+  function removeExtraPayment(id: number) {
+    setExtraPayments((prev) => prev.filter((e) => e.id !== id));
   }
 
   async function copyPlan() {
@@ -198,6 +229,71 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
           </div>
         </div>
 
+        <div className="mt-6 space-y-3 border-t pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold">Pagos extraordinarios (opcional)</h2>
+              <p className="text-xs text-muted-foreground">Abonos únicos en fechas específicas, en USD.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={addExtraPayment}>
+              <Plus data-icon="inline-start" />
+              Agregar pago
+            </Button>
+          </div>
+
+          {extraPayments.map((extra, index) => (
+            <div key={extra.id} className="flex flex-wrap items-end gap-2">
+              <div className="min-w-36 flex-1 space-y-1.5">
+                <Label htmlFor={`extra-date-${extra.id}`}>Fecha del pago {index + 1}</Label>
+                <Input
+                  id={`extra-date-${extra.id}`}
+                  type="date"
+                  value={extra.date}
+                  onChange={(e) => updateExtraPayment(extra.id, { date: e.target.value })}
+                />
+              </div>
+              <div className="min-w-36 flex-1 space-y-1.5">
+                <Label htmlFor={`extra-amount-${extra.id}`}>Monto (USD)</Label>
+                <Input
+                  id={`extra-amount-${extra.id}`}
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  value={extra.amount}
+                  onChange={(e) => updateExtraPayment(extra.id, { amount: e.target.value })}
+                  placeholder="Ej: 5000"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => removeExtraPayment(extra.id)}
+                aria-label={`Quitar pago extraordinario ${index + 1}`}
+              >
+                <X />
+              </Button>
+            </div>
+          ))}
+
+          {extraPayments.length > 0 && (
+            <div className="space-y-1.5 md:max-w-md">
+              <Label htmlFor="extraPaymentMode">¿Qué hacer con los pagos extraordinarios?</Label>
+              <select
+                id="extraPaymentMode"
+                className={selectClassName}
+                value={extraPaymentMode}
+                onChange={(e) => setExtraPaymentMode(e.target.value as ExtraPaymentMode)}
+              >
+                {EXTRA_PAYMENT_MODE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
         <div className="mt-6 flex flex-wrap gap-2">
           <Button size="lg" onClick={generate} className="min-w-40 flex-1 sm:flex-none">
             Generar plan de pagos
@@ -219,7 +315,11 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
         </div>
 
         {error && <p className="mt-4 text-sm font-medium text-destructive">{error}</p>}
-        {plan?.warning && <p className="mt-4 text-sm font-medium text-amber-700 dark:text-amber-300">{plan.warning}</p>}
+        {plan?.warnings.map((warning) => (
+          <p key={warning} className="mt-4 text-sm font-medium text-amber-700 dark:text-amber-300">
+            {warning}
+          </p>
+        ))}
         {copyStatus === "failed" && (
           <p className="mt-4 text-sm font-medium text-destructive">
             No se pudo copiar automáticamente. Selecciona la tabla y cópiala manualmente.
@@ -236,13 +336,16 @@ export function PaymentPlanCalculator({ defaultDates }: { defaultDates: DefaultD
               <SummaryItem label="Separación + 5/10%" value={formatUsd(plan.summary.initialPaid)} />
               <SummaryItem label="Remanente para cuotas" value={formatUsd(plan.summary.remainingForInstallments)} />
               <SummaryItem label="Número de cuotas" value={String(plan.summary.installmentCount)} />
+              {plan.summary.extraPaymentsTotal > 0 && (
+                <SummaryItem label="Pagos extraordinarios" value={formatUsd(plan.summary.extraPaymentsTotal)} />
+              )}
               <SummaryItem
                 label="Cuota mensual"
                 value={formatUsd(plan.summary.monthlyInstallment)}
                 valueClassName="text-lg text-emerald-600 dark:text-emerald-400"
               />
               <SummaryItem
-                label="Desembolso (70%)"
+                label={plan.rows.at(-1)?.description === "DESEMBOLSO (70%)" ? "Desembolso (70%)" : "Desembolso"}
                 value={formatUsd(plan.summary.disbursement)}
                 valueClassName="text-lg text-[#04B1AF]"
               />

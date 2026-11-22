@@ -5,6 +5,7 @@ import {
   formatPlanCsv,
   getDefaultPlanDates,
   type PaymentPlanInput,
+  type PaymentPlanRow,
 } from "./paymentPlan";
 
 const BASE: PaymentPlanInput = {
@@ -25,9 +26,9 @@ function ok(input: PaymentPlanInput) {
 
 describe("buildPaymentPlan", () => {
   it("splits the 30% into separation + monthly installments and the 70% disbursement", () => {
-    const { rows, summary, warning } = ok(BASE);
+    const { rows, summary, warnings } = ok(BASE);
 
-    expect(warning).toBeNull();
+    expect(warnings).toEqual([]);
     expect(summary).toMatchObject({
       totalTarget: 30000,
       initialPaid: 5000,
@@ -78,7 +79,7 @@ describe("buildPaymentPlan", () => {
 
   it("warns (but still builds the plan) when installments start before the bridge payment is due", () => {
     const result = ok({ ...BASE, initialPercentage: 0.1, installmentStartDate: "2026-12-01" });
-    expect(result.warning).toContain("12/12/2026");
+    expect(result.warnings.join(" ")).toContain("12/12/2026");
   });
 
   it.each<[string, Partial<PaymentPlanInput>, string]>([
@@ -108,6 +109,150 @@ describe("buildPaymentPlan", () => {
     ],
   ])("rejects %s", (_label, override, error) => {
     expect(buildPaymentPlan({ ...BASE, ...override })).toEqual({ ok: false, error });
+  });
+});
+
+describe("buildPaymentPlan with extraordinary payments", () => {
+  // BASE: R = $25,000 for 12 installments (base cuota $2,083.33), D = $70,000.
+  const EXTRA_JUNE = { date: "2027-06-15", amount: 5000 };
+  const installments = (rows: PaymentPlanRow[]) => rows.filter((r) => r.description.startsWith("CUOTA"));
+
+  it.each(["reduce_installment", "reduce_count", "reduce_disbursement"] as const)(
+    "leaves the plan unchanged when there are no extra payments (%s)",
+    (mode) => {
+      expect(buildPaymentPlan({ ...BASE, extraPayments: [], extraPaymentMode: mode })).toEqual(buildPaymentPlan(BASE));
+    },
+  );
+
+  it("reduce_installment: spreads R - E over the same installments", () => {
+    const { rows, summary } = ok({ ...BASE, extraPayments: [EXTRA_JUNE], extraPaymentMode: "reduce_installment" });
+
+    expect(summary).toMatchObject({
+      extraPaymentsTotal: 5000,
+      installmentCount: 12,
+      monthlyInstallment: 1666.66,
+      disbursement: 70000,
+    });
+    expect(installments(rows).at(-1)).toEqual({ date: "2027-11-22", amount: 1666.74, description: "CUOTA 12 de 12" });
+    // sorted by date: between CUOTA 6 (2027-05-22) and CUOTA 7 (2027-06-22)
+    expect(rows[6].description).toBe("CUOTA 6 de 12");
+    expect(rows[7]).toEqual({ date: "2027-06-15", amount: 5000, description: "PAGO EXTRAORDINARIO" });
+    expect(rows[8].description).toBe("CUOTA 7 de 12");
+    expect(rows.at(-1)?.description).toBe("DESEMBOLSO (70%)");
+  });
+
+  it("reduce_count: keeps the base cuota and finishes earlier", () => {
+    const { rows, summary } = ok({ ...BASE, extraPayments: [EXTRA_JUNE], extraPaymentMode: "reduce_count" });
+
+    expect(summary).toMatchObject({ installmentCount: 10, monthlyInstallment: 2083.33, disbursement: 70000 });
+    const cuotas = installments(rows);
+    expect(cuotas).toHaveLength(10);
+    expect(cuotas[0]).toEqual({ date: "2026-12-22", amount: 2083.33, description: "CUOTA 1 de 10" });
+    // 20,000 - 9 * 2,083.33
+    expect(cuotas.at(-1)).toEqual({ date: "2027-09-22", amount: 1250.03, description: "CUOTA 10 de 10" });
+  });
+
+  it("reduce_count: an extra payment too small to drop a cuota keeps the base cuota and shrinks only the last one", () => {
+    const { rows, summary } = ok({
+      ...BASE,
+      extraPayments: [{ date: "2027-06-15", amount: 100 }],
+      extraPaymentMode: "reduce_count",
+    });
+    expect(summary).toMatchObject({ installmentCount: 12, monthlyInstallment: 2083.33 });
+    const cuotas = installments(rows);
+    expect(cuotas[10].amount).toBe(2083.33);
+    // 24,900 - 11 * 2,083.33
+    expect(cuotas[11].amount).toBe(1983.37);
+  });
+
+  it("reduce_disbursement: keeps the cuotas and lowers the final disbursement", () => {
+    const { rows, summary } = ok({ ...BASE, extraPayments: [EXTRA_JUNE], extraPaymentMode: "reduce_disbursement" });
+
+    expect(summary).toMatchObject({ installmentCount: 12, monthlyInstallment: 2083.33, disbursement: 65000 });
+    expect(rows.at(-1)).toEqual({ date: "2028-11-22", amount: 65000, description: "DESEMBOLSO" });
+  });
+
+  it.each(["reduce_installment", "reduce_count", "reduce_disbursement"] as const)(
+    "always sums to the unit price (%s)",
+    (mode) => {
+      const { rows } = ok({
+        ...BASE,
+        extraPayments: [EXTRA_JUNE, { date: "2027-02-03", amount: 1234.56 }],
+        extraPaymentMode: mode,
+      });
+      const totalCents = rows.reduce((sum, r) => sum + Math.round(r.amount * 100), 0);
+      expect(totalCents).toBe(100000 * 100);
+    },
+  );
+
+  it("lists no installments and warns when extra payments cover the whole 30% remainder", () => {
+    const { rows, summary, warnings } = ok({
+      ...BASE,
+      extraPayments: [{ date: "2027-06-15", amount: 25000 }],
+      extraPaymentMode: "reduce_installment",
+    });
+    expect(installments(rows)).toEqual([]);
+    expect(summary.installmentCount).toBe(0);
+    expect(warnings.join(" ")).toContain("no quedan cuotas");
+  });
+
+  it("puts the installment before an extra payment on the same date", () => {
+    const { rows } = ok({ ...BASE, extraPayments: [{ date: "2026-12-22", amount: 1000 }] });
+    expect(rows[1].description).toBe("CUOTA 1 de 12");
+    expect(rows[2].description).toBe("PAGO EXTRAORDINARIO");
+  });
+
+  it("defaults to reduce_installment when no mode is given", () => {
+    const { summary } = ok({ ...BASE, extraPayments: [EXTRA_JUNE] });
+    expect(summary.monthlyInstallment).toBe(1666.66);
+  });
+
+  it.each<[string, PaymentPlanInput["extraPayments"], PaymentPlanInput["extraPaymentMode"], string]>([
+    ["missing date", [{ date: "", amount: 100 }], "reduce_installment", "Cada pago extraordinario debe tener fecha."],
+    [
+      "zero amount",
+      [{ date: "2027-06-15", amount: 0 }],
+      "reduce_installment",
+      "Cada pago extraordinario debe tener un monto mayor a $0.",
+    ],
+    [
+      "NaN amount",
+      [{ date: "2027-06-15", amount: Number.NaN }],
+      "reduce_installment",
+      "Cada pago extraordinario debe tener un monto mayor a $0.",
+    ],
+    [
+      "date on the separation date",
+      [{ date: "2026-11-22", amount: 100 }],
+      "reduce_installment",
+      "Los pagos extraordinarios deben estar entre la fecha de separación y la de desembolso.",
+    ],
+    [
+      "date on the disbursement date",
+      [{ date: "2028-11-22", amount: 100 }],
+      "reduce_installment",
+      "Los pagos extraordinarios deben estar entre la fecha de separación y la de desembolso.",
+    ],
+    [
+      "more than the 30% remainder (reduce_installment)",
+      [{ date: "2027-06-15", amount: 25000.01 }],
+      "reduce_installment",
+      "Los pagos extraordinarios ($25,000.01) superan el remanente del 30% para cuotas ($25,000.00).",
+    ],
+    [
+      "more than the 30% remainder (reduce_count)",
+      [{ date: "2027-06-15", amount: 20000 }, { date: "2027-07-15", amount: 5000.01 }],
+      "reduce_count",
+      "Los pagos extraordinarios ($25,000.01) superan el remanente del 30% para cuotas ($25,000.00).",
+    ],
+    [
+      "more than the disbursement (reduce_disbursement)",
+      [{ date: "2027-06-15", amount: 70000.01 }],
+      "reduce_disbursement",
+      "Los pagos extraordinarios ($70,000.01) superan el desembolso ($70,000.00).",
+    ],
+  ])("rejects %s", (_label, extraPayments, extraPaymentMode, error) => {
+    expect(buildPaymentPlan({ ...BASE, extraPayments, extraPaymentMode })).toEqual({ ok: false, error });
   });
 });
 
