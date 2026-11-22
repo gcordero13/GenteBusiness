@@ -21,6 +21,10 @@ export default async function GoservicesDashboardPage({
   if (!flagsRows?.[0]?.can_authorize) {
     redirect("/");
   }
+  // This page is gated by can_authorize, but creating a request is gated (in
+  // the goservices_requests INSERT policy) by can_view/can_add - a gestor
+  // without those would get "new row violates row-level security policy".
+  const canCreateRequest = Boolean(flagsRows?.[0]?.can_view || flagsRows?.[0]?.can_add);
 
   const [requests, allRequests, assignableUsers] = await Promise.all([
     listAllGoservicesRequests({ type }),
@@ -40,7 +44,7 @@ export default async function GoservicesDashboardPage({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <GoservicesRefreshButton />
-            <NewGoservicesRequestDialog />
+            {canCreateRequest && <NewGoservicesRequestDialog />}
             <GoservicesExportButton rows={allRequests} />
           </div>
         </div>
