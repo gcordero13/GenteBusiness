@@ -104,6 +104,41 @@ export async function uploadToSharePoint(
   return { webUrl: data.webUrl, driveId: data.parentReference.driveId, itemId: data.id };
 }
 
+interface GraphUploadSessionResponse {
+  uploadUrl: string;
+  expirationDateTime: string;
+}
+
+/**
+ * Opens a Graph resumable upload session for a (possibly large) file. The
+ * returned uploadUrl is pre-authenticated: the browser PUTs chunks straight
+ * to it (see src/lib/aprendizaje/chunkedUpload.ts), so big videos never
+ * pass through a Vercel function, which caps request bodies at ~4.5 MB.
+ */
+export async function createSharePointUploadSession(
+  folder: string,
+  filename: string,
+): Promise<{ uploadUrl: string; expiresAt: string }> {
+  const accessToken = await getGraphAccessToken();
+  const siteId = await getSiteId(accessToken);
+
+  const safeName = filename.replace(/[\\/:*?"<>|#%]/g, "_");
+  const path = `${folder}/${crypto.randomUUID()}-${encodeURIComponent(safeName)}`;
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${path}:/createUploadSession`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "rename" } }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`No se pudo iniciar la subida a SharePoint: ${res.status} ${await res.text()}`);
+  }
+  const data = (await res.json()) as GraphUploadSessionResponse;
+  return { uploadUrl: data.uploadUrl, expiresAt: data.expirationDateTime };
+}
+
 /**
  * Fetches a fresh, short-lived Graph download URL for an already-uploaded
  * item. The download URL itself can't be persisted (it expires), so callers
