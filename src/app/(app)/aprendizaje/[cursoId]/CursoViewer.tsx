@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Circle, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,10 +45,10 @@ export function CursoViewer({ curso }: { curso: CursoDetail }) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <a href="/aprendizaje" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/aprendizaje" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" />
           Volver al catálogo
-        </a>
+        </Link>
         <p className="text-xs font-medium tracking-wide text-[#04B1AF] uppercase">{CATEGORY_LABELS[curso.category]}</p>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{curso.title}</h1>
         {curso.description && <p className="text-sm text-muted-foreground">{curso.description}</p>}

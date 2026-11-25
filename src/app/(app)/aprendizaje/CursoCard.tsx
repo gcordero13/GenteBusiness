@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BookOpen, CheckCircle2, Landmark } from "lucide-react";
 import { progressPercent } from "@/lib/aprendizaje/mapCurso";
 import { archivoUrl, type CatalogCurso } from "@/lib/aprendizaje/types";
@@ -7,7 +8,7 @@ export function CursoCard({ curso }: { curso: CatalogCurso }) {
   const Icon = curso.category === "historia" ? Landmark : BookOpen;
 
   return (
-    <a
+    <Link
       href={`/aprendizaje/${curso.id}`}
       className="group flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md"
     >
@@ -42,6 +43,6 @@ export function CursoCard({ curso }: { curso: CatalogCurso }) {
           </div>
         </div>
       </div>
-    </a>
+    </Link>
   );
 }

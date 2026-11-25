@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Settings2 } from "lucide-react";
 import { CATEGORY_LABELS, type CursoCategory } from "@/lib/aprendizaje/types";
@@ -27,19 +28,19 @@ export default async function AprendizajePage({
             <p className="text-sm text-muted-foreground">Cursos, tutoriales y contenidos de historia.</p>
           </div>
           {flags.canManage && (
-            <a
+            <Link
               href="/aprendizaje/gestion"
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm hover:bg-muted"
             >
               <Settings2 className="size-4" />
               Gestión
-            </a>
+            </Link>
           )}
         </div>
 
         <nav className="flex gap-1 border-b">
           {CATEGORIES.map((c) => (
-            <a
+            <Link
               key={c}
               href={c === "curso" ? "/aprendizaje" : `/aprendizaje?categoria=${c}`}
               className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
@@ -49,7 +50,7 @@ export default async function AprendizajePage({
               }`}
             >
               {CATEGORY_LABELS[c]}
-            </a>
+            </Link>
           ))}
         </nav>
 
