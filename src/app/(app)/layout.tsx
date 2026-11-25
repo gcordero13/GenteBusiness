@@ -57,6 +57,9 @@ export default async function AppLayout({
         permissions.get("servicios_generales")?.can_view || permissions.get("servicios_generales")?.can_manage,
       )}
       canManageServiciosGenerales={Boolean(permissions.get("servicios_generales")?.can_manage)}
+      canViewAprendizaje={Boolean(
+        permissions.get("aprendizaje")?.can_view || permissions.get("aprendizaje")?.can_manage,
+      )}
       onLogout={logout}
     >
       <PushNotificationManager />

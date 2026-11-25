@@ -12,6 +12,7 @@ import {
   FileSignature,
   FileText,
   Fingerprint,
+  GraduationCap,
   HardHat,
   Inbox,
   Repeat,
@@ -141,6 +142,7 @@ export function Sidebar({
   canViewSuministros,
   canViewServiciosGenerales,
   canManageServiciosGenerales,
+  canViewAprendizaje,
   onLogout,
   onNavigate,
 }: {
@@ -166,6 +168,7 @@ export function Sidebar({
   canViewSuministros: boolean;
   canViewServiciosGenerales: boolean;
   canManageServiciosGenerales: boolean;
+  canViewAprendizaje: boolean;
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
@@ -223,6 +226,7 @@ export function Sidebar({
 
   const mainLinksAfterMaintenance: NavLink[] = [
     { href: "/planificacion", label: "Proyecto", icon: Target },
+    ...(canViewAprendizaje ? [{ href: "/aprendizaje", label: "Aprendizaje", icon: GraduationCap }] : []),
     ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
   ];
 
