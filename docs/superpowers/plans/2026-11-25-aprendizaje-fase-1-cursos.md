@@ -356,13 +356,13 @@ git commit -m "feat(aprendizaje): cursos, lecciones, archivos and progress table
 
 The migrations change the **production** Supabase project. Do not run this without the user's explicit go-ahead in the conversation.
 
-- [ ] **Step 1: Ask the user** to approve applying both migrations, then run (or have them run):
+- [ ] **Step 1: Ask the user** to paste each file, in order, into the Supabase **SQL Editor** and run it: first `supabase/migrations/20261125100000_aprendizaje_module.sql`, then `supabase/migrations/20261125100100_aprendizaje_cursos.sql`. Tell them explicitly that these are the final migrations to run now.
 
-```bash
-bun x supabase db push
-```
+Do **not** use `supabase db push`: the CLI isn't configured in this project (no `SUPABASE_DB_PASSWORD`), and it would also try to apply every other pending migration, including the deliberately unapplied destructive Horarios cleanup (`20260811160000_drop_legacy_schedule_columns.sql`).
 
-Expected: both `20261125100000_aprendizaje_module.sql` and `20261125100100_aprendizaje_cursos.sql` listed as applied, no errors.
+Both migrations are purely additive (new module row, new tables/functions), so they are safe to apply before or after deploying the code: without them the menu entry stays hidden and the pages redirect, because nobody has the `aprendizaje` permission yet.
+
+Expected: both run without errors.
 
 ---
 

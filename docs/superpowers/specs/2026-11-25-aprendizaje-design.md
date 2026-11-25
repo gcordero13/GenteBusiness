@@ -275,5 +275,9 @@ pestaña nueva.
 ## Despliegue
 
 Cada fase trae sus migraciones en `supabase/migrations/`. El usuario las
-aplica a Supabase (`supabase db push`) **antes** de desplegar el código de esa
-fase. Los tests de integración requieren las migraciones ya aplicadas.
+aplica pegándolas, en orden, en el **SQL Editor** de Supabase. No se usa
+`supabase db push`: la CLI no está configurada en este proyecto y además
+aplicaría otras migraciones pendientes a propósito (la limpieza destructiva
+de Horarios). Las migraciones de Aprendizaje son solo aditivas: sin ellas el
+menú no aparece y las páginas redirigen, porque nadie tiene todavía el
+permiso. Los tests de integración requieren las migraciones ya aplicadas.
