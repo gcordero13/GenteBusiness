@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   CheckSquare,
   ChevronDown,
   ChevronRight,
@@ -370,6 +371,22 @@ export function TareaDetailModal({
     });
   }
 
+  // Clicking a sub-task swaps this same modal over to it (onSelectTarea), so
+  // without this there was no way back up except closing everything.
+  // getTarea goes through RLS: if the viewer can't see the parent task (e.g.
+  // they were only assigned this sub-task), fall back to closing the modal,
+  // which leaves them on the project.
+  function goToParentTarea() {
+    if (!tarea?.parentTaskId) return;
+    const parentTaskId = tarea.parentTaskId;
+    setError(null);
+    startTransition(async () => {
+      const parent = await getTarea(parentTaskId);
+      if (parent && onSelectTarea) onSelectTarea(parent);
+      else onClose();
+    });
+  }
+
   function remove_task() {
     if (!tarea) return;
     if (!confirm(`¿Eliminar la tarea "${tarea.title}"? Esta acción no se puede deshacer.`)) return;
@@ -386,6 +403,18 @@ export function TareaDetailModal({
         className="max-h-[90dvh] w-full max-w-4xl overflow-y-auto rounded-2xl border bg-card p-4 shadow-xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
+        {tarea.parentTaskId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={goToParentTarea}
+            disabled={isPending}
+            className="-ml-2 mb-2 text-muted-foreground"
+          >
+            <ArrowLeft data-icon="inline-start" />
+            Volver a la tarea principal
+          </Button>
+        )}
         <div className="mb-3 flex items-start justify-between gap-3">
           {isEditing ? (
             <Input
