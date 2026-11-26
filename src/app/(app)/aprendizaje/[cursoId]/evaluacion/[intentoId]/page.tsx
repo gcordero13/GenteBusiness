@@ -41,7 +41,6 @@ export default async function EvaluacionPage({
           cursoId={cursoId}
           intento={intento}
           passingScore={curso.evaluacion.passingScore}
-          secondsPerQuestion={leccion?.quiz?.secondsPerQuestion ?? null}
           siguienteLeccionId={leccion ? nextLeccionId(curso.lecciones, leccion.id) : null}
         />
       </div>

@@ -26,13 +26,18 @@ const INTENTO: IntentoDetail = {
 
 const RESULTADO = { score: 50, passed: false, correct: 1, total: 2, notaCurso: 62, cursoCompletado: false };
 
+/** Gives every question of the attempt the same time limit. */
+const conTiempo = (seconds: number | null): IntentoDetail => ({
+  ...INTENTO,
+  preguntas: INTENTO.preguntas.map((p) => ({ ...p, seconds })),
+});
+
 function renderForm(overrides: Partial<Parameters<typeof EvaluacionForm>[0]> = {}) {
   return render(
     <EvaluacionForm
       cursoId="c1"
       intento={INTENTO}
       passingScore={70}
-      secondsPerQuestion={null}
       siguienteLeccionId="l3"
       {...overrides}
     />,
@@ -44,7 +49,7 @@ describe("EvaluacionForm", () => {
   afterEach(() => vi.useRealTimers());
 
   it("explains the rules before starting", () => {
-    renderForm({ secondsPerQuestion: 30 });
+    renderForm({ intento: conTiempo(30) });
     expect(screen.getByText(/2 preguntas/)).toBeTruthy();
     expect(screen.getByText(/30 segundos por pregunta/)).toBeTruthy();
     expect(screen.getByText(/No podrás volver a una pregunta anterior/)).toBeTruthy();
@@ -69,7 +74,7 @@ describe("EvaluacionForm", () => {
 
   it("moves on when the time runs out, leaving the question unanswered", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    renderForm({ secondsPerQuestion: 10 });
+    renderForm({ intento: conTiempo(10) });
     fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
 
     expect(screen.getByText("0:10")).toBeTruthy();
@@ -87,9 +92,27 @@ describe("EvaluacionForm", () => {
     await waitFor(() => expect(enviarIntento).toHaveBeenCalledWith("i1", "c1", { p2: "o4" }));
   });
 
+  it("uses each question's own time, and none when it has no limit", () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderForm({
+      intento: { ...INTENTO, preguntas: [{ ...INTENTO.preguntas[0], seconds: 15 }, { ...INTENTO.preguntas[1], seconds: null }] },
+    });
+    expect(screen.getByText(/Algunas preguntas tienen tiempo límite/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
+    expect(screen.getByText("0:15")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Santo Domingo" }));
+    expect(screen.getByText("Pregunta 2 de 2")).toBeTruthy();
+    expect(screen.queryByRole("timer")).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByText("Pregunta 2 de 2")).toBeTruthy();
+  });
+
   it("submits when the last question times out", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    renderForm({ secondsPerQuestion: 5 });
+    renderForm({ intento: conTiempo(5) });
     fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
     act(() => {
       vi.advanceTimersByTime(5000);

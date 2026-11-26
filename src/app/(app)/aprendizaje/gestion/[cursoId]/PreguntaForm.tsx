@@ -43,6 +43,7 @@ export function PreguntaForm({
   const [options, setOptions] = useState<OpcionInput[]>(
     initial ? initial.options.map((o) => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })) : blankOptions(),
   );
+  const [seconds, setSeconds] = useState(initial?.seconds ? String(initial.seconds) : "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -60,7 +61,7 @@ export function PreguntaForm({
   }
 
   function save() {
-    const input = { id: initial?.id, text, type, options };
+    const input = { id: initial?.id, text, type, seconds: seconds.trim() ? Number(seconds) : null, options };
     const invalid = validatePregunta(input);
     if (invalid) {
       setError(invalid);
@@ -91,20 +92,34 @@ export function PreguntaForm({
           onChange={(e) => setText(e.target.value)}
         />
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor={`pregunta-type-${formId}`}>Tipo</Label>
-        <select
-          id={`pregunta-type-${formId}`}
-          className={FIELD_CLASS_NAME}
-          value={type}
-          onChange={(e) => changeType(e.target.value as PreguntaType)}
-        >
-          {(Object.keys(PREGUNTA_TYPE_LABELS) as PreguntaType[]).map((t) => (
-            <option key={t} value={t}>
-              {PREGUNTA_TYPE_LABELS[t]}
-            </option>
-          ))}
-        </select>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
+        <div className="space-y-1.5">
+          <Label htmlFor={`pregunta-type-${formId}`}>Tipo</Label>
+          <select
+            id={`pregunta-type-${formId}`}
+            className={FIELD_CLASS_NAME}
+            value={type}
+            onChange={(e) => changeType(e.target.value as PreguntaType)}
+          >
+            {(Object.keys(PREGUNTA_TYPE_LABELS) as PreguntaType[]).map((t) => (
+              <option key={t} value={t}>
+                {PREGUNTA_TYPE_LABELS[t]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`pregunta-seconds-${formId}`}>Tiempo (segundos)</Label>
+          <Input
+            id={`pregunta-seconds-${formId}`}
+            type="number"
+            min={5}
+            max={600}
+            placeholder="Sin límite"
+            value={seconds}
+            onChange={(e) => setSeconds(e.target.value)}
+          />
+        </div>
       </div>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">

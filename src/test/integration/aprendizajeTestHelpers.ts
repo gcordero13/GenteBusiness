@@ -8,7 +8,11 @@ import { createTestUser, deleteTestUser, type TestUser } from "./supabaseTestHel
  * profile, but admins legitimately change real profiles in Perfiles de rol
  * (e.g. taking "Ver" away from Viewer), which silently broke every test.
  */
-export async function createAprendizajeTestUser(perms: { canView: boolean; canManage: boolean }): Promise<TestUser> {
+export async function createAprendizajeTestUser(
+  perms: { canView: boolean; canManage: boolean },
+  /** Other modules (by key) the profile gets "Ver" on, e.g. for module tutorials. */
+  otherModules: string[] = [],
+): Promise<TestUser> {
   const admin = createAdminClient();
 
   const { data: profile, error: profileError } = await admin
@@ -28,6 +32,17 @@ export async function createAprendizajeTestUser(perms: { canView: boolean; canMa
     can_manage: perms.canManage,
   });
   if (permError) throw new Error(`grant test permissions: ${permError.message}`);
+
+  if (otherModules.length > 0) {
+    const { data: others, error: othersError } = await admin.from("modules").select("id").in("key", otherModules);
+    if (othersError || (others ?? []).length !== otherModules.length) {
+      throw new Error(`find modules ${otherModules.join(", ")}: ${othersError?.message ?? "not found"}`);
+    }
+    const { error } = await admin
+      .from("role_profile_permissions")
+      .insert((others ?? []).map((m) => ({ role_profile_id: profile.id, module_id: m.id, can_view: true })));
+    if (error) throw new Error(`grant other modules: ${error.message}`);
+  }
 
   // createTestUser needs an existing profile name; the user is moved to the
   // throwaway profile right after. Permissions are read per query, so the

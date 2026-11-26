@@ -28,6 +28,7 @@ describe("PreguntaForm", () => {
         id: undefined,
         text: "¿Capital de RD?",
         type: "opcion_unica",
+        seconds: null,
         options: [
           { text: "Santiago", isCorrect: false },
           { text: "Santo Domingo", isCorrect: true },
@@ -36,6 +37,16 @@ describe("PreguntaForm", () => {
       }),
     );
     expect(onDone).toHaveBeenCalled();
+  });
+
+  it("rejects a time outside 5-600 seconds", () => {
+    render(<PreguntaForm cursoId="c1" leccionId="l1" onDone={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Pregunta"), { target: { value: "¿?" } });
+    fireEvent.change(screen.getByLabelText("Tiempo (segundos)"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar pregunta" }));
+
+    expect(screen.getByText("El tiempo debe ser de 5 a 600 segundos (o vacío para sin límite).")).toBeTruthy();
+    expect(savePregunta).not.toHaveBeenCalled();
   });
 
   it("validates before saving", () => {
@@ -53,6 +64,7 @@ describe("PreguntaForm", () => {
     render(<PreguntaForm cursoId="c1" leccionId="l1" onDone={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Pregunta"), { target: { value: "El sol es una estrella" } });
     fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "verdadero_falso" } });
+    fireEvent.change(screen.getByLabelText("Tiempo (segundos)"), { target: { value: "20" } });
     fireEvent.click(screen.getByLabelText("Marcar opción 1 como correcta"));
     fireEvent.click(screen.getByRole("button", { name: "Guardar pregunta" }));
 
@@ -61,6 +73,7 @@ describe("PreguntaForm", () => {
         id: undefined,
         text: "El sol es una estrella",
         type: "verdadero_falso",
+        seconds: 20,
         options: [
           { text: "Verdadero", isCorrect: true },
           { text: "Falso", isCorrect: false },
@@ -81,6 +94,7 @@ describe("PreguntaForm", () => {
           text: "Vieja",
           type: "opcion_unica",
           active: true,
+          seconds: 45,
           options: [
             { id: "o1", text: "A", isCorrect: true },
             { id: "o2", text: "B", isCorrect: false },
@@ -96,6 +110,7 @@ describe("PreguntaForm", () => {
         id: "p1",
         text: "Nueva",
         type: "opcion_unica",
+        seconds: 45,
         options: [
           { id: "o1", text: "A", isCorrect: true },
           { id: "o2", text: "B", isCorrect: false },

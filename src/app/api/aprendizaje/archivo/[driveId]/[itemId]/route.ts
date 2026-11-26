@@ -23,7 +23,11 @@ export async function GET(
     supabase.from("aprendizaje_lecciones").select("id").eq("video_drive_id", driveId).eq("video_item_id", itemId).limit(1),
     supabase.from("aprendizaje_cursos").select("id").eq("cover_drive_id", driveId).eq("cover_item_id", itemId).limit(1),
   ]);
-  const visible = [archivo, video, cover].some((r) => (r.data?.length ?? 0) > 0);
+  // A module tutorial's video is also visible to people with that module,
+  // even without Aprendizaje access (they see it in the login pop-up).
+  const visible =
+    [archivo, video, cover].some((r) => (r.data?.length ?? 0) > 0) ||
+    (await supabase.rpc("aprendizaje_tutorial_video_visible", { p_drive_id: driveId, p_item_id: itemId })).data === true;
   if (!visible) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   try {

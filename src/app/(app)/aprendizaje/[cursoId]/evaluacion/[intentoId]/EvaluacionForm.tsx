@@ -111,13 +111,11 @@ export function EvaluacionForm({
   cursoId,
   intento,
   passingScore,
-  secondsPerQuestion,
   siguienteLeccionId,
 }: {
   cursoId: string;
   intento: IntentoDetail;
   passingScore: number;
-  secondsPerQuestion: number | null;
   /** Lesson to offer after the result, if there is one. */
   siguienteLeccionId: string | null;
 }) {
@@ -134,6 +132,7 @@ export function EvaluacionForm({
   const [, startTransition] = useTransition();
 
   const total = intento.preguntas.length;
+  const tiempos = intento.preguntas.flatMap((p) => (p.seconds ? [p.seconds] : []));
   const volverHref = intento.leccionId ? `/aprendizaje/${cursoId}?leccion=${intento.leccionId}` : `/aprendizaje/${cursoId}`;
 
   function submit(finalAnswers: Record<string, string>) {
@@ -167,9 +166,9 @@ export function EvaluacionForm({
         <ul className="space-y-1.5 text-base">
           <li className="font-semibold">{`${total} ${total === 1 ? "pregunta" : "preguntas"}, una a la vez.`}</li>
           <li>
-            {secondsPerQuestion
-              ? `${secondsPerQuestion} segundos por pregunta: si se acaba el tiempo, cuenta como no respondida y pasa a la siguiente.`
-              : "Sin límite de tiempo."}
+            {tiempos.length === 0
+              ? "Sin límite de tiempo."
+              : `${tiempos.length === total && new Set(tiempos).size === 1 ? `${tiempos[0]} segundos por pregunta` : "Algunas preguntas tienen tiempo límite"}: si se acaba el tiempo, cuenta como no respondida y pasa a la siguiente.`}
           </li>
           <li>No podrás volver a una pregunta anterior.</li>
         </ul>
@@ -192,7 +191,7 @@ export function EvaluacionForm({
         pregunta={pregunta}
         numero={index + 1}
         total={total}
-        seconds={secondsPerQuestion}
+        seconds={pregunta.seconds ?? null}
         onAnswer={handleAnswer}
       />
     );

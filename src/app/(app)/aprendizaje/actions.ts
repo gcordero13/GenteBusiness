@@ -15,7 +15,7 @@ import {
 
 const CURSO_DETAIL_SELECT =
   "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_passing_score, eval_max_attempts, anunciar_proximamente, " +
-  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, eval_seconds_per_question, " +
+  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, " +
   "aprendizaje_leccion_archivos(id, filename, content_type, size_bytes, drive_id, item_id, position))";
 
 export async function aprendizajeFlags(): Promise<{ canView: boolean; canManage: boolean }> {

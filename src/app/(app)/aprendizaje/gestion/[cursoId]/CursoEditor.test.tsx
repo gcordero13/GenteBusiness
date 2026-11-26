@@ -21,6 +21,7 @@ const actions = {
   deletePregunta: vi.fn(),
   setAnunciarProximamente: vi.fn(),
   setLeccionQuiz: vi.fn(),
+  setTutorialModulo: vi.fn(),
 };
 const push = vi.fn();
 
@@ -43,6 +44,8 @@ const CURSO: CursoDetail = {
   completedAt: null,
   evaluacion: { passingScore: 70, maxAttempts: null },
   anunciarProximamente: false,
+  tutorialModulo: null,
+  anunciarAlIniciar: false,
   lecciones: [leccion("l1", "Fundación"), leccion("l2", "Crecimiento")],
 };
 

@@ -71,19 +71,26 @@ describe("toCursoDetail", () => {
       {
         ...RAW,
         aprendizaje_lecciones: [
-          { ...RAW.aprendizaje_lecciones![1], eval_questions_per_attempt: 5, eval_weight: 40, eval_seconds_per_question: 30 },
+          { ...RAW.aprendizaje_lecciones![1], eval_questions_per_attempt: 5, eval_weight: 40 },
           RAW.aprendizaje_lecciones![0],
         ] as RawCurso["aprendizaje_lecciones"],
       },
       new Set(),
       null,
     );
-    expect(withQuiz.lecciones.map((l) => l.quiz)).toEqual([{ questionsPerAttempt: 5, weight: 40, secondsPerQuestion: 30 }, null]);
+    expect(withQuiz.lecciones.map((l) => l.quiz)).toEqual([{ questionsPerAttempt: 5, weight: 40 }, null]);
   });
 
   it("maps the Próximamente flag", () => {
     expect(toCursoDetail(RAW, new Set(), null).anunciarProximamente).toBe(false);
     expect(toCursoDetail({ ...RAW, anunciar_proximamente: true }, new Set(), null).anunciarProximamente).toBe(true);
+  });
+
+  it("maps the module tutorial settings", () => {
+    const plain = toCursoDetail(RAW, new Set(), null);
+    expect([plain.tutorialModulo, plain.anunciarAlIniciar]).toEqual([null, false]);
+    const tutorial = toCursoDetail({ ...RAW, tutorial_module_key: "planificacion", anunciar_al_iniciar: true }, new Set(), null);
+    expect([tutorial.tutorialModulo, tutorial.anunciarAlIniciar]).toEqual(["planificacion", true]);
   });
 });
 

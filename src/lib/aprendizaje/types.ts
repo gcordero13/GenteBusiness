@@ -29,8 +29,6 @@ export interface Leccion {
 
 /** A lesson quiz: N random questions per person, worth `weight` % of the course grade. */
 export interface LeccionQuiz {
-  /** Seconds per question; null/absent = no time limit. */
-  secondsPerQuestion?: number | null;
   questionsPerAttempt: number;
   weight: number;
 }
@@ -54,6 +52,16 @@ export interface CursoDetail {
   completedAt: string | null;
   evaluacion: EvalSettings;
   anunciarProximamente: boolean;
+  /** Module key this course is the tutorial of (e.g. "planificacion"), or null. */
+  tutorialModulo: string | null;
+  /** Pop the tutorial up at login for people with that module. */
+  anunciarAlIniciar: boolean;
+}
+
+/** A platform module a course can be the tutorial of. */
+export interface ModuloOption {
+  key: string;
+  label: string;
 }
 
 export interface CatalogCurso {

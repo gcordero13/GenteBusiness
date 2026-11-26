@@ -21,6 +21,7 @@ const PREGUNTAS: PreguntaGestion[] = [
     text: "¿Capital de RD?",
     type: "opcion_unica",
     active: true,
+    seconds: null,
     options: [
       { id: "o1", text: "Santo Domingo", isCorrect: true },
       { id: "o2", text: "Santiago", isCorrect: false },
@@ -32,6 +33,7 @@ const PREGUNTAS: PreguntaGestion[] = [
     text: "Pregunta vieja",
     type: "verdadero_falso",
     active: false,
+    seconds: 30,
     options: [
       { id: "o3", text: "Verdadero", isCorrect: false },
       { id: "o4", text: "Falso", isCorrect: true },
@@ -51,16 +53,7 @@ describe("CuestionarioEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar cuestionario" }));
 
     await waitFor(() =>
-      expect(actions.setLeccionQuiz).toHaveBeenCalledWith("l1", "c1", { questionsPerAttempt: 3, weight: 40, secondsPerQuestion: null }),
-    );
-  });
-
-  it("saves the seconds per question", async () => {
-    render(<CuestionarioEditor cursoId="c1" leccionId="l1" quiz={{ questionsPerAttempt: 5, weight: 30 }} preguntas={PREGUNTAS} />);
-    fireEvent.change(screen.getByLabelText("Segundos por pregunta"), { target: { value: "45" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar cuestionario" }));
-    await waitFor(() =>
-      expect(actions.setLeccionQuiz).toHaveBeenCalledWith("l1", "c1", { questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 45 }),
+      expect(actions.setLeccionQuiz).toHaveBeenCalledWith("l1", "c1", { questionsPerAttempt: 3, weight: 40 }),
     );
   });
 

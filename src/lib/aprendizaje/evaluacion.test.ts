@@ -15,6 +15,7 @@ import {
 const opcionUnica = (overrides: Partial<PreguntaInput> = {}): PreguntaInput => ({
   text: "¿Capital de RD?",
   type: "opcion_unica",
+  seconds: null,
   options: [
     { text: "Santo Domingo", isCorrect: true },
     { text: "Santiago", isCorrect: false },
@@ -29,6 +30,7 @@ describe("validatePregunta", () => {
       validatePregunta({
         text: "El sol es una estrella",
         type: "verdadero_falso",
+        seconds: 30,
         options: [
           { text: "Verdadero", isCorrect: true },
           { text: "Falso", isCorrect: false },
@@ -39,6 +41,9 @@ describe("validatePregunta", () => {
 
   it.each<[string, PreguntaInput, string]>([
     ["empty text", opcionUnica({ text: "  " }), "Escribe la pregunta."],
+    ["too little time", opcionUnica({ seconds: 4 }), "El tiempo debe ser de 5 a 600 segundos (o vacío para sin límite)."],
+    ["too much time", opcionUnica({ seconds: 601 }), "El tiempo debe ser de 5 a 600 segundos (o vacío para sin límite)."],
+    ["fractional time", opcionUnica({ seconds: 2.5 }), "El tiempo debe ser de 5 a 600 segundos (o vacío para sin límite)."],
     ["one option", opcionUnica({ options: [{ text: "A", isCorrect: true }] }), "Agrega al menos dos opciones."],
     [
       "an empty option",
@@ -55,6 +60,7 @@ describe("validatePregunta", () => {
       {
         text: "X",
         type: "verdadero_falso",
+        seconds: null,
         options: [
           { text: "Verdadero", isCorrect: false },
           { text: "Falso", isCorrect: false },
@@ -85,8 +91,6 @@ describe("validateEvalSettings", () => {
 describe("validateQuiz", () => {
   it("accepts a quiz with questions per person and a weight", () => {
     expect(validateQuiz({ questionsPerAttempt: 5, weight: 30 })).toBeNull();
-    expect(validateQuiz({ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 30 })).toBeNull();
-    expect(validateQuiz({ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: null })).toBeNull();
   });
 
   it.each<[Parameters<typeof validateQuiz>[0], string]>([
@@ -94,9 +98,6 @@ describe("validateQuiz", () => {
     [{ questionsPerAttempt: 1.5, weight: 30 }, "Las preguntas por persona deben ser un número mayor a 0."],
     [{ questionsPerAttempt: 5, weight: 0 }, "El peso debe ser un número entre 1 y 100."],
     [{ questionsPerAttempt: 5, weight: 101 }, "El peso debe ser un número entre 1 y 100."],
-    [{ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 4 }, "El tiempo por pregunta debe ser de 5 a 600 segundos (o vacío para sin límite)."],
-    [{ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 601 }, "El tiempo por pregunta debe ser de 5 a 600 segundos (o vacío para sin límite)."],
-    [{ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 2.5 }, "El tiempo por pregunta debe ser de 5 a 600 segundos (o vacío para sin límite)."],
   ])("rejects %j", (quiz, error) => {
     expect(validateQuiz(quiz)).toBe(error);
   });
@@ -203,6 +204,7 @@ describe("toPreguntaGestion", () => {
         text: "¿?",
         type: "opcion_unica",
         active: true,
+        seconds: 20,
         aprendizaje_opciones: [
           { id: "o2", text: "B", is_correct: false, position: 1 },
           { id: "o1", text: "A", is_correct: true, position: 0 },
@@ -214,6 +216,7 @@ describe("toPreguntaGestion", () => {
       text: "¿?",
       type: "opcion_unica",
       active: true,
+      seconds: 20,
       options: [
         { id: "o1", text: "A", isCorrect: true },
         { id: "o2", text: "B", isCorrect: false },

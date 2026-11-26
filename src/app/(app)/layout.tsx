@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "./AppShell";
 import { logout } from "./actions";
 import { PushNotificationManager } from "./PushNotificationManager";
+import { TutorialModuloDialog } from "./TutorialModuloDialog";
+import { toTutorialPendiente, type RawTutorialPendiente } from "@/lib/aprendizaje/tutoriales";
 
 interface ModulePermissionRow {
   module_key: string;
@@ -28,6 +30,12 @@ export default async function AppLayout({
     (permissionRows ?? []).map((p: ModulePermissionRow) => [p.module_key, p]),
   );
   const { data: canViewComplaints } = await supabase.rpc("can_view_complaints");
+  // Module tutorials announced at login; one at a time, newest first.
+  const { data: tutorialRows } = await supabase.rpc("aprendizaje_tutoriales_pendientes");
+  const tutorial = ((tutorialRows ?? []) as RawTutorialPendiente[]).map(toTutorialPendiente)[0] ?? null;
+  const canViewAprendizaje = Boolean(
+    permissions.get("aprendizaje")?.can_view || permissions.get("aprendizaje")?.can_manage,
+  );
 
   return (
     <AppShell
@@ -57,12 +65,13 @@ export default async function AppLayout({
         permissions.get("servicios_generales")?.can_view || permissions.get("servicios_generales")?.can_manage,
       )}
       canManageServiciosGenerales={Boolean(permissions.get("servicios_generales")?.can_manage)}
-      canViewAprendizaje={Boolean(
-        permissions.get("aprendizaje")?.can_view || permissions.get("aprendizaje")?.can_manage,
-      )}
+      canViewAprendizaje={canViewAprendizaje}
       onLogout={logout}
     >
       <PushNotificationManager />
+      {tutorial && (
+        <TutorialModuloDialog key={tutorial.cursoId} tutorial={tutorial} canViewAprendizaje={canViewAprendizaje} />
+      )}
       {children}
     </AppShell>
   );

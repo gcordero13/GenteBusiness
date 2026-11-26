@@ -11,7 +11,7 @@ export function hasVideo(leccion: Leccion): boolean {
  * without growing taller than ~70% of the screen (so it's fully visible
  * without scrolling, like a course player).
  */
-export function LeccionVideo({ leccion }: { leccion: Leccion }) {
+export function LeccionVideo({ leccion }: { leccion: Pick<Leccion, "title" | "videoUrl" | "videoFile"> }) {
   const embed = leccion.videoUrl ? toVideoEmbed(leccion.videoUrl) : null;
   return (
     <div className="mx-auto w-full" style={{ maxWidth: "calc(70dvh * 16 / 9)" }}>

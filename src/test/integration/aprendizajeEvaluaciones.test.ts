@@ -153,6 +153,15 @@ describe("aprendizaje lesson quizzes", () => {
     }
   });
 
+  it("gives the learner each question's own time limit", async () => {
+    const { cursoId, quizLessonIds } = await createCurso({ quizzes: [{ weight: 100, questionCount: 1, perAttempt: 1 }] });
+    const { error } = await manager.client.from("aprendizaje_preguntas").update({ seconds: 25 }).eq("curso_id", cursoId);
+    expect(error).toBeNull();
+    const { data: intentoId } = await learner.client.rpc("aprendizaje_iniciar_cuestionario", { p_leccion_id: quizLessonIds[0] });
+    const { data: preguntas } = await learner.client.rpc("aprendizaje_preguntas_intento", { p_intento_id: intentoId });
+    expect((preguntas as { seconds: number | null }[])[0].seconds).toBe(25);
+  });
+
   it("weights each lesson into the course grade and completes the course at the minimum", async () => {
     const { cursoId, quizLessonIds, plainLessonId, correctByPregunta } = await createCurso({
       quizzes: [

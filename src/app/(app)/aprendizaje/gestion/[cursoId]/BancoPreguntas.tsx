@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Pencil, Plus, Timer, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PREGUNTA_TYPE_LABELS, type PreguntaGestion } from "@/lib/aprendizaje/evaluacion";
@@ -71,6 +71,12 @@ export function BancoPreguntas({
                     {i + 1}. {p.text}
                   </p>
                   <Badge variant="outline">{PREGUNTA_TYPE_LABELS[p.type]}</Badge>
+                  {p.seconds !== null && (
+                    <Badge variant="outline">
+                      <Timer data-icon="inline-start" />
+                      {p.seconds} s
+                    </Badge>
+                  )}
                   {!p.active && <Badge variant="secondary">Inactiva</Badge>}
                 </div>
                 <ul className="space-y-0.5 pl-4 text-sm">

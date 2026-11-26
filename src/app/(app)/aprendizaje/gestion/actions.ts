@@ -13,6 +13,7 @@ import type {
   EvalSettings,
   LeccionQuiz,
   GestionCursoRow,
+  ModuloOption,
 } from "@/lib/aprendizaje/types";
 import { toVideoEmbed } from "@/lib/aprendizaje/videoEmbed";
 import {
@@ -31,8 +32,8 @@ interface ActionResult {
 }
 
 const CURSO_DETAIL_SELECT =
-  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_passing_score, eval_max_attempts, anunciar_proximamente, " +
-  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, eval_seconds_per_question, " +
+  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_passing_score, eval_max_attempts, anunciar_proximamente, tutorial_module_key, anunciar_al_iniciar, " +
+  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, " +
   "aprendizaje_leccion_archivos(id, filename, content_type, size_bytes, drive_id, item_id, position))";
 
 const CATEGORIES: CursoCategory[] = ["curso", "historia"];
@@ -332,7 +333,7 @@ export async function listPreguntas(cursoId: string): Promise<PreguntaGestion[]>
   if (!ctx) return [];
   const { data } = await ctx.supabase
     .from("aprendizaje_preguntas")
-    .select("id, leccion_id, text, type, active, position, created_at, aprendizaje_opciones(id, text, is_correct, position)")
+    .select("id, leccion_id, text, type, active, seconds, position, created_at, aprendizaje_opciones(id, text, is_correct, position)")
     .eq("curso_id", cursoId)
     .order("position")
     .order("created_at");
@@ -371,7 +372,6 @@ export async function setLeccionQuiz(
     .update({
       eval_questions_per_attempt: quiz?.questionsPerAttempt ?? null,
       eval_weight: quiz?.weight ?? 0,
-      eval_seconds_per_question: quiz?.secondsPerQuestion ?? null,
     })
     .eq("id", leccionId)
     .eq("curso_id", cursoId);
@@ -391,7 +391,7 @@ export async function savePregunta(cursoId: string, leccionId: string, input: Pr
   if (preguntaId) {
     const { error } = await ctx.supabase
       .from("aprendizaje_preguntas")
-      .update({ text: input.text.trim(), type: input.type })
+      .update({ text: input.text.trim(), type: input.type, seconds: input.seconds })
       .eq("id", preguntaId)
       .eq("curso_id", cursoId);
     if (error) return { error: error.message };
@@ -402,7 +402,14 @@ export async function savePregunta(cursoId: string, leccionId: string, input: Pr
       .eq("leccion_id", leccionId);
     const { data, error } = await ctx.supabase
       .from("aprendizaje_preguntas")
-      .insert({ curso_id: cursoId, leccion_id: leccionId, text: input.text.trim(), type: input.type, position: count ?? 0 })
+      .insert({
+        curso_id: cursoId,
+        leccion_id: leccionId,
+        text: input.text.trim(),
+        type: input.type,
+        seconds: input.seconds,
+        position: count ?? 0,
+      })
       .select("id")
       .single();
     if (error || !data) return { error: error?.message ?? "No se pudo guardar la pregunta." };
@@ -453,5 +460,35 @@ export async function setAnunciarProximamente(cursoId: string, value: boolean): 
   const { error } = await ctx.supabase.from("aprendizaje_cursos").update({ anunciar_proximamente: value }).eq("id", cursoId);
   if (error) return { error: error.message };
   revalidateCurso(cursoId);
+  return {};
+}
+
+/** Platform modules a course can be the tutorial of, for the editor's selector. */
+export async function listModulos(): Promise<ModuloOption[]> {
+  const ctx = await managerClient();
+  if (!ctx) return [];
+  const { data } = await ctx.supabase.from("modules").select("key, label").order("label");
+  return (data ?? []) as ModuloOption[];
+}
+
+/**
+ * Tags the course as a module's tutorial (or clears it with null) and
+ * whether it pops up at login for people with that module.
+ */
+export async function setTutorialModulo(
+  cursoId: string,
+  moduleKey: string | null,
+  anunciarAlIniciar: boolean,
+): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  if (anunciarAlIniciar && !moduleKey) return { error: "Elige el módulo del tutorial para poder anunciarlo." };
+  const { error } = await ctx.supabase
+    .from("aprendizaje_cursos")
+    .update({ tutorial_module_key: moduleKey, anunciar_al_iniciar: Boolean(moduleKey) && anunciarAlIniciar })
+    .eq("id", cursoId);
+  if (error) return { error: error.message };
+  revalidateCurso(cursoId);
+  revalidatePath("/", "layout");
   return {};
 }

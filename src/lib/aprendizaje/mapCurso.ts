@@ -30,7 +30,6 @@ export interface RawLeccion {
   video_item_id: string | null;
   eval_questions_per_attempt?: number | null;
   eval_weight?: number | null;
-  eval_seconds_per_question?: number | null;
   aprendizaje_leccion_archivos?: RawArchivo[] | null;
 }
 
@@ -46,6 +45,8 @@ export interface RawCurso {
   eval_passing_score?: number | null;
   eval_max_attempts?: number | null;
   anunciar_proximamente?: boolean | null;
+  tutorial_module_key?: string | null;
+  anunciar_al_iniciar?: boolean | null;
   // The catalog/list queries only select lesson ids; the detail query selects everything.
   aprendizaje_lecciones?: (Pick<RawLeccion, "id"> & Partial<RawLeccion>)[] | null;
 }
@@ -96,6 +97,8 @@ export function toCursoDetail(
       maxAttempts: raw.eval_max_attempts ?? null,
     },
     anunciarProximamente: raw.anunciar_proximamente ?? false,
+    tutorialModulo: raw.tutorial_module_key ?? null,
+    anunciarAlIniciar: raw.anunciar_al_iniciar ?? false,
   };
 }
 
@@ -104,7 +107,6 @@ function toQuiz(l: Partial<RawLeccion>): LeccionQuiz | null {
     ? {
         questionsPerAttempt: l.eval_questions_per_attempt,
         weight: l.eval_weight ?? 0,
-        secondsPerQuestion: l.eval_seconds_per_question ?? null,
       }
     : null;
 }

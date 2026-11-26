@@ -19,6 +19,8 @@ export interface PreguntaInput {
   id?: string;
   text: string;
   type: PreguntaType;
+  /** Seconds to answer it; null = no time limit. */
+  seconds: number | null;
   options: OpcionInput[];
 }
 
@@ -31,6 +33,8 @@ export interface PreguntaGestion {
   text: string;
   type: PreguntaType;
   active: boolean;
+  /** Seconds to answer it; null = no time limit. */
+  seconds: number | null;
   options: { id: string; text: string; isCorrect: boolean }[];
 }
 
@@ -39,6 +43,8 @@ export interface PreguntaIntento {
   id: string;
   text: string;
   type: PreguntaType;
+  /** Seconds to answer it; null/absent = no time limit. */
+  seconds?: number | null;
   options: { id: string; text: string }[];
 }
 
@@ -75,6 +81,7 @@ export interface RawPregunta {
   text: string;
   type: PreguntaType;
   active: boolean;
+  seconds?: number | null;
   aprendizaje_opciones?: { id: string; text: string; is_correct: boolean; position: number }[] | null;
 }
 
@@ -82,6 +89,9 @@ type IntentoRow = { id: string; submitted_at: string | null; score: number | nul
 
 export function validatePregunta(input: PreguntaInput): string | null {
   if (!input.text.trim()) return "Escribe la pregunta.";
+  if (input.seconds !== null && (!Number.isInteger(input.seconds) || input.seconds < 5 || input.seconds > 600)) {
+    return "El tiempo debe ser de 5 a 600 segundos (o vacío para sin límite).";
+  }
   const correct = input.options.filter((o) => o.isCorrect).length;
   if (input.type === "verdadero_falso") {
     return input.options.length === 2 && correct === 1 ? null : "Marca si la respuesta correcta es Verdadero o Falso.";
@@ -107,10 +117,6 @@ export function validateEvalSettings(settings: EvalSettings): string | null {
 export function validateQuiz(quiz: LeccionQuiz): string | null {
   if (!isPositiveInt(quiz.questionsPerAttempt)) return "Las preguntas por persona deben ser un número mayor a 0.";
   if (!Number.isInteger(quiz.weight) || quiz.weight < 1 || quiz.weight > 100) return "El peso debe ser un número entre 1 y 100.";
-  const secs = quiz.secondsPerQuestion ?? null;
-  if (secs !== null && (!Number.isInteger(secs) || secs < 5 || secs > 600)) {
-    return "El tiempo por pregunta debe ser de 5 a 600 segundos (o vacío para sin límite).";
-  }
   return null;
 }
 
@@ -184,6 +190,7 @@ export function toPreguntaGestion(raw: RawPregunta): PreguntaGestion {
     text: raw.text,
     type: raw.type,
     active: raw.active,
+    seconds: raw.seconds ?? null,
     options: [...(raw.aprendizaje_opciones ?? [])]
       .sort((a, b) => a.position - b.position)
       .map((o) => ({ id: o.id, text: o.text, isCorrect: o.is_correct })),
