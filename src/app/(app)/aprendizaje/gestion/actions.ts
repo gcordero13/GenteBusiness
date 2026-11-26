@@ -11,13 +11,16 @@ import type {
   CursoStatus,
   DriveFileRef,
   EvalSettings,
+  LeccionQuiz,
   GestionCursoRow,
 } from "@/lib/aprendizaje/types";
 import { toVideoEmbed } from "@/lib/aprendizaje/videoEmbed";
 import {
+  pesoTotal,
   toPreguntaGestion,
   validateEvalSettings,
   validatePregunta,
+  validateQuiz,
   type PreguntaGestion,
   type PreguntaInput,
   type RawPregunta,
@@ -28,8 +31,8 @@ interface ActionResult {
 }
 
 const CURSO_DETAIL_SELECT =
-  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_questions_per_attempt, eval_passing_score, eval_max_attempts, anunciar_proximamente, " +
-  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, " +
+  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_passing_score, eval_max_attempts, anunciar_proximamente, " +
+  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, " +
   "aprendizaje_leccion_archivos(id, filename, content_type, size_bytes, drive_id, item_id, position))";
 
 const CATEGORIES: CursoCategory[] = ["curso", "historia"];
@@ -126,8 +129,8 @@ export async function setCursoStatus(cursoId: string, status: CursoStatus): Prom
       .eq("curso_id", cursoId);
     if (!count) return { error: "Agrega al menos una lección antes de publicar." };
 
-    const noQuestions = await evaluationWithoutQuestions(ctx.supabase, cursoId);
-    if (noQuestions) return { error: noQuestions };
+    const problem = await quizProblems(ctx.supabase, cursoId);
+    if (problem) return { error: problem };
   }
 
   const { error } = await ctx.supabase.from("aprendizaje_cursos").update({ status }).eq("id", cursoId);
@@ -289,32 +292,47 @@ export async function startUpload(
   }
 }
 
-/** An enabled evaluation needs at least one active question, or nobody could ever complete the course. */
-async function evaluationWithoutQuestions(
+/**
+ * Why a course can't be published with its current quizzes, or null. The
+ * quiz lessons' weights must add up to exactly 100, and every quiz needs at
+ * least one active question, or nobody could ever complete the course.
+ */
+async function quizProblems(
   supabase: Awaited<ReturnType<typeof createClient>>,
   cursoId: string,
-  questionsPerAttempt?: number | null,
 ): Promise<string | null> {
-  let enabled = questionsPerAttempt !== undefined ? questionsPerAttempt !== null : false;
-  if (questionsPerAttempt === undefined) {
-    const { data } = await supabase.from("aprendizaje_cursos").select("eval_questions_per_attempt").eq("id", cursoId).maybeSingle();
-    enabled = data?.eval_questions_per_attempt != null;
-  }
-  if (!enabled) return null;
-  const { count } = await supabase
+  const { data: lecciones } = await supabase
+    .from("aprendizaje_lecciones")
+    .select("id, title, eval_questions_per_attempt, eval_weight")
+    .eq("curso_id", cursoId);
+  const conQuiz = (lecciones ?? []).filter((l) => l.eval_questions_per_attempt != null);
+  if (conQuiz.length === 0) return null;
+
+  const total = pesoTotal(conQuiz.map((l) => ({ quiz: { questionsPerAttempt: 1, weight: l.eval_weight ?? 0 } })));
+  if (total !== 100) return `Los cuestionarios suman ${total}% y deben sumar exactamente 100%.`;
+
+  const { data: activas } = await supabase
     .from("aprendizaje_preguntas")
-    .select("id", { count: "exact", head: true })
-    .eq("curso_id", cursoId)
+    .select("leccion_id")
+    .in(
+      "leccion_id",
+      conQuiz.map((l) => l.id),
+    )
     .eq("active", true);
-  return count ? null : "La evaluación no tiene preguntas activas. Agrégalas o desactiva la evaluación.";
+  const conPreguntas = new Set((activas ?? []).map((p) => p.leccion_id as string));
+  const sinPreguntas = conQuiz.find((l) => !conPreguntas.has(l.id));
+  return sinPreguntas
+    ? `La lección “${sinPreguntas.title}” tiene cuestionario pero no tiene preguntas activas.`
+    : null;
 }
 
+/** Every question of the course, each tagged with its lesson; the editor groups them. */
 export async function listPreguntas(cursoId: string): Promise<PreguntaGestion[]> {
   const ctx = await managerClient();
   if (!ctx) return [];
   const { data } = await ctx.supabase
     .from("aprendizaje_preguntas")
-    .select("id, text, type, active, position, created_at, aprendizaje_opciones(id, text, is_correct, position)")
+    .select("id, leccion_id, text, type, active, position, created_at, aprendizaje_opciones(id, text, is_correct, position)")
     .eq("curso_id", cursoId)
     .order("position")
     .order("created_at");
@@ -327,28 +345,42 @@ export async function updateEvalSettings(cursoId: string, settings: EvalSettings
   const invalid = validateEvalSettings(settings);
   if (invalid) return { error: invalid };
 
-  const { data: curso } = await ctx.supabase.from("aprendizaje_cursos").select("status").eq("id", cursoId).maybeSingle();
-  if (!curso) return { error: "Curso no encontrado." };
-  if (curso.status === "publicado") {
-    const noQuestions = await evaluationWithoutQuestions(ctx.supabase, cursoId, settings.questionsPerAttempt);
-    if (noQuestions) return { error: noQuestions };
-  }
-
   const { error } = await ctx.supabase
     .from("aprendizaje_cursos")
-    .update({
-      eval_questions_per_attempt: settings.questionsPerAttempt,
-      eval_passing_score: settings.passingScore,
-      eval_max_attempts: settings.maxAttempts,
-    })
+    .update({ eval_passing_score: settings.passingScore, eval_max_attempts: settings.maxAttempts })
     .eq("id", cursoId);
   if (error) return { error: error.message };
   revalidateCurso(cursoId);
   return {};
 }
 
+/** Turns a lesson's quiz on (with its weight and questions per person) or off (null). */
+export async function setLeccionQuiz(
+  leccionId: string,
+  cursoId: string,
+  quiz: LeccionQuiz | null,
+): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  if (quiz) {
+    const invalid = validateQuiz(quiz);
+    if (invalid) return { error: invalid };
+  }
+  const { error } = await ctx.supabase
+    .from("aprendizaje_lecciones")
+    .update({
+      eval_questions_per_attempt: quiz?.questionsPerAttempt ?? null,
+      eval_weight: quiz?.weight ?? 0,
+    })
+    .eq("id", leccionId)
+    .eq("curso_id", cursoId);
+  if (error) return { error: error.message };
+  revalidateCurso(cursoId);
+  return {};
+}
+
 /** Creates or updates a question. Options keep their ids so open attempts still resolve them. */
-export async function savePregunta(cursoId: string, input: PreguntaInput): Promise<ActionResult> {
+export async function savePregunta(cursoId: string, leccionId: string, input: PreguntaInput): Promise<ActionResult> {
   const ctx = await managerClient();
   if (!ctx) return { error: "No autorizado" };
   const invalid = validatePregunta(input);
@@ -366,10 +398,10 @@ export async function savePregunta(cursoId: string, input: PreguntaInput): Promi
     const { count } = await ctx.supabase
       .from("aprendizaje_preguntas")
       .select("id", { count: "exact", head: true })
-      .eq("curso_id", cursoId);
+      .eq("leccion_id", leccionId);
     const { data, error } = await ctx.supabase
       .from("aprendizaje_preguntas")
-      .insert({ curso_id: cursoId, text: input.text.trim(), type: input.type, position: count ?? 0 })
+      .insert({ curso_id: cursoId, leccion_id: leccionId, text: input.text.trim(), type: input.type, position: count ?? 0 })
       .select("id")
       .single();
     if (error || !data) return { error: error?.message ?? "No se pudo guardar la pregunta." };

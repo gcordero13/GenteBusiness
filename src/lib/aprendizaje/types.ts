@@ -23,12 +23,21 @@ export interface Leccion {
   videoFile: DriveFileRef | null;
   archivos: LeccionArchivo[];
   completed: boolean;
+  /** The lesson's quiz, or null when it has none (then it's completed with "Marcar como vista"). */
+  quiz: LeccionQuiz | null;
 }
 
-/** A course's evaluation settings. questionsPerAttempt null = no evaluation. */
+/** A lesson quiz: N random questions per person, worth `weight` % of the course grade. */
+export interface LeccionQuiz {
+  questionsPerAttempt: number;
+  weight: number;
+}
+
+/** Course-wide evaluation rules; the quizzes themselves live on each lesson. */
 export interface EvalSettings {
-  questionsPerAttempt: number | null;
+  /** Minimum course grade (weighted quiz scores) to complete the course. */
   passingScore: number;
+  /** Attempts allowed per lesson quiz; null = unlimited. */
   maxAttempts: number | null;
 }
 
@@ -56,9 +65,10 @@ export interface CatalogCurso {
   completedAt: string | null;
   /** The person has started it (an inscripción exists). */
   enrolled: boolean;
+  /** At least one lesson has a quiz. */
   hasEvaluacion: boolean;
-  /** Best submitted evaluation score, if any. */
-  bestScore: number | null;
+  /** The person's course grade (weighted quiz scores); null if the course has no quizzes or wasn't started. */
+  nota: number | null;
 }
 
 export interface GestionCursoRow {

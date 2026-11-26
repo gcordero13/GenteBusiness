@@ -27,15 +27,17 @@ const trueFalseOptions = (): OpcionInput[] => TRUE_FALSE_TEXTS.map((text) => ({ 
 
 export function PreguntaForm({
   cursoId,
+  leccionId,
   initial,
   onDone,
 }: {
   cursoId: string;
+  leccionId: string;
   initial?: PreguntaGestion;
   onDone: () => void;
 }) {
   const router = useRouter();
-  const formId = initial?.id ?? "nueva";
+  const formId = initial?.id ?? `nueva-${leccionId}`;
   const [text, setText] = useState(initial?.text ?? "");
   const [type, setType] = useState<PreguntaType>(initial?.type ?? "opcion_unica");
   const [options, setOptions] = useState<OpcionInput[]>(
@@ -66,7 +68,7 @@ export function PreguntaForm({
     }
     setError(null);
     startTransition(async () => {
-      const result = await savePregunta(cursoId, input);
+      const result = await savePregunta(cursoId, leccionId, input);
       if (result.error) {
         setError(result.error);
         return;

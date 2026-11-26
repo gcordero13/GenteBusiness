@@ -20,6 +20,7 @@ const actions = {
   setPreguntaActiva: vi.fn(),
   deletePregunta: vi.fn(),
   setAnunciarProximamente: vi.fn(),
+  setLeccionQuiz: vi.fn(),
 };
 const push = vi.fn();
 
@@ -29,7 +30,7 @@ vi.mock("../actions", () => actions);
 const { CursoEditor } = await import("./CursoEditor");
 
 function leccion(id: string, title: string) {
-  return { id, position: 0, title, body: null, videoUrl: null, videoFile: null, archivos: [], completed: false };
+  return { id, position: 0, title, body: null, videoUrl: null, videoFile: null, archivos: [], completed: false, quiz: null };
 }
 
 const CURSO: CursoDetail = {
@@ -40,7 +41,7 @@ const CURSO: CursoDetail = {
   status: "borrador",
   cover: null,
   completedAt: null,
-  evaluacion: { questionsPerAttempt: null, passingScore: 70, maxAttempts: null },
+  evaluacion: { passingScore: 70, maxAttempts: null },
   anunciarProximamente: false,
   lecciones: [leccion("l1", "Fundación"), leccion("l2", "Crecimiento")],
 };

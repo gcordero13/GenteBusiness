@@ -6,8 +6,10 @@ import { ChevronDown, ChevronUp, FileText, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { PreguntaGestion } from "@/lib/aprendizaje/evaluacion";
 import { FIELD_CLASS_NAME, type Leccion } from "@/lib/aprendizaje/types";
 import { addLeccionArchivo, deleteLeccion, removeLeccionArchivo, setLeccionVideoFile, updateLeccion } from "../actions";
+import { CuestionarioEditor } from "./CuestionarioEditor";
 import { SharePointUploadButton } from "./SharePointUploadButton";
 
 export function LeccionEditor({
@@ -17,6 +19,7 @@ export function LeccionEditor({
   isFirst,
   isLast,
   onMove,
+  preguntas = [],
 }: {
   cursoId: string;
   leccion: Leccion;
@@ -24,6 +27,7 @@ export function LeccionEditor({
   isFirst: boolean;
   isLast: boolean;
   onMove: (direction: -1 | 1) => void;
+  preguntas?: PreguntaGestion[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -72,7 +76,7 @@ export function LeccionEditor({
           {index + 1}. {leccion.title}
         </button>
         <span className="hidden text-xs text-muted-foreground sm:inline">
-          {[leccion.videoUrl || leccion.videoFile ? "video" : null, leccion.body ? "texto" : null, leccion.archivos.length ? `${leccion.archivos.length} archivo(s)` : null]
+          {[leccion.videoUrl || leccion.videoFile ? "video" : null, leccion.body ? "texto" : null, leccion.archivos.length ? `${leccion.archivos.length} archivo(s)` : null, leccion.quiz ? `cuestionario ${leccion.quiz.weight}%` : null]
             .filter(Boolean)
             .join(" · ") || "vacía"}
         </span>
@@ -167,6 +171,11 @@ export function LeccionEditor({
               Guardar lección
             </Button>
             {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Guardado</span>}
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <p className="text-sm font-semibold">Cuestionario de la lección</p>
+            <CuestionarioEditor cursoId={cursoId} leccionId={leccion.id} quiz={leccion.quiz} preguntas={preguntas} />
           </div>
         </div>
       )}

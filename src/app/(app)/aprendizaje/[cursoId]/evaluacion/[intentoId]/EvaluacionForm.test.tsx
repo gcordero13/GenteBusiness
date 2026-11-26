@@ -14,6 +14,7 @@ const { EvaluacionForm } = await import("./EvaluacionForm");
 const INTENTO: IntentoDetail = {
   id: "i1",
   cursoId: "c1",
+  leccionId: "l2",
   submitted: false,
   score: null,
   passed: null,
@@ -22,6 +23,11 @@ const INTENTO: IntentoDetail = {
     { id: "p2", text: "El agua hierve a 100 °C", type: "verdadero_falso", options: [{ id: "o3", text: "Verdadero" }, { id: "o4", text: "Falso" }] },
   ],
 };
+
+function answerAll() {
+  fireEvent.click(screen.getByLabelText("Santo Domingo"));
+  fireEvent.click(screen.getByLabelText("Verdadero"));
+}
 
 describe("EvaluacionForm", () => {
   beforeEach(() => enviarIntento.mockReset());
@@ -38,32 +44,36 @@ describe("EvaluacionForm", () => {
     expect(send.disabled).toBe(false);
   });
 
-  it("submits the answers and shows a passing result", async () => {
-    enviarIntento.mockResolvedValue({ resultado: { score: 100, passed: true, correct: 2, total: 2 } });
+  it("submits and shows the lesson score and the course grade", async () => {
+    enviarIntento.mockResolvedValue({
+      resultado: { score: 50, passed: false, correct: 1, total: 2, notaCurso: 62, cursoCompletado: false },
+    });
     render(<EvaluacionForm cursoId="c1" intento={INTENTO} passingScore={70} />);
 
-    fireEvent.click(screen.getByLabelText("Santo Domingo"));
-    fireEvent.click(screen.getByLabelText("Verdadero"));
+    answerAll();
     fireEvent.click(screen.getByRole("button", { name: "Enviar respuestas" }));
 
     await waitFor(() => expect(enviarIntento).toHaveBeenCalledWith("i1", "c1", { p1: "o2", p2: "o3" }));
-    expect(await screen.findByText("¡Aprobaste!")).toBeTruthy();
-    expect(screen.getByText("100%")).toBeTruthy();
-    expect(screen.getByText(/2 de 2 respuestas correctas/)).toBeTruthy();
+    expect(await screen.findByText("50%")).toBeTruthy();
+    expect(screen.getByText("1 de 2 respuestas correctas")).toBeTruthy();
+    expect(screen.getByText("62%")).toBeTruthy();
+    expect(screen.queryByText("¡Completaste el curso!")).toBeNull();
+    expect(screen.getByRole("link", { name: "Volver a la lección" }).getAttribute("href")).toBe("/aprendizaje/c1?leccion=l2");
   });
 
-  it("shows a failing result", async () => {
-    enviarIntento.mockResolvedValue({ resultado: { score: 50, passed: false, correct: 1, total: 2 } });
+  it("celebrates when the attempt completes the course", async () => {
+    enviarIntento.mockResolvedValue({
+      resultado: { score: 100, passed: true, correct: 2, total: 2, notaCurso: 85, cursoCompletado: true },
+    });
     render(<EvaluacionForm cursoId="c1" intento={INTENTO} passingScore={70} />);
 
-    fireEvent.click(screen.getByLabelText("Santiago"));
-    fireEvent.click(screen.getByLabelText("Falso"));
+    answerAll();
     fireEvent.click(screen.getByRole("button", { name: "Enviar respuestas" }));
 
-    expect(await screen.findByText("No alcanzaste la nota mínima")).toBeTruthy();
+    expect(await screen.findByText("¡Completaste el curso!")).toBeTruthy();
   });
 
-  it("shows the stored result for an attempt already submitted", () => {
+  it("shows the stored score for an attempt already submitted", () => {
     render(<EvaluacionForm cursoId="c1" intento={{ ...INTENTO, submitted: true, score: 80, passed: true }} passingScore={70} />);
     expect(screen.getByText("80%")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Enviar respuestas" })).toBeNull();
@@ -72,8 +82,7 @@ describe("EvaluacionForm", () => {
   it("shows a server error", async () => {
     enviarIntento.mockResolvedValue({ error: "Este intento ya fue enviado" });
     render(<EvaluacionForm cursoId="c1" intento={INTENTO} passingScore={70} />);
-    fireEvent.click(screen.getByLabelText("Santo Domingo"));
-    fireEvent.click(screen.getByLabelText("Verdadero"));
+    answerAll();
     fireEvent.click(screen.getByRole("button", { name: "Enviar respuestas" }));
 
     expect(await screen.findByText("Este intento ya fue enviado")).toBeTruthy();

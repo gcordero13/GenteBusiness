@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { toCatalogCurso, toCursoDetail, type RawCurso } from "@/lib/aprendizaje/mapCurso";
 import type { CatalogCurso, CursoDetail, PerfilAprendizaje, ProximoCurso } from "@/lib/aprendizaje/types";
 import {
-  summarizeIntentos,
+  summarizeIntentosPorLeccion,
   type EvaluacionEstado,
   type IntentoDetail,
   type IntentoResultado,
@@ -14,8 +14,8 @@ import {
 } from "@/lib/aprendizaje/evaluacion";
 
 const CURSO_DETAIL_SELECT =
-  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_questions_per_attempt, eval_passing_score, eval_max_attempts, anunciar_proximamente, " +
-  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, " +
+  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_passing_score, eval_max_attempts, anunciar_proximamente, " +
+  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, " +
   "aprendizaje_leccion_archivos(id, filename, content_type, size_bytes, drive_id, item_id, position))";
 
 export async function aprendizajeFlags(): Promise<{ canView: boolean; canManage: boolean }> {
@@ -28,32 +28,33 @@ export async function aprendizajeFlags(): Promise<{ canView: boolean; canManage:
 async function myProgress(): Promise<{
   leccionIds: Set<string>;
   completedByCurso: Map<string, string | null>;
-  bestScoreByCurso: Map<string, number>;
+  bestScoreByLeccion: Map<string, number>;
 }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { leccionIds: new Set(), completedByCurso: new Map(), bestScoreByCurso: new Map() };
+  if (!user) return { leccionIds: new Set(), completedByCurso: new Map(), bestScoreByLeccion: new Map() };
 
   const [{ data: progreso }, { data: inscripciones }, { data: intentos }] = await Promise.all([
     supabase.from("aprendizaje_progreso_lecciones").select("leccion_id").eq("app_user_id", user.id),
     supabase.from("aprendizaje_inscripciones").select("curso_id, completed_at").eq("app_user_id", user.id),
     supabase
       .from("aprendizaje_intentos")
-      .select("curso_id, score")
+      .select("leccion_id, score")
       .eq("app_user_id", user.id)
       .not("submitted_at", "is", null),
   ]);
-  const bestScoreByCurso = new Map<string, number>();
+  const bestScoreByLeccion = new Map<string, number>();
   for (const i of intentos ?? []) {
     const score = (i.score as number | null) ?? 0;
-    bestScoreByCurso.set(i.curso_id as string, Math.max(score, bestScoreByCurso.get(i.curso_id as string) ?? 0));
+    if (!i.leccion_id) continue; // attempts from the old course-level evaluation
+    bestScoreByLeccion.set(i.leccion_id as string, Math.max(score, bestScoreByLeccion.get(i.leccion_id as string) ?? 0));
   }
   return {
     leccionIds: new Set((progreso ?? []).map((p) => p.leccion_id as string)),
     completedByCurso: new Map((inscripciones ?? []).map((i) => [i.curso_id as string, i.completed_at as string | null])),
-    bestScoreByCurso,
+    bestScoreByLeccion,
   };
 }
 
@@ -63,7 +64,7 @@ export async function listCatalog(): Promise<CatalogCurso[]> {
   const [{ data }, progress] = await Promise.all([
     supabase
       .from("aprendizaje_cursos")
-      .select("id, title, description, category, status, cover_drive_id, cover_item_id, eval_questions_per_attempt, aprendizaje_lecciones(id)")
+      .select("id, title, description, category, status, cover_drive_id, cover_item_id, aprendizaje_lecciones(id, eval_questions_per_attempt, eval_weight)")
       .eq("status", "publicado")
       .order("created_at", { ascending: false }),
     myProgress(),
@@ -73,7 +74,7 @@ export async function listCatalog(): Promise<CatalogCurso[]> {
       raw,
       progress.leccionIds,
       progress.completedByCurso.has(raw.id) ? { completedAt: progress.completedByCurso.get(raw.id) ?? null } : null,
-      progress.bestScoreByCurso.get(raw.id) ?? null,
+      progress.bestScoreByLeccion,
     ),
   );
 }
@@ -97,24 +98,28 @@ export async function marcarLeccionVista(leccionId: string, cursoId: string): Pr
   return {};
 }
 
-export async function getEvaluacionEstado(cursoId: string): Promise<EvaluacionEstado> {
+/** The caller's attempts on each lesson quiz of the course, keyed by lesson id. */
+export async function getCuestionariosEstado(cursoId: string): Promise<Record<string, EvaluacionEstado>> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return summarizeIntentos([]);
+  if (!user) return {};
   // Filter by user explicitly: managers can read everyone's attempts.
   const { data } = await supabase
     .from("aprendizaje_intentos")
-    .select("id, submitted_at, score, passed")
+    .select("id, leccion_id, submitted_at, score, passed")
     .eq("curso_id", cursoId)
     .eq("app_user_id", user.id);
-  return summarizeIntentos(data ?? []);
+  return Object.fromEntries(summarizeIntentosPorLeccion(data ?? []));
 }
 
-export async function iniciarIntento(cursoId: string): Promise<{ intentoId?: string; error?: string }> {
+export async function iniciarCuestionario(
+  leccionId: string,
+  cursoId: string,
+): Promise<{ intentoId?: string; error?: string }> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("aprendizaje_iniciar_intento", { p_curso_id: cursoId });
+  const { data, error } = await supabase.rpc("aprendizaje_iniciar_cuestionario", { p_leccion_id: leccionId });
   if (error) return { error: error.message };
   revalidatePath(`/aprendizaje/${cursoId}`);
   return { intentoId: data as string };
@@ -124,7 +129,7 @@ export async function getIntento(intentoId: string): Promise<IntentoDetail | nul
   const supabase = await createClient();
   const { data: intento } = await supabase
     .from("aprendizaje_intentos")
-    .select("id, curso_id, submitted_at, score, passed")
+    .select("id, curso_id, leccion_id, submitted_at, score, passed")
     .eq("id", intentoId)
     .maybeSingle();
   if (!intento) return null;
@@ -133,6 +138,7 @@ export async function getIntento(intentoId: string): Promise<IntentoDetail | nul
   return {
     id: intento.id,
     cursoId: intento.curso_id,
+    leccionId: intento.leccion_id,
     submitted: intento.submitted_at !== null,
     score: intento.score,
     passed: intento.passed,
@@ -153,7 +159,24 @@ export async function enviarIntento(
   if (error) return { error: error.message };
   revalidatePath(`/aprendizaje/${cursoId}`);
   revalidatePath("/aprendizaje");
-  return { resultado: data as IntentoResultado };
+  const r = data as {
+    score: number;
+    passed: boolean;
+    correct: number;
+    total: number;
+    nota_curso: number;
+    curso_completado: boolean;
+  };
+  return {
+    resultado: {
+      score: r.score,
+      passed: r.passed,
+      correct: r.correct,
+      total: r.total,
+      notaCurso: r.nota_curso,
+      cursoCompletado: r.curso_completado,
+    },
+  };
 }
 
 /** The banner's identity: the caller's own Agenda contact, matched by email. */

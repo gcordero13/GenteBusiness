@@ -61,16 +61,24 @@ describe("toCursoDetail", () => {
     expect(toCursoDetail({ ...RAW, cover_drive_id: null, cover_item_id: null }, new Set(), null).cover).toBeNull();
   });
 
-  it("maps the evaluation settings, defaulting to no evaluation", () => {
-    expect(toCursoDetail(RAW, new Set(), null).evaluacion).toEqual({
-      questionsPerAttempt: null,
-      passingScore: 70,
-      maxAttempts: null,
-    });
+  it("maps the course evaluation rules and each lesson's quiz", () => {
+    expect(toCursoDetail(RAW, new Set(), null).evaluacion).toEqual({ passingScore: 70, maxAttempts: null });
     expect(
-      toCursoDetail({ ...RAW, eval_questions_per_attempt: 10, eval_passing_score: 80, eval_max_attempts: 3 }, new Set(), null)
-        .evaluacion,
-    ).toEqual({ questionsPerAttempt: 10, passingScore: 80, maxAttempts: 3 });
+      toCursoDetail({ ...RAW, eval_passing_score: 80, eval_max_attempts: 3 }, new Set(), null).evaluacion,
+    ).toEqual({ passingScore: 80, maxAttempts: 3 });
+
+    const withQuiz = toCursoDetail(
+      {
+        ...RAW,
+        aprendizaje_lecciones: [
+          { ...RAW.aprendizaje_lecciones![1], eval_questions_per_attempt: 5, eval_weight: 40 },
+          RAW.aprendizaje_lecciones![0],
+        ] as RawCurso["aprendizaje_lecciones"],
+      },
+      new Set(),
+      null,
+    );
+    expect(withQuiz.lecciones.map((l) => l.quiz)).toEqual([{ questionsPerAttempt: 5, weight: 40 }, null]);
   });
 
   it("maps the Próximamente flag", () => {
@@ -80,31 +88,30 @@ describe("toCursoDetail", () => {
 });
 
 describe("toCatalogCurso", () => {
-  it("counts lessons, completed lessons and carries enrollment, evaluation and best score", () => {
+  const conQuiz: RawCurso = {
+    ...RAW,
+    aprendizaje_lecciones: [
+      { id: "l1", eval_questions_per_attempt: 5, eval_weight: 60 },
+      { id: "l2", eval_questions_per_attempt: 5, eval_weight: 40 },
+    ] as RawCurso["aprendizaje_lecciones"],
+  };
+
+  it("counts lessons and carries enrollment, evaluation and the weighted course grade", () => {
     expect(
-      toCatalogCurso(
-        { ...RAW, eval_questions_per_attempt: 5 },
-        new Set(["l2", "other"]),
-        { completedAt: "2026-11-25T12:00:00Z" },
-        90,
-      ),
+      toCatalogCurso(conQuiz, new Set(["l2", "other"]), { completedAt: "2026-11-25T12:00:00Z" }, new Map([["l1", 50], ["l2", 100]])),
     ).toMatchObject({
       leccionCount: 2,
       completedLecciones: 1,
       completedAt: "2026-11-25T12:00:00Z",
       enrolled: true,
       hasEvaluacion: true,
-      bestScore: 90,
+      nota: 70,
     });
   });
 
-  it("marks a course never started as not enrolled", () => {
-    expect(toCatalogCurso(RAW, new Set(), null)).toMatchObject({
-      enrolled: false,
-      completedAt: null,
-      hasEvaluacion: false,
-      bestScore: null,
-    });
+  it("has no grade for a course without quizzes or never started", () => {
+    expect(toCatalogCurso(RAW, new Set(), { completedAt: null })).toMatchObject({ hasEvaluacion: false, nota: null });
+    expect(toCatalogCurso(conQuiz, new Set(), null)).toMatchObject({ enrolled: false, completedAt: null, nota: null });
   });
 });
 

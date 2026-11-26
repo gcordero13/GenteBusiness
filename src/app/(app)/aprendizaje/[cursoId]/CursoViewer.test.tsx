@@ -3,20 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CursoDetail } from "@/lib/aprendizaje/types";
 
 const marcarLeccionVista = vi.fn();
-const iniciarIntento = vi.fn();
+const iniciarCuestionario = vi.fn();
 const refresh = vi.fn();
 const push = vi.fn();
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 vi.mock("../actions", () => ({
   marcarLeccionVista: (leccionId: string, cursoId: string) => marcarLeccionVista(leccionId, cursoId),
-  iniciarIntento: (cursoId: string) => iniciarIntento(cursoId),
+  iniciarCuestionario: (leccionId: string, cursoId: string) => iniciarCuestionario(leccionId, cursoId),
 }));
 
 const { CursoViewer } = await import("./CursoViewer");
 
 function leccion(id: string, title: string, completed: boolean) {
-  return { id, position: 0, title, body: `Contenido de ${title}`, videoUrl: null, videoFile: null, archivos: [], completed };
+  return { id, position: 0, title, body: `Contenido de ${title}`, videoUrl: null, videoFile: null, archivos: [], completed, quiz: null };
 }
 
 const CURSO: CursoDetail = {
@@ -27,7 +27,7 @@ const CURSO: CursoDetail = {
   status: "publicado",
   cover: null,
   completedAt: null,
-  evaluacion: { questionsPerAttempt: null, passingScore: 70, maxAttempts: null },
+  evaluacion: { passingScore: 70, maxAttempts: null },
   anunciarProximamente: false,
   lecciones: [leccion("l1", "Introducción", true), leccion("l2", "Equipos de protección", false), leccion("l3", "Cierre", false)],
 };
@@ -83,30 +83,62 @@ describe("CursoViewer", () => {
     expect(screen.getByText("¡Completaste este curso!")).toBeTruthy();
   });
 
-  describe("evaluation", () => {
-    const withEval: CursoDetail = { ...CURSO, evaluacion: { questionsPerAttempt: 5, passingScore: 70, maxAttempts: 2 } };
-    const estado = { attemptsUsed: 0, passed: false, bestScore: null, openIntentoId: null };
-    const allSeen: CursoDetail = { ...withEval, lecciones: withEval.lecciones.map((l) => ({ ...l, completed: true })) };
+  describe("lesson quizzes", () => {
+    const conQuiz: CursoDetail = {
+      ...CURSO,
+      evaluacion: { passingScore: 70, maxAttempts: 2 },
+      lecciones: [
+        { ...leccion("l1", "Introducción", true), quiz: { questionsPerAttempt: 3, weight: 40 } },
+        { ...leccion("l2", "Equipos de protección", false), quiz: { questionsPerAttempt: 5, weight: 60 } },
+        leccion("l3", "Cierre", false),
+      ],
+    };
+    const estados = {
+      l1: { attemptsUsed: 1, passed: true, bestScore: 80, openIntentoId: null },
+    };
 
-    it("asks to finish the lessons first", () => {
-      render(<CursoViewer curso={withEval} evaluacion={estado} />);
-      expect(screen.getByText("Evaluación final")).toBeTruthy();
-      expect(screen.getByText("Completa todas las lecciones para habilitar la evaluación.")).toBeTruthy();
+    it("replaces 'Marcar como vista' with the lesson's quiz", () => {
+      render(<CursoViewer curso={conQuiz} cuestionarios={estados} />);
+      expect(screen.getByRole("heading", { name: "Equipos de protección" })).toBeTruthy();
+      expect(screen.getByText("Cuestionario de la lección")).toBeTruthy();
+      expect(screen.getByText(/5 preguntas · vale 60% de la nota del curso/)).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Marcar como vista" })).toBeNull();
     });
 
-    it("starts an attempt and opens it", async () => {
-      iniciarIntento.mockResolvedValue({ intentoId: "i1" });
-      render(<CursoViewer curso={allSeen} evaluacion={estado} />);
+    it("starts the quiz and opens it", async () => {
+      iniciarCuestionario.mockResolvedValue({ intentoId: "i1" });
+      render(<CursoViewer curso={conQuiz} cuestionarios={estados} />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Tomar evaluación" }));
+      fireEvent.click(screen.getByRole("button", { name: "Responder cuestionario" }));
 
       await waitFor(() => expect(push).toHaveBeenCalledWith("/aprendizaje/c1/evaluacion/i1"));
-      expect(iniciarIntento).toHaveBeenCalledWith("c1");
+      expect(iniciarCuestionario).toHaveBeenCalledWith("l2", "c1");
     });
 
-    it("hides the card when the course has no evaluation", () => {
-      render(<CursoViewer curso={CURSO} evaluacion={null} />);
-      expect(screen.queryByText("Evaluación final")).toBeNull();
+    it("shows the lesson score and offers a retry while attempts remain", () => {
+      render(<CursoViewer curso={conQuiz} cuestionarios={estados} initialLeccionId="l1" />);
+      expect(screen.getByRole("heading", { name: "Introducción" })).toBeTruthy();
+      expect(screen.getByText("Lección completada")).toBeTruthy();
+      expect(screen.getByText("80%")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Repetir cuestionario" })).toBeTruthy();
+    });
+
+    it("shows the weighted course grade and the quizzes still pending", () => {
+      render(<CursoViewer curso={conQuiz} cuestionarios={estados} />);
+      // 40% × 80 = 32
+      expect(screen.getByText("32%")).toBeTruthy();
+      expect(screen.getByText(/mínima para aprobar 70%/)).toBeTruthy();
+      expect(screen.getByText("Te falta 1 cuestionario por responder.")).toBeTruthy();
+    });
+
+    it("keeps 'Marcar como vista' for lessons without a quiz", () => {
+      render(<CursoViewer curso={conQuiz} cuestionarios={estados} initialLeccionId="l3" />);
+      expect(screen.getByRole("button", { name: "Marcar como vista" })).toBeTruthy();
+    });
+
+    it("hides the course grade when no lesson has a quiz", () => {
+      render(<CursoViewer curso={CURSO} />);
+      expect(screen.queryByLabelText("Nota del curso")).toBeNull();
     });
   });
 });

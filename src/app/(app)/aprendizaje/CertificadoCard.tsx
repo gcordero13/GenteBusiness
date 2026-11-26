@@ -19,7 +19,7 @@ export function CertificadoCard({ curso }: { curso: CatalogCurso }) {
       <h3 className="relative font-bold text-foreground">{curso.title}</h3>
       <p className="relative text-sm text-muted-foreground">
         {curso.completedAt && `Completado el ${formatFecha(curso.completedAt)}`}
-        {curso.bestScore !== null && ` · Nota ${curso.bestScore}%`}
+        {curso.nota !== null && ` · Nota ${curso.nota}%`}
       </p>
       <span className="relative self-start rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-foreground">
         PDF próximamente

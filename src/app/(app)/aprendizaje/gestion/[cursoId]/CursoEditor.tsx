@@ -203,6 +203,7 @@ export function CursoEditor({ curso, preguntas = [] }: { curso: CursoDetail; pre
             key={l.id}
             cursoId={curso.id}
             leccion={l}
+            preguntas={preguntas.filter((p) => p.leccionId === l.id)}
             index={i}
             isFirst={i === 0}
             isLast={i === curso.lecciones.length - 1}
@@ -229,7 +230,7 @@ export function CursoEditor({ curso, preguntas = [] }: { curso: CursoDetail; pre
         </div>
       </section>
 
-      <EvaluacionEditor cursoId={curso.id} settings={curso.evaluacion} preguntas={preguntas} />
+      <EvaluacionEditor cursoId={curso.id} settings={curso.evaluacion} lecciones={curso.lecciones} />
     </div>
   );
 }

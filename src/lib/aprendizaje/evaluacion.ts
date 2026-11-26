@@ -1,4 +1,4 @@
-import type { EvalSettings } from "./types";
+import type { EvalSettings, LeccionQuiz } from "./types";
 
 export type PreguntaType = "opcion_unica" | "verdadero_falso";
 
@@ -22,9 +22,12 @@ export interface PreguntaInput {
   options: OpcionInput[];
 }
 
+
 /** A bank question as the manager sees it (with the correct answer). */
 export interface PreguntaGestion {
   id: string;
+  /** The lesson whose quiz it belongs to (null only for leftovers from course-level evaluations). */
+  leccionId: string | null;
   text: string;
   type: PreguntaType;
   active: boolean;
@@ -44,11 +47,15 @@ export interface IntentoResultado {
   passed: boolean;
   correct: number;
   total: number;
+  /** The course grade after this attempt. */
+  notaCurso: number;
+  cursoCompletado: boolean;
 }
 
 export interface IntentoDetail {
   id: string;
   cursoId: string;
+  leccionId: string | null;
   submitted: boolean;
   score: number | null;
   passed: boolean | null;
@@ -64,11 +71,14 @@ export interface EvaluacionEstado {
 
 export interface RawPregunta {
   id: string;
+  leccion_id?: string | null;
   text: string;
   type: PreguntaType;
   active: boolean;
   aprendizaje_opciones?: { id: string; text: string; is_correct: boolean; position: number }[] | null;
 }
+
+type IntentoRow = { id: string; submitted_at: string | null; score: number | null; passed: boolean | null };
 
 export function validatePregunta(input: PreguntaInput): string | null {
   if (!input.text.trim()) return "Escribe la pregunta.";
@@ -85,9 +95,6 @@ export function validatePregunta(input: PreguntaInput): string | null {
 const isPositiveInt = (n: number) => Number.isInteger(n) && n > 0;
 
 export function validateEvalSettings(settings: EvalSettings): string | null {
-  if (settings.questionsPerAttempt !== null && !isPositiveInt(settings.questionsPerAttempt)) {
-    return "Las preguntas por persona deben ser un número mayor a 0.";
-  }
   if (!Number.isInteger(settings.passingScore) || settings.passingScore < 1 || settings.passingScore > 100) {
     return "La nota mínima debe estar entre 1 y 100.";
   }
@@ -97,9 +104,33 @@ export function validateEvalSettings(settings: EvalSettings): string | null {
   return null;
 }
 
-export function summarizeIntentos(
-  rows: { id: string; submitted_at: string | null; score: number | null; passed: boolean | null }[],
-): EvaluacionEstado {
+export function validateQuiz(quiz: LeccionQuiz): string | null {
+  if (!isPositiveInt(quiz.questionsPerAttempt)) return "Las preguntas por persona deben ser un número mayor a 0.";
+  if (!Number.isInteger(quiz.weight) || quiz.weight < 1 || quiz.weight > 100) return "El peso debe ser un número entre 1 y 100.";
+  return null;
+}
+
+/** Sum of the quiz lessons' weights; must be exactly 100 to publish. */
+export function pesoTotal<T extends { quiz: LeccionQuiz | null }>(lecciones: T[]): number {
+  return lecciones.reduce((sum, l) => sum + (l.quiz?.weight ?? 0), 0);
+}
+
+/**
+ * Course grade = floor(sum(weight × best lesson score) / 100). Mirrors
+ * aprendizaje_nota_curso in the database, which is what decides completion.
+ */
+export function notaCurso(
+  lecciones: { id: string; quiz: LeccionQuiz | null }[],
+  bestScoreByLeccion: ReadonlyMap<string, number>,
+): number {
+  const weighted = lecciones.reduce(
+    (sum, l) => sum + (l.quiz ? l.quiz.weight * (bestScoreByLeccion.get(l.id) ?? 0) : 0),
+    0,
+  );
+  return Math.floor(weighted / 100);
+}
+
+export function summarizeIntentos(rows: IntentoRow[]): EvaluacionEstado {
   const submitted = rows.filter((r) => r.submitted_at !== null);
   const scores = submitted.map((r) => r.score ?? 0);
   return {
@@ -110,26 +141,40 @@ export function summarizeIntentos(
   };
 }
 
-/** Mirrors the checks in aprendizaje_iniciar_intento so the UI explains why it can't start. */
-export function evaluacionDisponibilidad(
+/** One summary per lesson quiz; attempts from the old course-level evaluation (no lesson) are ignored. */
+export function summarizeIntentosPorLeccion(
+  rows: (IntentoRow & { leccion_id: string | null })[],
+): Map<string, EvaluacionEstado> {
+  const groups = new Map<string, IntentoRow[]>();
+  for (const row of rows) {
+    if (!row.leccion_id) continue;
+    groups.set(row.leccion_id, [...(groups.get(row.leccion_id) ?? []), row]);
+  }
+  return new Map([...groups].map(([leccionId, group]) => [leccionId, summarizeIntentos(group)]));
+}
+
+/** Mirrors the checks in aprendizaje_iniciar_cuestionario so the UI explains why it can't start. */
+export function quizDisponibilidad(
   settings: EvalSettings,
   estado: EvaluacionEstado,
-  lessonsDone: boolean,
+  cursoCompletado: boolean,
 ): { canStart: boolean; label: string; reason: string | null } {
-  if (estado.passed) return { canStart: false, label: "", reason: "Aprobaste la evaluación." };
-  if (estado.openIntentoId) return { canStart: true, label: "Continuar evaluación", reason: null };
-  if (!lessonsDone) {
-    return { canStart: false, label: "", reason: "Completa todas las lecciones para habilitar la evaluación." };
-  }
+  if (estado.openIntentoId) return { canStart: true, label: "Continuar cuestionario", reason: null };
+  if (cursoCompletado) return { canStart: false, label: "", reason: null };
   if (settings.maxAttempts !== null && estado.attemptsUsed >= settings.maxAttempts) {
-    return { canStart: false, label: "", reason: "Usaste todos tus intentos. Consulta con el área responsable." };
+    return { canStart: false, label: "", reason: "Usaste todos tus intentos de este cuestionario." };
   }
-  return { canStart: true, label: estado.attemptsUsed > 0 ? "Intentar de nuevo" : "Tomar evaluación", reason: null };
+  return {
+    canStart: true,
+    label: estado.attemptsUsed > 0 ? "Repetir cuestionario" : "Responder cuestionario",
+    reason: null,
+  };
 }
 
 export function toPreguntaGestion(raw: RawPregunta): PreguntaGestion {
   return {
     id: raw.id,
+    leccionId: raw.leccion_id ?? null,
     text: raw.text,
     type: raw.type,
     active: raw.active,

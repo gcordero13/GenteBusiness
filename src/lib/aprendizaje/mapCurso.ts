@@ -1,3 +1,4 @@
+import { notaCurso } from "./evaluacion";
 import type {
   CatalogCurso,
   CursoCategory,
@@ -5,6 +6,7 @@ import type {
   CursoStatus,
   DriveFileRef,
   GestionCursoRow,
+  LeccionQuiz,
 } from "./types";
 
 // Row shapes as returned by Supabase's nested selects (snake_case).
@@ -26,6 +28,8 @@ export interface RawLeccion {
   video_url: string | null;
   video_drive_id: string | null;
   video_item_id: string | null;
+  eval_questions_per_attempt?: number | null;
+  eval_weight?: number | null;
   aprendizaje_leccion_archivos?: RawArchivo[] | null;
 }
 
@@ -38,7 +42,6 @@ export interface RawCurso {
   cover_drive_id: string | null;
   cover_item_id: string | null;
   updated_at?: string;
-  eval_questions_per_attempt?: number | null;
   eval_passing_score?: number | null;
   eval_max_attempts?: number | null;
   anunciar_proximamente?: boolean | null;
@@ -75,6 +78,7 @@ export function toCursoDetail(
           itemId: a.item_id,
         })),
       completed: completedLeccionIds.has(l.id),
+      quiz: toQuiz(l),
     }));
 
   return {
@@ -87,7 +91,6 @@ export function toCursoDetail(
     lecciones,
     completedAt,
     evaluacion: {
-      questionsPerAttempt: raw.eval_questions_per_attempt ?? null,
       passingScore: raw.eval_passing_score ?? 70,
       maxAttempts: raw.eval_max_attempts ?? null,
     },
@@ -95,13 +98,21 @@ export function toCursoDetail(
   };
 }
 
+function toQuiz(l: Partial<RawLeccion>): LeccionQuiz | null {
+  return l.eval_questions_per_attempt != null
+    ? { questionsPerAttempt: l.eval_questions_per_attempt, weight: l.eval_weight ?? 0 }
+    : null;
+}
+
 export function toCatalogCurso(
   raw: RawCurso,
   completedLeccionIds: ReadonlySet<string>,
   inscripcion: { completedAt: string | null } | null,
-  bestScore: number | null = null,
+  bestScoreByLeccion: ReadonlyMap<string, number> = new Map(),
 ): CatalogCurso {
-  const leccionIds = (raw.aprendizaje_lecciones ?? []).map((l) => l.id);
+  const lecciones = (raw.aprendizaje_lecciones ?? []).map((l) => ({ id: l.id, quiz: toQuiz(l) }));
+  const leccionIds = lecciones.map((l) => l.id);
+  const hasEvaluacion = lecciones.some((l) => l.quiz !== null);
   return {
     id: raw.id,
     title: raw.title,
@@ -112,8 +123,8 @@ export function toCatalogCurso(
     completedLecciones: leccionIds.filter((id) => completedLeccionIds.has(id)).length,
     completedAt: inscripcion?.completedAt ?? null,
     enrolled: inscripcion !== null,
-    hasEvaluacion: raw.eval_questions_per_attempt != null,
-    bestScore,
+    hasEvaluacion,
+    nota: hasEvaluacion && inscripcion !== null ? notaCurso(lecciones, bestScoreByLeccion) : null,
   };
 }
 

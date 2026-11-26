@@ -16,22 +16,24 @@ export default async function EvaluacionPage({
   const [curso, intento] = await Promise.all([getCurso(cursoId), getIntento(intentoId)]);
   // getIntento only resolves the caller's own attempts.
   if (!curso || !intento || intento.cursoId !== cursoId) notFound();
+  const leccion = curso.lecciones.find((l) => l.id === intento.leccionId) ?? null;
 
   return (
     <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
       <div className="mx-auto w-full max-w-3xl min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
         <Link
-          href={`/aprendizaje/${cursoId}`}
+          href={leccion ? `/aprendizaje/${cursoId}?leccion=${leccion.id}` : `/aprendizaje/${cursoId}`}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          Volver al curso
+          Volver a la lección
         </Link>
         <div className="space-y-1">
-          <p className="text-xs font-medium tracking-wide text-[#04B1AF] uppercase">Evaluación</p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{curso.title}</h1>
+          <p className="text-xs font-medium tracking-wide text-[#04B1AF] uppercase">Cuestionario · {curso.title}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{leccion?.title ?? curso.title}</h1>
           <p className="text-sm text-muted-foreground">
-            Responde todas las preguntas. Nota mínima para aprobar: {curso.evaluacion.passingScore}%.
+            Responde todas las preguntas.
+            {leccion?.quiz && ` Esta lección vale ${leccion.quiz.weight}% de la nota del curso.`}
           </p>
         </div>
         <EvaluacionForm cursoId={cursoId} intento={intento} passingScore={curso.evaluacion.passingScore} />

@@ -21,7 +21,8 @@ export function siguientePaso(enProgreso: CatalogCurso[]): string | null {
   if (faltan > 0) {
     return `Te ${faltan === 1 ? "falta 1 lección" : `faltan ${faltan} lecciones`} para terminar “${curso.title}”.`;
   }
-  if (curso.hasEvaluacion) return `Solo te falta la evaluación de “${curso.title}”.`;
+  // Every lesson done but not completed: with quizzes, the grade is below the minimum.
+  if (curso.hasEvaluacion) return `Repite algún cuestionario de “${curso.title}” para alcanzar la nota mínima.`;
   return null;
 }
 

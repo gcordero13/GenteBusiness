@@ -1,98 +1,77 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PreguntaGestion } from "@/lib/aprendizaje/evaluacion";
+import type { Leccion } from "@/lib/aprendizaje/types";
 
-const actions = {
-  updateEvalSettings: vi.fn(),
-  setPreguntaActiva: vi.fn(),
-  deletePregunta: vi.fn(),
-  savePregunta: vi.fn(),
-};
+const updateEvalSettings = vi.fn();
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
-vi.mock("../actions", () => actions);
+vi.mock("../actions", () => ({ updateEvalSettings: (...args: unknown[]) => updateEvalSettings(...args) }));
 
 const { EvaluacionEditor } = await import("./EvaluacionEditor");
 
-const PREGUNTAS: PreguntaGestion[] = [
-  {
-    id: "p1",
-    text: "¿Capital de RD?",
-    type: "opcion_unica",
-    active: true,
-    options: [
-      { id: "o1", text: "Santo Domingo", isCorrect: true },
-      { id: "o2", text: "Santiago", isCorrect: false },
-    ],
-  },
-  {
-    id: "p2",
-    text: "Pregunta vieja",
-    type: "verdadero_falso",
-    active: false,
-    options: [
-      { id: "o3", text: "Verdadero", isCorrect: false },
-      { id: "o4", text: "Falso", isCorrect: true },
-    ],
-  },
-];
+function leccion(id: string, title: string, weight: number | null): Leccion {
+  return {
+    id,
+    position: 0,
+    title,
+    body: null,
+    videoUrl: null,
+    videoFile: null,
+    archivos: [],
+    completed: false,
+    quiz: weight === null ? null : { questionsPerAttempt: 5, weight },
+  };
+}
 
-const NO_EVAL = { questionsPerAttempt: null, passingScore: 70, maxAttempts: null };
+const SETTINGS = { passingScore: 70, maxAttempts: null };
 
 describe("EvaluacionEditor", () => {
-  beforeEach(() => Object.values(actions).forEach((fn) => fn.mockReset().mockResolvedValue({})));
+  beforeEach(() => updateEvalSettings.mockReset().mockResolvedValue({}));
 
-  it("enables the evaluation with unlimited attempts", async () => {
-    render(<EvaluacionEditor cursoId="c1" settings={NO_EVAL} preguntas={PREGUNTAS} />);
+  it("saves the minimum grade and attempts per quiz (empty = unlimited)", async () => {
+    render(<EvaluacionEditor cursoId="c1" settings={SETTINGS} lecciones={[]} />);
 
-    fireEvent.click(screen.getByLabelText("Este curso tiene evaluación"));
-    fireEvent.change(screen.getByLabelText("Preguntas por persona"), { target: { value: "1" } });
-    fireEvent.change(screen.getByLabelText("Nota mínima (%)"), { target: { value: "80" } });
+    fireEvent.change(screen.getByLabelText("Nota mínima para aprobar el curso (%)"), { target: { value: "80" } });
+    fireEvent.change(screen.getByLabelText("Intentos por cuestionario"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar configuración" }));
+    await waitFor(() => expect(updateEvalSettings).toHaveBeenCalledWith("c1", { passingScore: 80, maxAttempts: 3 }));
 
-    await waitFor(() =>
-      expect(actions.updateEvalSettings).toHaveBeenCalledWith("c1", {
-        questionsPerAttempt: 1,
-        passingScore: 80,
-        maxAttempts: null,
-      }),
-    );
-  });
-
-  it("disables the evaluation", async () => {
-    render(<EvaluacionEditor cursoId="c1" settings={{ questionsPerAttempt: 5, passingScore: 70, maxAttempts: 3 }} preguntas={PREGUNTAS} />);
-
-    fireEvent.click(screen.getByLabelText("Este curso tiene evaluación"));
+    fireEvent.change(screen.getByLabelText("Intentos por cuestionario"), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar configuración" }));
+    await waitFor(() => expect(updateEvalSettings).toHaveBeenLastCalledWith("c1", { passingScore: 80, maxAttempts: null }));
+  });
 
-    await waitFor(() =>
-      expect(actions.updateEvalSettings).toHaveBeenCalledWith("c1", {
-        questionsPerAttempt: null,
-        passingScore: 70,
-        maxAttempts: 3,
-      }),
+  it("validates before saving", () => {
+    render(<EvaluacionEditor cursoId="c1" settings={SETTINGS} lecciones={[]} />);
+    fireEvent.change(screen.getByLabelText("Nota mínima para aprobar el curso (%)"), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar configuración" }));
+    expect(screen.getByText("La nota mínima debe estar entre 1 y 100.")).toBeTruthy();
+    expect(updateEvalSettings).not.toHaveBeenCalled();
+  });
+
+  it("lists the quiz weights and confirms when they add up to 100%", () => {
+    render(
+      <EvaluacionEditor
+        cursoId="c1"
+        settings={SETTINGS}
+        lecciones={[leccion("l1", "Contraseñas", 30), leccion("l2", "Phishing", 70), leccion("l3", "Video final", null)]}
+      />,
     );
+    expect(screen.getByText("Contraseñas")).toBeTruthy();
+    expect(screen.getByText("Phishing")).toBeTruthy();
+    expect(screen.queryByText("Video final")).toBeNull();
+    expect(screen.getByText("100% de 100%")).toBeTruthy();
+    expect(screen.queryByText(/deben sumar exactamente 100%/)).toBeNull();
   });
 
-  it("warns when the bank has fewer active questions than each person gets", () => {
-    render(<EvaluacionEditor cursoId="c1" settings={{ questionsPerAttempt: 5, passingScore: 70, maxAttempts: null }} preguntas={PREGUNTAS} />);
-    expect(screen.getByText(/a cada persona le tocarán solo 1/)).toBeTruthy();
+  it("warns when the weights don't add up to 100%", () => {
+    render(<EvaluacionEditor cursoId="c1" settings={SETTINGS} lecciones={[leccion("l1", "Contraseñas", 30)]} />);
+    expect(screen.getByText("30% de 100%")).toBeTruthy();
+    expect(screen.getByText("Los pesos deben sumar exactamente 100% para poder publicar el curso.")).toBeTruthy();
   });
 
-  it("lists the bank with the correct answers and toggles a question", async () => {
-    render(<EvaluacionEditor cursoId="c1" settings={NO_EVAL} preguntas={PREGUNTAS} />);
-
-    expect(screen.getByText("Banco de preguntas (1 activas de 2)")).toBeTruthy();
-    expect(screen.getByText("Inactiva")).toBeTruthy();
-    fireEvent.click(screen.getAllByRole("button", { name: "Desactivar" })[0]);
-
-    await waitFor(() => expect(actions.setPreguntaActiva).toHaveBeenCalledWith("p1", "c1", false));
-  });
-
-  it("opens the form to add a question", () => {
-    render(<EvaluacionEditor cursoId="c1" settings={NO_EVAL} preguntas={[]} />);
-    expect(screen.getByText("Todavía no hay preguntas.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Agregar pregunta/ }));
-    expect(screen.getByRole("button", { name: "Guardar pregunta" })).toBeTruthy();
+  it("explains a course without quizzes", () => {
+    render(<EvaluacionEditor cursoId="c1" settings={SETTINGS} lecciones={[leccion("l1", "Única", null)]} />);
+    expect(screen.getByText(/Ninguna lección tiene cuestionario todavía/)).toBeTruthy();
   });
 });

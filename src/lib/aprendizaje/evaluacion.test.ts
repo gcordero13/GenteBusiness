@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  evaluacionDisponibilidad,
+  notaCurso,
+  pesoTotal,
+  quizDisponibilidad,
   summarizeIntentos,
+  summarizeIntentosPorLeccion,
   toPreguntaGestion,
   validateEvalSettings,
   validatePregunta,
+  validateQuiz,
   type PreguntaInput,
 } from "./evaluacion";
 
@@ -47,11 +51,6 @@ describe("validatePregunta", () => {
       "Marca exactamente una opción correcta.",
     ],
     [
-      "two correct options",
-      opcionUnica({ options: [{ text: "A", isCorrect: true }, { text: "B", isCorrect: true }] }),
-      "Marca exactamente una opción correcta.",
-    ],
-    [
       "true/false without an answer",
       {
         text: "X",
@@ -69,22 +68,55 @@ describe("validatePregunta", () => {
 });
 
 describe("validateEvalSettings", () => {
-  it("accepts valid settings, including no evaluation and unlimited attempts", () => {
-    expect(validateEvalSettings({ questionsPerAttempt: 10, passingScore: 70, maxAttempts: 3 })).toBeNull();
-    expect(validateEvalSettings({ questionsPerAttempt: null, passingScore: 70, maxAttempts: null })).toBeNull();
+  it("accepts a passing score and limited or unlimited attempts", () => {
+    expect(validateEvalSettings({ passingScore: 70, maxAttempts: 3 })).toBeNull();
+    expect(validateEvalSettings({ passingScore: 70, maxAttempts: null })).toBeNull();
   });
 
   it.each<[Parameters<typeof validateEvalSettings>[0], string]>([
-    [{ questionsPerAttempt: 0, passingScore: 70, maxAttempts: null }, "Las preguntas por persona deben ser un número mayor a 0."],
-    [{ questionsPerAttempt: 2.5, passingScore: 70, maxAttempts: null }, "Las preguntas por persona deben ser un número mayor a 0."],
-    [{ questionsPerAttempt: 5, passingScore: 0, maxAttempts: null }, "La nota mínima debe estar entre 1 y 100."],
-    [{ questionsPerAttempt: 5, passingScore: 101, maxAttempts: null }, "La nota mínima debe estar entre 1 y 100."],
-    [
-      { questionsPerAttempt: 5, passingScore: 70, maxAttempts: 0 },
-      "Los intentos deben ser un número mayor a 0 (o vacío para ilimitados).",
-    ],
+    [{ passingScore: 0, maxAttempts: null }, "La nota mínima debe estar entre 1 y 100."],
+    [{ passingScore: 101, maxAttempts: null }, "La nota mínima debe estar entre 1 y 100."],
+    [{ passingScore: 70, maxAttempts: 0 }, "Los intentos deben ser un número mayor a 0 (o vacío para ilimitados)."],
   ])("rejects %j", (settings, error) => {
     expect(validateEvalSettings(settings)).toBe(error);
+  });
+});
+
+describe("validateQuiz", () => {
+  it("accepts a quiz with questions per person and a weight", () => {
+    expect(validateQuiz({ questionsPerAttempt: 5, weight: 30 })).toBeNull();
+  });
+
+  it.each<[Parameters<typeof validateQuiz>[0], string]>([
+    [{ questionsPerAttempt: 0, weight: 30 }, "Las preguntas por persona deben ser un número mayor a 0."],
+    [{ questionsPerAttempt: 1.5, weight: 30 }, "Las preguntas por persona deben ser un número mayor a 0."],
+    [{ questionsPerAttempt: 5, weight: 0 }, "El peso debe ser un número entre 1 y 100."],
+    [{ questionsPerAttempt: 5, weight: 101 }, "El peso debe ser un número entre 1 y 100."],
+  ])("rejects %j", (quiz, error) => {
+    expect(validateQuiz(quiz)).toBe(error);
+  });
+});
+
+describe("course grade", () => {
+  const lecciones = [
+    { id: "l1", quiz: { questionsPerAttempt: 5, weight: 30 } },
+    { id: "l2", quiz: { questionsPerAttempt: 5, weight: 40 } },
+    { id: "l3", quiz: null },
+    { id: "l4", quiz: { questionsPerAttempt: 5, weight: 30 } },
+  ];
+
+  it("sums only the quiz lessons' weights", () => {
+    expect(pesoTotal(lecciones)).toBe(100);
+    expect(pesoTotal([{ id: "x", quiz: null }])).toBe(0);
+  });
+
+  it("weights each lesson's best score (the worked example: 30×80 + 40×100 + 30×50 = 79)", () => {
+    expect(notaCurso(lecciones, new Map([["l1", 80], ["l2", 100], ["l4", 50]]))).toBe(79);
+  });
+
+  it("counts unanswered quizzes as 0 and floors the result", () => {
+    expect(notaCurso(lecciones, new Map([["l1", 85]]))).toBe(25);
+    expect(notaCurso(lecciones, new Map())).toBe(0);
   });
 });
 
@@ -99,57 +131,61 @@ describe("summarizeIntentos", () => {
     ).toEqual({ attemptsUsed: 3, passed: true, bestScore: 80, openIntentoId: "c" });
     expect(summarizeIntentos([])).toEqual({ attemptsUsed: 0, passed: false, bestScore: null, openIntentoId: null });
   });
+
+  it("groups by lesson, ignoring old course-level attempts", () => {
+    const porLeccion = summarizeIntentosPorLeccion([
+      { id: "a", leccion_id: "l1", submitted_at: "2026-11-25T10:00:00Z", score: 40, passed: false },
+      { id: "b", leccion_id: "l1", submitted_at: "2026-11-25T11:00:00Z", score: 90, passed: true },
+      { id: "c", leccion_id: "l2", submitted_at: null, score: null, passed: null },
+      { id: "d", leccion_id: null, submitted_at: "2026-11-24T10:00:00Z", score: 100, passed: true },
+    ]);
+    expect(porLeccion.get("l1")).toMatchObject({ attemptsUsed: 2, bestScore: 90 });
+    expect(porLeccion.get("l2")).toMatchObject({ attemptsUsed: 1, openIntentoId: "c" });
+    expect(porLeccion.size).toBe(2);
+  });
 });
 
-describe("evaluacionDisponibilidad", () => {
-  const settings = { questionsPerAttempt: 5, passingScore: 70, maxAttempts: 2 };
+describe("quizDisponibilidad", () => {
+  const settings = { passingScore: 70, maxAttempts: 2 };
   const fresh = { attemptsUsed: 0, passed: false, bestScore: null, openIntentoId: null };
 
-  it("offers the first attempt once lessons are done", () => {
-    expect(evaluacionDisponibilidad(settings, fresh, true)).toEqual({ canStart: true, label: "Tomar evaluación", reason: null });
-  });
-
-  it("requires all lessons first", () => {
-    expect(evaluacionDisponibilidad(settings, fresh, false)).toMatchObject({
-      canStart: false,
-      reason: "Completa todas las lecciones para habilitar la evaluación.",
-    });
+  it("offers the first attempt", () => {
+    expect(quizDisponibilidad(settings, fresh, false)).toEqual({ canStart: true, label: "Responder cuestionario", reason: null });
   });
 
   it("resumes an open attempt", () => {
-    expect(evaluacionDisponibilidad(settings, { ...fresh, attemptsUsed: 1, openIntentoId: "x" }, true)).toMatchObject({
+    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 1, openIntentoId: "x" }, false)).toMatchObject({
       canStart: true,
-      label: "Continuar evaluación",
+      label: "Continuar cuestionario",
     });
   });
 
   it("offers a retry until attempts run out", () => {
-    expect(evaluacionDisponibilidad(settings, { ...fresh, attemptsUsed: 1, bestScore: 40 }, true)).toMatchObject({
+    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 1, bestScore: 40 }, false)).toMatchObject({
       canStart: true,
-      label: "Intentar de nuevo",
+      label: "Repetir cuestionario",
     });
-    expect(evaluacionDisponibilidad(settings, { ...fresh, attemptsUsed: 2, bestScore: 40 }, true)).toMatchObject({
+    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 2, bestScore: 40 }, false)).toMatchObject({
       canStart: false,
-      reason: "Usaste todos tus intentos. Consulta con el área responsable.",
+      reason: "Usaste todos tus intentos de este cuestionario.",
     });
-    expect(
-      evaluacionDisponibilidad({ ...settings, maxAttempts: null }, { ...fresh, attemptsUsed: 9 }, true).canStart,
-    ).toBe(true);
+    expect(quizDisponibilidad({ ...settings, maxAttempts: null }, { ...fresh, attemptsUsed: 9 }, false).canStart).toBe(true);
   });
 
-  it("stops once passed", () => {
-    expect(evaluacionDisponibilidad(settings, { ...fresh, attemptsUsed: 1, passed: true, bestScore: 90 }, true)).toMatchObject({
+  it("stops once the course is completed", () => {
+    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 1, bestScore: 90 }, true)).toMatchObject({
       canStart: false,
-      reason: "Aprobaste la evaluación.",
+      reason: null,
     });
   });
 });
 
 describe("toPreguntaGestion", () => {
-  it("maps and sorts options by position", () => {
+  it("maps the lesson and sorts options by position", () => {
     expect(
       toPreguntaGestion({
         id: "p1",
+        leccion_id: "l1",
         text: "¿?",
         type: "opcion_unica",
         active: true,
@@ -160,6 +196,7 @@ describe("toPreguntaGestion", () => {
       }),
     ).toEqual({
       id: "p1",
+      leccionId: "l1",
       text: "¿?",
       type: "opcion_unica",
       active: true,

@@ -3,16 +3,17 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { ClipboardCheck, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { IntentoDetail } from "@/lib/aprendizaje/evaluacion";
 import { enviarIntento } from "../../../actions";
 
 interface Resultado {
   score: number;
-  passed: boolean;
   correct: number | null;
   total: number | null;
+  notaCurso: number | null;
+  cursoCompletado: boolean;
 }
 
 export function EvaluacionForm({
@@ -27,20 +28,23 @@ export function EvaluacionForm({
   const router = useRouter();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [resultado, setResultado] = useState<Resultado | null>(
-    intento.submitted ? { score: intento.score ?? 0, passed: Boolean(intento.passed), correct: null, total: null } : null,
+    intento.submitted
+      ? { score: intento.score ?? 0, correct: null, total: null, notaCurso: null, cursoCompletado: false }
+      : null,
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const total = intento.preguntas.length;
   const answered = intento.preguntas.filter((p) => answers[p.id]).length;
+  const volverHref = intento.leccionId ? `/aprendizaje/${cursoId}?leccion=${intento.leccionId}` : `/aprendizaje/${cursoId}`;
 
   function submit() {
     setError(null);
     startTransition(async () => {
       const result = await enviarIntento(intento.id, cursoId, answers);
       if (result.error || !result.resultado) {
-        setError(result.error ?? "No se pudo enviar la evaluación.");
+        setError(result.error ?? "No se pudo enviar el cuestionario.");
         return;
       }
       setResultado(result.resultado);
@@ -51,29 +55,37 @@ export function EvaluacionForm({
   if (resultado) {
     return (
       <section className="space-y-3 rounded-xl border bg-card p-6 text-center shadow-sm">
-        {resultado.passed ? (
-          <CheckCircle2 className="mx-auto size-12 text-emerald-600" />
+        {resultado.cursoCompletado ? (
+          <PartyPopper className="mx-auto size-12 text-emerald-600" />
         ) : (
-          <XCircle className="mx-auto size-12 text-destructive" />
+          <ClipboardCheck className="mx-auto size-12 text-[#036E6C] dark:text-[#5FD6D4]" />
         )}
+        <p className="text-sm text-muted-foreground">Tu nota en esta lección</p>
         <p className="text-4xl font-bold tabular-nums">{resultado.score}%</p>
-        <p className="text-lg font-semibold">{resultado.passed ? "¡Aprobaste!" : "No alcanzaste la nota mínima"}</p>
-        <p className="text-sm text-muted-foreground">
-          {resultado.correct !== null && `${resultado.correct} de ${resultado.total} respuestas correctas · `}
-          nota mínima {passingScore}%
-        </p>
+        {resultado.correct !== null && (
+          <p className="text-sm text-muted-foreground">
+            {resultado.correct} de {resultado.total} respuestas correctas
+          </p>
+        )}
+        {resultado.notaCurso !== null && (
+          <p className="text-base">
+            Nota del curso: <span className="font-semibold tabular-nums">{resultado.notaCurso}%</span> · mínima{" "}
+            {passingScore}%
+          </p>
+        )}
+        {resultado.cursoCompletado && <p className="text-lg font-semibold">¡Completaste el curso!</p>}
         <Link
-          href={`/aprendizaje/${cursoId}`}
+          href={volverHref}
           className="inline-flex h-9 items-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
         >
-          Volver al curso
+          Volver a la lección
         </Link>
       </section>
     );
   }
 
   if (total === 0) {
-    return <p className="text-sm text-muted-foreground">Esta evaluación no tiene preguntas disponibles.</p>;
+    return <p className="text-sm text-muted-foreground">Este cuestionario no tiene preguntas disponibles.</p>;
   }
 
   return (

@@ -6,21 +6,30 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Circle, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { firstPendingLeccionId, nextLeccionId, progressPercent } from "@/lib/aprendizaje/mapCurso";
-import type { EvaluacionEstado } from "@/lib/aprendizaje/evaluacion";
+import { notaCurso, type EvaluacionEstado } from "@/lib/aprendizaje/evaluacion";
 import { CATEGORY_LABELS, type CursoDetail } from "@/lib/aprendizaje/types";
 import { marcarLeccionVista } from "../actions";
-import { EvaluacionCard } from "./EvaluacionCard";
+import { CuestionarioPanel } from "./CuestionarioPanel";
 import { LeccionContent } from "./LeccionContent";
+import { NotaCursoCard } from "./NotaCursoCard";
 
 export function CursoViewer({
   curso,
-  evaluacion = null,
+  cuestionarios = {},
+  initialLeccionId,
 }: {
   curso: CursoDetail;
-  evaluacion?: EvaluacionEstado | null;
+  /** The person's attempts on each lesson quiz, keyed by lesson id. */
+  cuestionarios?: Record<string, EvaluacionEstado>;
+  /** e.g. coming back from a quiz: reopen that lesson. */
+  initialLeccionId?: string;
 }) {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState(() => firstPendingLeccionId(curso.lecciones));
+  const [selectedId, setSelectedId] = useState(() =>
+    initialLeccionId && curso.lecciones.some((l) => l.id === initialLeccionId)
+      ? initialLeccionId
+      : firstPendingLeccionId(curso.lecciones),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -28,6 +37,13 @@ export function CursoViewer({
   const done = curso.lecciones.filter((l) => l.completed).length;
   const percent = progressPercent(done, curso.lecciones.length);
   const isPreview = curso.status !== "publicado";
+  const quizLessons = curso.lecciones.filter((l) => l.quiz !== null);
+  const nota = notaCurso(
+    curso.lecciones,
+    new Map(
+      Object.entries(cuestionarios).flatMap(([id, e]) => (e.bestScore !== null ? [[id, e.bestScore] as const] : [])),
+    ),
+  );
 
   function select(id: string) {
     setError(null);
@@ -81,6 +97,14 @@ export function CursoViewer({
           ¡Completaste este curso!
         </p>
       )}
+      {quizLessons.length > 0 && !isPreview && (
+        <NotaCursoCard
+          nota={nota}
+          passingScore={curso.evaluacion.passingScore}
+          completado={curso.completedAt !== null}
+          pendientes={quizLessons.filter((l) => !l.completed).length}
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
         <ol className="space-y-1">
@@ -110,36 +134,47 @@ export function CursoViewer({
           <section className="min-w-0 space-y-4 rounded-xl border bg-card p-4 shadow-sm sm:p-6">
             <h2 className="text-lg font-semibold">{selected.title}</h2>
             <LeccionContent leccion={selected} />
-            <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-              {selected.completed ? (
-                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                  <CheckCircle2 className="size-4" />
-                  Lección vista
-                </span>
-              ) : (
-                !isPreview && (
-                  <Button onClick={markSeen} disabled={isPending}>
-                    Marcar como vista
-                  </Button>
-                )
-              )}
-              {error && <p className="text-sm text-destructive">{error}</p>}
-            </div>
+            {selected.quiz ? (
+              <div className="space-y-3 border-t pt-4">
+                {selected.completed && (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle2 className="size-4" />
+                    Lección completada
+                  </span>
+                )}
+                <CuestionarioPanel
+                  key={selected.id}
+                  cursoId={curso.id}
+                  leccionId={selected.id}
+                  quiz={selected.quiz}
+                  settings={curso.evaluacion}
+                  estado={cuestionarios[selected.id]}
+                  cursoCompletado={curso.completedAt !== null}
+                  isPreview={isPreview}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+                {selected.completed ? (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle2 className="size-4" />
+                    Lección vista
+                  </span>
+                ) : (
+                  !isPreview && (
+                    <Button onClick={markSeen} disabled={isPending}>
+                      Marcar como vista
+                    </Button>
+                  )
+                )}
+                {error && <p className="text-sm text-destructive">{error}</p>}
+              </div>
+            )}
           </section>
         ) : (
           <p className="text-sm text-muted-foreground">Este curso todavía no tiene lecciones.</p>
         )}
       </div>
-
-      {curso.evaluacion.questionsPerAttempt !== null && evaluacion && (
-        <EvaluacionCard
-          cursoId={curso.id}
-          settings={curso.evaluacion}
-          estado={evaluacion}
-          lessonsDone={curso.lecciones.length > 0 && done === curso.lecciones.length}
-          isPreview={isPreview}
-        />
-      )}
     </div>
   );
 }

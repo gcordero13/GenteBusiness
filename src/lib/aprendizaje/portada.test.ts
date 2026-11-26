@@ -14,7 +14,7 @@ function curso(overrides: Partial<CatalogCurso>): CatalogCurso {
     completedAt: null,
     enrolled: false,
     hasEvaluacion: false,
-    bestScore: null,
+    nota: null,
     ...overrides,
   };
 }
@@ -43,10 +43,10 @@ describe("siguientePaso", () => {
     );
   });
 
-  it("points to the pending evaluation", () => {
+  it("asks to retake a quiz when every lesson is done but the grade is below the minimum", () => {
     expect(
       siguientePaso([curso({ title: "Seguridad", enrolled: true, completedLecciones: 4, hasEvaluacion: true })]),
-    ).toBe("Solo te falta la evaluación de “Seguridad”.");
+    ).toBe("Repite algún cuestionario de “Seguridad” para alcanzar la nota mínima.");
   });
 
   it("returns null with nothing in progress", () => {

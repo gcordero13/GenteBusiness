@@ -13,7 +13,7 @@ describe("PreguntaForm", () => {
 
   it("creates a single-choice question", async () => {
     const onDone = vi.fn();
-    render(<PreguntaForm cursoId="c1" onDone={onDone} />);
+    render(<PreguntaForm cursoId="c1" leccionId="l1" onDone={onDone} />);
 
     fireEvent.change(screen.getByLabelText("Pregunta"), { target: { value: "¿Capital de RD?" } });
     fireEvent.change(screen.getByLabelText("Texto de la opción 1"), { target: { value: "Santiago" } });
@@ -24,7 +24,7 @@ describe("PreguntaForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar pregunta" }));
 
     await waitFor(() =>
-      expect(savePregunta).toHaveBeenCalledWith("c1", {
+      expect(savePregunta).toHaveBeenCalledWith("c1", "l1", {
         id: undefined,
         text: "¿Capital de RD?",
         type: "opcion_unica",
@@ -39,7 +39,7 @@ describe("PreguntaForm", () => {
   });
 
   it("validates before saving", () => {
-    render(<PreguntaForm cursoId="c1" onDone={vi.fn()} />);
+    render(<PreguntaForm cursoId="c1" leccionId="l1" onDone={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Pregunta"), { target: { value: "¿?" } });
     fireEvent.change(screen.getByLabelText("Texto de la opción 1"), { target: { value: "A" } });
     fireEvent.change(screen.getByLabelText("Texto de la opción 2"), { target: { value: "B" } });
@@ -50,14 +50,14 @@ describe("PreguntaForm", () => {
   });
 
   it("creates a true/false question", async () => {
-    render(<PreguntaForm cursoId="c1" onDone={vi.fn()} />);
+    render(<PreguntaForm cursoId="c1" leccionId="l1" onDone={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Pregunta"), { target: { value: "El sol es una estrella" } });
     fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "verdadero_falso" } });
     fireEvent.click(screen.getByLabelText("Marcar opción 1 como correcta"));
     fireEvent.click(screen.getByRole("button", { name: "Guardar pregunta" }));
 
     await waitFor(() =>
-      expect(savePregunta).toHaveBeenCalledWith("c1", {
+      expect(savePregunta).toHaveBeenCalledWith("c1", "l1", {
         id: undefined,
         text: "El sol es una estrella",
         type: "verdadero_falso",
@@ -73,9 +73,11 @@ describe("PreguntaForm", () => {
     render(
       <PreguntaForm
         cursoId="c1"
+        leccionId="l1"
         onDone={vi.fn()}
         initial={{
           id: "p1",
+          leccionId: "l1",
           text: "Vieja",
           type: "opcion_unica",
           active: true,
@@ -90,7 +92,7 @@ describe("PreguntaForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar pregunta" }));
 
     await waitFor(() =>
-      expect(savePregunta).toHaveBeenCalledWith("c1", {
+      expect(savePregunta).toHaveBeenCalledWith("c1", "l1", {
         id: "p1",
         text: "Nueva",
         type: "opcion_unica",
