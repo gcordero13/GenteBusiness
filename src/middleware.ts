@@ -36,6 +36,8 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/mantenimiento") ||
     request.nextUrl.pathname.startsWith("/encuesta") ||
     request.nextUrl.pathname.startsWith("/plan-de-pagos") ||
+    // Public check behind the Aprendizaje certificate's QR.
+    request.nextUrl.pathname.startsWith("/certificados/") ||
     request.nextUrl.pathname.startsWith("/api/attendance");
 
   if (!user && !isAuthRoute) {
