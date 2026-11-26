@@ -25,6 +25,13 @@ export interface Leccion {
   completed: boolean;
 }
 
+/** A course's evaluation settings. questionsPerAttempt null = no evaluation. */
+export interface EvalSettings {
+  questionsPerAttempt: number | null;
+  passingScore: number;
+  maxAttempts: number | null;
+}
+
 export interface CursoDetail {
   id: string;
   title: string;
@@ -34,6 +41,7 @@ export interface CursoDetail {
   cover: DriveFileRef | null;
   lecciones: Leccion[];
   completedAt: string | null;
+  evaluacion: EvalSettings;
 }
 
 export interface CatalogCurso {

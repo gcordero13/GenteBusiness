@@ -38,6 +38,9 @@ export interface RawCurso {
   cover_drive_id: string | null;
   cover_item_id: string | null;
   updated_at?: string;
+  eval_questions_per_attempt?: number | null;
+  eval_passing_score?: number | null;
+  eval_max_attempts?: number | null;
   // The catalog/list queries only select lesson ids; the detail query selects everything.
   aprendizaje_lecciones?: (Pick<RawLeccion, "id"> & Partial<RawLeccion>)[] | null;
 }
@@ -82,6 +85,11 @@ export function toCursoDetail(
     cover: fileRef(raw.cover_drive_id, raw.cover_item_id),
     lecciones,
     completedAt,
+    evaluacion: {
+      questionsPerAttempt: raw.eval_questions_per_attempt ?? null,
+      passingScore: raw.eval_passing_score ?? 70,
+      maxAttempts: raw.eval_max_attempts ?? null,
+    },
   };
 }
 

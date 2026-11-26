@@ -60,6 +60,18 @@ describe("toCursoDetail", () => {
   it("returns no cover when the ids are missing", () => {
     expect(toCursoDetail({ ...RAW, cover_drive_id: null, cover_item_id: null }, new Set(), null).cover).toBeNull();
   });
+
+  it("maps the evaluation settings, defaulting to no evaluation", () => {
+    expect(toCursoDetail(RAW, new Set(), null).evaluacion).toEqual({
+      questionsPerAttempt: null,
+      passingScore: 70,
+      maxAttempts: null,
+    });
+    expect(
+      toCursoDetail({ ...RAW, eval_questions_per_attempt: 10, eval_passing_score: 80, eval_max_attempts: 3 }, new Set(), null)
+        .evaluacion,
+    ).toEqual({ questionsPerAttempt: 10, passingScore: 80, maxAttempts: 3 });
+  });
 });
 
 describe("toCatalogCurso", () => {

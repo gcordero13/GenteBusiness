@@ -24,6 +24,7 @@ const CURSO: CursoDetail = {
   status: "publicado",
   cover: null,
   completedAt: null,
+  evaluacion: { questionsPerAttempt: null, passingScore: 70, maxAttempts: null },
   lecciones: [leccion("l1", "Introducción", true), leccion("l2", "Equipos de protección", false), leccion("l3", "Cierre", false)],
 };
 

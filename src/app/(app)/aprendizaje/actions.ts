@@ -6,7 +6,7 @@ import { toCatalogCurso, toCursoDetail, type RawCurso } from "@/lib/aprendizaje/
 import type { CatalogCurso, CursoDetail } from "@/lib/aprendizaje/types";
 
 const CURSO_DETAIL_SELECT =
-  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, " +
+  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_questions_per_attempt, eval_passing_score, eval_max_attempts, " +
   "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, " +
   "aprendizaje_leccion_archivos(id, filename, content_type, size_bytes, drive_id, item_id, position))";
 
