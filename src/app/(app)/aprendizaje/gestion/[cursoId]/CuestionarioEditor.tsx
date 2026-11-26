@@ -26,13 +26,20 @@ export function CuestionarioEditor({
   const [enabled, setEnabled] = useState(quiz !== null);
   const [weight, setWeight] = useState(String(quiz?.weight ?? ""));
   const [perAttempt, setPerAttempt] = useState(String(quiz?.questionsPerAttempt ?? 5));
+  const [seconds, setSeconds] = useState(quiz?.secondsPerQuestion ? String(quiz.secondsPerQuestion) : "");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const activeCount = preguntas.filter((p) => p.active).length;
 
   function save() {
-    const next: LeccionQuiz | null = enabled ? { questionsPerAttempt: Number(perAttempt), weight: Number(weight) } : null;
+    const next: LeccionQuiz | null = enabled
+      ? {
+          questionsPerAttempt: Number(perAttempt),
+          weight: Number(weight),
+          secondsPerQuestion: seconds.trim() ? Number(seconds) : null,
+        }
+      : null;
     const invalid = next ? validateQuiz(next) : null;
     if (invalid) {
       setError(invalid);
@@ -68,7 +75,7 @@ export function CuestionarioEditor({
       {error && <p className="text-sm text-destructive">{error}</p>}
       {notice && <p className="text-sm text-emerald-700 dark:text-emerald-400">{notice}</p>}
       {enabled && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor={`quiz-weight-${leccionId}`}>Peso en la nota del curso (%)</Label>
             <Input
@@ -88,6 +95,18 @@ export function CuestionarioEditor({
               min={1}
               value={perAttempt}
               onChange={(e) => setPerAttempt(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`quiz-seconds-${leccionId}`}>Segundos por pregunta</Label>
+            <Input
+              id={`quiz-seconds-${leccionId}`}
+              type="number"
+              min={5}
+              max={600}
+              placeholder="Sin límite"
+              value={seconds}
+              onChange={(e) => setSeconds(e.target.value)}
             />
           </div>
         </div>

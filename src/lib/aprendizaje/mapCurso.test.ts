@@ -71,14 +71,14 @@ describe("toCursoDetail", () => {
       {
         ...RAW,
         aprendizaje_lecciones: [
-          { ...RAW.aprendizaje_lecciones![1], eval_questions_per_attempt: 5, eval_weight: 40 },
+          { ...RAW.aprendizaje_lecciones![1], eval_questions_per_attempt: 5, eval_weight: 40, eval_seconds_per_question: 30 },
           RAW.aprendizaje_lecciones![0],
         ] as RawCurso["aprendizaje_lecciones"],
       },
       new Set(),
       null,
     );
-    expect(withQuiz.lecciones.map((l) => l.quiz)).toEqual([{ questionsPerAttempt: 5, weight: 40 }, null]);
+    expect(withQuiz.lecciones.map((l) => l.quiz)).toEqual([{ questionsPerAttempt: 5, weight: 40, secondsPerQuestion: 30 }, null]);
   });
 
   it("maps the Próximamente flag", () => {

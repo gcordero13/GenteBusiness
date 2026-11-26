@@ -85,6 +85,8 @@ describe("validateEvalSettings", () => {
 describe("validateQuiz", () => {
   it("accepts a quiz with questions per person and a weight", () => {
     expect(validateQuiz({ questionsPerAttempt: 5, weight: 30 })).toBeNull();
+    expect(validateQuiz({ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 30 })).toBeNull();
+    expect(validateQuiz({ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: null })).toBeNull();
   });
 
   it.each<[Parameters<typeof validateQuiz>[0], string]>([
@@ -92,6 +94,9 @@ describe("validateQuiz", () => {
     [{ questionsPerAttempt: 1.5, weight: 30 }, "Las preguntas por persona deben ser un número mayor a 0."],
     [{ questionsPerAttempt: 5, weight: 0 }, "El peso debe ser un número entre 1 y 100."],
     [{ questionsPerAttempt: 5, weight: 101 }, "El peso debe ser un número entre 1 y 100."],
+    [{ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 4 }, "El tiempo por pregunta debe ser de 5 a 600 segundos (o vacío para sin límite)."],
+    [{ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 601 }, "El tiempo por pregunta debe ser de 5 a 600 segundos (o vacío para sin límite)."],
+    [{ questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 2.5 }, "El tiempo por pregunta debe ser de 5 a 600 segundos (o vacío para sin límite)."],
   ])("rejects %j", (quiz, error) => {
     expect(validateQuiz(quiz)).toBe(error);
   });

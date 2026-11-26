@@ -29,6 +29,8 @@ export interface Leccion {
 
 /** A lesson quiz: N random questions per person, worth `weight` % of the course grade. */
 export interface LeccionQuiz {
+  /** Seconds per question; null/absent = no time limit. */
+  secondsPerQuestion?: number | null;
   questionsPerAttempt: number;
   weight: number;
 }

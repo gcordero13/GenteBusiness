@@ -30,6 +30,7 @@ export interface RawLeccion {
   video_item_id: string | null;
   eval_questions_per_attempt?: number | null;
   eval_weight?: number | null;
+  eval_seconds_per_question?: number | null;
   aprendizaje_leccion_archivos?: RawArchivo[] | null;
 }
 
@@ -100,7 +101,11 @@ export function toCursoDetail(
 
 function toQuiz(l: Partial<RawLeccion>): LeccionQuiz | null {
   return l.eval_questions_per_attempt != null
-    ? { questionsPerAttempt: l.eval_questions_per_attempt, weight: l.eval_weight ?? 0 }
+    ? {
+        questionsPerAttempt: l.eval_questions_per_attempt,
+        weight: l.eval_weight ?? 0,
+        secondsPerQuestion: l.eval_seconds_per_question ?? null,
+      }
     : null;
 }
 

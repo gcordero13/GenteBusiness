@@ -107,6 +107,10 @@ export function validateEvalSettings(settings: EvalSettings): string | null {
 export function validateQuiz(quiz: LeccionQuiz): string | null {
   if (!isPositiveInt(quiz.questionsPerAttempt)) return "Las preguntas por persona deben ser un número mayor a 0.";
   if (!Number.isInteger(quiz.weight) || quiz.weight < 1 || quiz.weight > 100) return "El peso debe ser un número entre 1 y 100.";
+  const secs = quiz.secondsPerQuestion ?? null;
+  if (secs !== null && (!Number.isInteger(secs) || secs < 5 || secs > 600)) {
+    return "El tiempo por pregunta debe ser de 5 a 600 segundos (o vacío para sin límite).";
+  }
   return null;
 }
 

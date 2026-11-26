@@ -32,7 +32,7 @@ interface ActionResult {
 
 const CURSO_DETAIL_SELECT =
   "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_passing_score, eval_max_attempts, anunciar_proximamente, " +
-  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, " +
+  "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, eval_seconds_per_question, " +
   "aprendizaje_leccion_archivos(id, filename, content_type, size_bytes, drive_id, item_id, position))";
 
 const CATEGORIES: CursoCategory[] = ["curso", "historia"];
@@ -371,6 +371,7 @@ export async function setLeccionQuiz(
     .update({
       eval_questions_per_attempt: quiz?.questionsPerAttempt ?? null,
       eval_weight: quiz?.weight ?? 0,
+      eval_seconds_per_question: quiz?.secondsPerQuestion ?? null,
     })
     .eq("id", leccionId)
     .eq("curso_id", cursoId);

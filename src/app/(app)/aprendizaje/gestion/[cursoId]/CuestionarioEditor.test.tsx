@@ -51,7 +51,16 @@ describe("CuestionarioEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar cuestionario" }));
 
     await waitFor(() =>
-      expect(actions.setLeccionQuiz).toHaveBeenCalledWith("l1", "c1", { questionsPerAttempt: 3, weight: 40 }),
+      expect(actions.setLeccionQuiz).toHaveBeenCalledWith("l1", "c1", { questionsPerAttempt: 3, weight: 40, secondsPerQuestion: null }),
+    );
+  });
+
+  it("saves the seconds per question", async () => {
+    render(<CuestionarioEditor cursoId="c1" leccionId="l1" quiz={{ questionsPerAttempt: 5, weight: 30 }} preguntas={PREGUNTAS} />);
+    fireEvent.change(screen.getByLabelText("Segundos por pregunta"), { target: { value: "45" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cuestionario" }));
+    await waitFor(() =>
+      expect(actions.setLeccionQuiz).toHaveBeenCalledWith("l1", "c1", { questionsPerAttempt: 5, weight: 30, secondsPerQuestion: 45 }),
     );
   });
 
