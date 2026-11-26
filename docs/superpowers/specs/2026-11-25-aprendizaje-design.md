@@ -257,7 +257,9 @@ pestaña nueva.
 - Foros o comentarios en lecciones.
 - Detección automática de video visto completo.
 - Editor de texto enriquecido; el cuerpo de la lección es texto plano.
-- Tipos de pregunta abiertos o de selección múltiple.
+- Preguntas abiertas o con varias respuestas correctas a la vez. Los tipos son
+  **selección múltiple** (`opcion_unica`: varias opciones, una sola correcta) y
+  **verdadero o falso**.
 
 ## Pruebas
 
