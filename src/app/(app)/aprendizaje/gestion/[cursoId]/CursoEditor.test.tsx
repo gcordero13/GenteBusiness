@@ -19,6 +19,7 @@ const actions = {
   savePregunta: vi.fn(),
   setPreguntaActiva: vi.fn(),
   deletePregunta: vi.fn(),
+  setAnunciarProximamente: vi.fn(),
 };
 const push = vi.fn();
 
@@ -92,5 +93,16 @@ describe("CursoEditor", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Bajar lección" })[0]);
 
     await waitFor(() => expect(actions.reorderLecciones).toHaveBeenCalledWith("c1", ["l2", "l1"]));
+  });
+
+  it("announces a draft as Próximamente", async () => {
+    render(<CursoEditor curso={CURSO} />);
+    fireEvent.click(screen.getByLabelText(/Anunciar como “Próximamente”/));
+    await waitFor(() => expect(actions.setAnunciarProximamente).toHaveBeenCalledWith("c1", true));
+  });
+
+  it("only offers the announcement for drafts", () => {
+    render(<CursoEditor curso={{ ...CURSO, status: "publicado" }} />);
+    expect(screen.queryByLabelText(/Anunciar como “Próximamente”/)).toBeNull();
   });
 });

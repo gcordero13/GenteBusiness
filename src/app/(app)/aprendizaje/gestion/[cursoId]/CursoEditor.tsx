@@ -17,7 +17,15 @@ import {
   type CursoDetail,
   type CursoStatus,
 } from "@/lib/aprendizaje/types";
-import { createLeccion, deleteCurso, reorderLecciones, setCursoCover, setCursoStatus, updateCurso } from "../actions";
+import {
+  createLeccion,
+  deleteCurso,
+  reorderLecciones,
+  setAnunciarProximamente,
+  setCursoCover,
+  setCursoStatus,
+  updateCurso,
+} from "../actions";
 import type { PreguntaGestion } from "@/lib/aprendizaje/evaluacion";
 import { EvaluacionEditor } from "./EvaluacionEditor";
 import { LeccionEditor } from "./LeccionEditor";
@@ -174,6 +182,18 @@ export function CursoEditor({ curso, preguntas = [] }: { curso: CursoDetail; pre
             />
           </div>
         </div>
+        {curso.status === "borrador" && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={curso.anunciarProximamente}
+              disabled={isPending}
+              onChange={(e) => run(() => setAnunciarProximamente(curso.id, e.target.checked))}
+              className="accent-[#04B1AF]"
+            />
+            Anunciar como “Próximamente” en la portada (se muestran solo el título y la descripción)
+          </label>
+        )}
       </section>
 
       <section className="space-y-3">

@@ -413,3 +413,12 @@ export async function deletePregunta(preguntaId: string, cursoId: string): Promi
   revalidateCurso(cursoId);
   return {};
 }
+
+export async function setAnunciarProximamente(cursoId: string, value: boolean): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  const { error } = await ctx.supabase.from("aprendizaje_cursos").update({ anunciar_proximamente: value }).eq("id", cursoId);
+  if (error) return { error: error.message };
+  revalidateCurso(cursoId);
+  return {};
+}
