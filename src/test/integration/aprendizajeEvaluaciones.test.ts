@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createTestUser, deleteTestUser, type TestUser } from "./supabaseTestHelpers";
+import { createAprendizajeTestUser, deleteAprendizajeTestUser } from "./aprendizajeTestHelpers";
+import type { TestUser } from "./supabaseTestHelpers";
 
 describe("aprendizaje evaluations", () => {
   let manager: TestUser;
@@ -8,15 +9,15 @@ describe("aprendizaje evaluations", () => {
   const cursoIds: string[] = [];
 
   beforeAll(async () => {
-    manager = await createTestUser("Super Admin");
-    learner = await createTestUser("Viewer");
+    manager = await createAprendizajeTestUser({ canView: true, canManage: true });
+    learner = await createAprendizajeTestUser({ canView: true, canManage: false });
   }, 60_000);
 
   afterAll(async () => {
     const admin = createAdminClient();
     if (cursoIds.length > 0) await admin.from("aprendizaje_cursos").delete().in("id", cursoIds);
     for (const user of [manager, learner]) {
-      if (user) await deleteTestUser(user.id);
+      await deleteAprendizajeTestUser(user);
     }
   }, 60_000);
 
