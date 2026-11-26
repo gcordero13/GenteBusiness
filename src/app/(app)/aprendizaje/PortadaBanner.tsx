@@ -1,24 +1,30 @@
 import Link from "next/link";
 import { Settings2 } from "lucide-react";
 import { initials, primerNombre } from "@/lib/aprendizaje/portada";
-import type { PerfilAprendizaje } from "@/lib/aprendizaje/types";
+import type { CatalogCurso, PerfilAprendizaje } from "@/lib/aprendizaje/types";
+import { CertificadosDialog } from "./CertificadosDialog";
+
+const STAT_TILE =
+  "flex min-w-0 flex-col rounded-xl border border-white/30 bg-white/15 px-3 py-2 sm:w-28 sm:rounded-2xl sm:px-4 sm:py-3";
 
 export function PortadaBanner({
   perfil,
   siguientePaso,
   stats,
+  certificados,
   canManage,
 }: {
   perfil: PerfilAprendizaje;
   siguientePaso: string | null;
-  stats: { completados: number; enProgreso: number; certificados: number };
+  stats: { completados: number; enProgreso: number };
+  /** Completed courses; the "Certificados" counter opens them. */
+  certificados: CatalogCurso[];
   canManage: boolean;
 }) {
   const role = [perfil.position, perfil.department].filter(Boolean).join(" · ");
   const items = [
     { label: "Completados", value: stats.completados },
     { label: "En progreso", value: stats.enProgreso },
-    { label: "Certificados", value: stats.certificados },
   ];
 
   return (
@@ -74,14 +80,18 @@ export function PortadaBanner({
           </div>
         </div>
 
-        <dl className="grid w-full max-w-md grid-cols-3 gap-3">
+        {/* Compact on phones, narrow fixed-width tiles on desktop. */}
+        <ul aria-label="Resumen" className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:gap-3">
           {items.map((item) => (
-            <div key={item.label} className="flex flex-col rounded-2xl border border-white/30 bg-white/15 p-4">
-              <dt className="order-2 text-sm text-[#E6FAF9]">{item.label}</dt>
-              <dd className="order-1 text-3xl font-extrabold tabular-nums">{item.value}</dd>
-            </div>
+            <li key={item.label} className={STAT_TILE}>
+              <span className="text-xl font-extrabold tabular-nums sm:text-2xl">{item.value}</span>
+              <span className="text-xs text-[#E6FAF9] sm:text-sm">{item.label}</span>
+            </li>
           ))}
-        </dl>
+          <li>
+            <CertificadosDialog certificados={certificados} className={`${STAT_TILE} h-full w-full text-left hover:bg-white/25`} />
+          </li>
+        </ul>
       </div>
     </section>
   );

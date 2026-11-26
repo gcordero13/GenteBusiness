@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { splitMisCursos, siguientePaso } from "@/lib/aprendizaje/portada";
 import { CATEGORY_LABELS, type CursoCategory } from "@/lib/aprendizaje/types";
 import { aprendizajeFlags, getMiPerfil, listCatalog, listProximos } from "./actions";
-import { CertificadoCard } from "./CertificadoCard";
 import { CursoCard } from "./CursoCard";
 import { EnProgresoCard } from "./EnProgresoCard";
 import { PortadaBanner } from "./PortadaBanner";
@@ -51,11 +50,12 @@ export default async function AprendizajePage({
 
   return (
     <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
-      <div className="mx-auto w-full max-w-7xl min-w-0 space-y-10 p-4 sm:p-6 lg:p-8">
+      <div className="w-full min-w-0 space-y-10 p-4 sm:p-6 lg:p-8">
         <PortadaBanner
           perfil={perfil}
           siguientePaso={siguientePaso(enProgreso)}
-          stats={{ completados: completados.length, enProgreso: enProgreso.length, certificados: completados.length }}
+          stats={{ completados: completados.length, enProgreso: enProgreso.length }}
+          certificados={completados}
           canManage={flags.canManage}
         />
 
@@ -69,7 +69,7 @@ export default async function AprendizajePage({
               </span>
             }
           >
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
               {enProgreso.map((c) => (
                 <EnProgresoCard key={c.id} curso={c} />
               ))}
@@ -77,27 +77,9 @@ export default async function AprendizajePage({
           </Section>
         )}
 
-        <Section
-          id="certificados"
-          title="Mis certificados"
-          aside={<span className="text-sm text-muted-foreground">Descarga en PDF próximamente</span>}
-        >
-          {completados.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {completados.map((c) => (
-                <CertificadoCard key={c.id} curso={c} />
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-              Completa un curso para obtener tu primer certificado.
-            </p>
-          )}
-        </Section>
-
         {proximos.length > 0 && (
           <Section id="proximamente" title="Próximamente">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {proximos.map((p) => (
                 <ProximoCard key={p.id} curso={p} />
               ))}
@@ -128,7 +110,7 @@ export default async function AprendizajePage({
           {visibles.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">Todavía no hay contenidos publicados aquí.</p>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {visibles.map((curso) => (
                 <CursoCard key={curso.id} curso={curso} />
               ))}
