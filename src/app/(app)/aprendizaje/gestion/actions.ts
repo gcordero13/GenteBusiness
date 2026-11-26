@@ -5,8 +5,23 @@ import { createClient } from "@/lib/supabase/server";
 import { createSharePointUploadSession } from "@/lib/sharepoint";
 import { validateUpload, type UploadKind } from "@/lib/aprendizaje/files";
 import { toCursoDetail, toGestionCursoRow, type RawCurso } from "@/lib/aprendizaje/mapCurso";
-import type { CursoCategory, CursoDetail, CursoStatus, DriveFileRef, GestionCursoRow } from "@/lib/aprendizaje/types";
+import type {
+  CursoCategory,
+  CursoDetail,
+  CursoStatus,
+  DriveFileRef,
+  EvalSettings,
+  GestionCursoRow,
+} from "@/lib/aprendizaje/types";
 import { toVideoEmbed } from "@/lib/aprendizaje/videoEmbed";
+import {
+  toPreguntaGestion,
+  validateEvalSettings,
+  validatePregunta,
+  type PreguntaGestion,
+  type PreguntaInput,
+  type RawPregunta,
+} from "@/lib/aprendizaje/evaluacion";
 
 interface ActionResult {
   error?: string;
@@ -110,6 +125,9 @@ export async function setCursoStatus(cursoId: string, status: CursoStatus): Prom
       .select("id", { count: "exact", head: true })
       .eq("curso_id", cursoId);
     if (!count) return { error: "Agrega al menos una lección antes de publicar." };
+
+    const noQuestions = await evaluationWithoutQuestions(ctx.supabase, cursoId);
+    if (noQuestions) return { error: noQuestions };
   }
 
   const { error } = await ctx.supabase.from("aprendizaje_cursos").update({ status }).eq("id", cursoId);
@@ -269,4 +287,129 @@ export async function startUpload(
   } catch (err) {
     return { error: err instanceof Error ? err.message : "No se pudo iniciar la subida." };
   }
+}
+
+/** An enabled evaluation needs at least one active question, or nobody could ever complete the course. */
+async function evaluationWithoutQuestions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  cursoId: string,
+  questionsPerAttempt?: number | null,
+): Promise<string | null> {
+  let enabled = questionsPerAttempt !== undefined ? questionsPerAttempt !== null : false;
+  if (questionsPerAttempt === undefined) {
+    const { data } = await supabase.from("aprendizaje_cursos").select("eval_questions_per_attempt").eq("id", cursoId).maybeSingle();
+    enabled = data?.eval_questions_per_attempt != null;
+  }
+  if (!enabled) return null;
+  const { count } = await supabase
+    .from("aprendizaje_preguntas")
+    .select("id", { count: "exact", head: true })
+    .eq("curso_id", cursoId)
+    .eq("active", true);
+  return count ? null : "La evaluación no tiene preguntas activas. Agrégalas o desactiva la evaluación.";
+}
+
+export async function listPreguntas(cursoId: string): Promise<PreguntaGestion[]> {
+  const ctx = await managerClient();
+  if (!ctx) return [];
+  const { data } = await ctx.supabase
+    .from("aprendizaje_preguntas")
+    .select("id, text, type, active, position, created_at, aprendizaje_opciones(id, text, is_correct, position)")
+    .eq("curso_id", cursoId)
+    .order("position")
+    .order("created_at");
+  return ((data ?? []) as unknown as RawPregunta[]).map(toPreguntaGestion);
+}
+
+export async function updateEvalSettings(cursoId: string, settings: EvalSettings): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  const invalid = validateEvalSettings(settings);
+  if (invalid) return { error: invalid };
+
+  const { data: curso } = await ctx.supabase.from("aprendizaje_cursos").select("status").eq("id", cursoId).maybeSingle();
+  if (!curso) return { error: "Curso no encontrado." };
+  if (curso.status === "publicado") {
+    const noQuestions = await evaluationWithoutQuestions(ctx.supabase, cursoId, settings.questionsPerAttempt);
+    if (noQuestions) return { error: noQuestions };
+  }
+
+  const { error } = await ctx.supabase
+    .from("aprendizaje_cursos")
+    .update({
+      eval_questions_per_attempt: settings.questionsPerAttempt,
+      eval_passing_score: settings.passingScore,
+      eval_max_attempts: settings.maxAttempts,
+    })
+    .eq("id", cursoId);
+  if (error) return { error: error.message };
+  revalidateCurso(cursoId);
+  return {};
+}
+
+/** Creates or updates a question. Options keep their ids so open attempts still resolve them. */
+export async function savePregunta(cursoId: string, input: PreguntaInput): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  const invalid = validatePregunta(input);
+  if (invalid) return { error: invalid };
+
+  let preguntaId = input.id;
+  if (preguntaId) {
+    const { error } = await ctx.supabase
+      .from("aprendizaje_preguntas")
+      .update({ text: input.text.trim(), type: input.type })
+      .eq("id", preguntaId)
+      .eq("curso_id", cursoId);
+    if (error) return { error: error.message };
+  } else {
+    const { count } = await ctx.supabase
+      .from("aprendizaje_preguntas")
+      .select("id", { count: "exact", head: true })
+      .eq("curso_id", cursoId);
+    const { data, error } = await ctx.supabase
+      .from("aprendizaje_preguntas")
+      .insert({ curso_id: cursoId, text: input.text.trim(), type: input.type, position: count ?? 0 })
+      .select("id")
+      .single();
+    if (error || !data) return { error: error?.message ?? "No se pudo guardar la pregunta." };
+    preguntaId = data.id as string;
+  }
+
+  const keepIds = input.options.flatMap((o) => (o.id ? [o.id] : []));
+  const { data: existing } = await ctx.supabase.from("aprendizaje_opciones").select("id").eq("pregunta_id", preguntaId);
+  const removed = (existing ?? []).map((o) => o.id as string).filter((id) => !keepIds.includes(id));
+  if (removed.length > 0) {
+    const { error } = await ctx.supabase.from("aprendizaje_opciones").delete().in("id", removed);
+    if (error) return { error: error.message };
+  }
+
+  for (const [position, option] of input.options.entries()) {
+    const row = { text: option.text.trim(), is_correct: option.isCorrect, position };
+    const { error } = option.id
+      ? await ctx.supabase.from("aprendizaje_opciones").update(row).eq("id", option.id).eq("pregunta_id", preguntaId)
+      : await ctx.supabase.from("aprendizaje_opciones").insert({ ...row, pregunta_id: preguntaId });
+    if (error) return { error: error.message };
+  }
+
+  revalidateCurso(cursoId);
+  return {};
+}
+
+export async function setPreguntaActiva(preguntaId: string, cursoId: string, active: boolean): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  const { error } = await ctx.supabase.from("aprendizaje_preguntas").update({ active }).eq("id", preguntaId);
+  if (error) return { error: error.message };
+  revalidateCurso(cursoId);
+  return {};
+}
+
+export async function deletePregunta(preguntaId: string, cursoId: string): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  const { error } = await ctx.supabase.from("aprendizaje_preguntas").delete().eq("id", preguntaId);
+  if (error) return { error: error.message };
+  revalidateCurso(cursoId);
+  return {};
 }
