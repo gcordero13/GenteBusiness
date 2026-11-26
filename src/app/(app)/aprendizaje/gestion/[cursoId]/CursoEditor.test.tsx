@@ -15,6 +15,10 @@ const actions = {
   addLeccionArchivo: vi.fn(),
   removeLeccionArchivo: vi.fn(),
   startUpload: vi.fn(),
+  updateEvalSettings: vi.fn(),
+  savePregunta: vi.fn(),
+  setPreguntaActiva: vi.fn(),
+  deletePregunta: vi.fn(),
 };
 const push = vi.fn();
 

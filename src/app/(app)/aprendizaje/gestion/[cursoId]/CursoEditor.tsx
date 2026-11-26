@@ -18,6 +18,8 @@ import {
   type CursoStatus,
 } from "@/lib/aprendizaje/types";
 import { createLeccion, deleteCurso, reorderLecciones, setCursoCover, setCursoStatus, updateCurso } from "../actions";
+import type { PreguntaGestion } from "@/lib/aprendizaje/evaluacion";
+import { EvaluacionEditor } from "./EvaluacionEditor";
 import { LeccionEditor } from "./LeccionEditor";
 import { SharePointUploadButton } from "./SharePointUploadButton";
 
@@ -30,7 +32,7 @@ const STATUS_ACTIONS: Record<CursoStatus, { label: string; to: CursoStatus }[]> 
   archivado: [{ label: "Publicar de nuevo", to: "publicado" }],
 };
 
-export function CursoEditor({ curso }: { curso: CursoDetail }) {
+export function CursoEditor({ curso, preguntas = [] }: { curso: CursoDetail; preguntas?: PreguntaGestion[] }) {
   const router = useRouter();
   const [title, setTitle] = useState(curso.title);
   const [description, setDescription] = useState(curso.description ?? "");
@@ -206,6 +208,8 @@ export function CursoEditor({ curso }: { curso: CursoDetail }) {
           </Button>
         </div>
       </section>
+
+      <EvaluacionEditor cursoId={curso.id} settings={curso.evaluacion} preguntas={preguntas} />
     </div>
   );
 }
