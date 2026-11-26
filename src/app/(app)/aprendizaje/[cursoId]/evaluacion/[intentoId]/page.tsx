@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { nextLeccionId } from "@/lib/aprendizaje/mapCurso";
 import { aprendizajeFlags, getCurso, getIntento } from "../../../actions";
 import { EvaluacionForm } from "./EvaluacionForm";
 
@@ -36,7 +37,13 @@ export default async function EvaluacionPage({
             {leccion?.quiz && ` Esta lección vale ${leccion.quiz.weight}% de la nota del curso.`}
           </p>
         </div>
-        <EvaluacionForm cursoId={cursoId} intento={intento} passingScore={curso.evaluacion.passingScore} />
+        <EvaluacionForm
+          cursoId={cursoId}
+          intento={intento}
+          passingScore={curso.evaluacion.passingScore}
+          secondsPerQuestion={leccion?.quiz?.secondsPerQuestion ?? null}
+          siguienteLeccionId={leccion ? nextLeccionId(curso.lecciones, leccion.id) : null}
+        />
       </div>
     </div>
   );
