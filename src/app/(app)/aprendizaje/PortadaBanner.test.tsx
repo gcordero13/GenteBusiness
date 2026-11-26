@@ -62,6 +62,10 @@ describe("PortadaBanner", () => {
     expect(within(dialog).getByText("Mis certificados")).toBeTruthy();
     expect(within(dialog).getByText("Ciberseguridad")).toBeTruthy();
     expect(within(dialog).getByText(/Completado el 12\/11\/2026 · Nota 85%/)).toBeTruthy();
+    expect(within(dialog).getByRole("link", { name: /Descargar certificado \(PDF\)/ }).getAttribute("href")).toBe(
+      "/api/aprendizaje/certificado/c1",
+    );
+    expect(within(dialog).getByRole("link", { name: "Ciberseguridad" }).getAttribute("href")).toBe("/aprendizaje/c1");
   });
 
   it("falls back to initials, a default nudge, and shows the manager link", () => {

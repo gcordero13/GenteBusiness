@@ -120,6 +120,11 @@ export function archivoUrl(ref: DriveFileRef): string {
   return `/api/aprendizaje/archivo/${encodeURIComponent(ref.driveId)}/${encodeURIComponent(ref.itemId)}`;
 }
 
+/** The signed-in person's certificate PDF for a completed course (owner-only route). */
+export function certificadoUrl(cursoId: string): string {
+  return `/api/aprendizaje/certificado/${encodeURIComponent(cursoId)}`;
+}
+
 export const CATEGORY_SHORT_LABELS: Record<CursoCategory, string> = {
   curso: "Curso",
   historia: "Historia",

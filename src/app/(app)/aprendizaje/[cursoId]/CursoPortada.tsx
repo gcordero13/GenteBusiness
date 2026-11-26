@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, ClipboardCheck, PartyPopper, PlayCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ClipboardCheck, Download, PartyPopper, PlayCircle } from "lucide-react";
 import { firstPendingLeccionId, progressPercent, resumenLeccion } from "@/lib/aprendizaje/mapCurso";
 import { notaCurso, type EvaluacionEstado } from "@/lib/aprendizaje/evaluacion";
-import { archivoUrl, CATEGORY_LABELS, type CursoDetail } from "@/lib/aprendizaje/types";
+import { archivoUrl, CATEGORY_LABELS, certificadoUrl, type CursoDetail } from "@/lib/aprendizaje/types";
 import { hasVideo } from "./LeccionContent";
 import { NotaCursoCard } from "./NotaCursoCard";
 
@@ -83,10 +83,21 @@ export function CursoPortada({
             </p>
           )}
           {curso.completedAt && (
-            <p className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
-              <PartyPopper className="size-4" />
-              ¡Completaste este curso!
-            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
+              <span className="flex items-center gap-2">
+                <PartyPopper className="size-4" />
+                ¡Completaste este curso!
+              </span>
+              {!isPreview && (
+                <a
+                  href={certificadoUrl(curso.id)}
+                  className="inline-flex items-center gap-1.5 font-semibold text-[#036E6C] underline underline-offset-2 hover:text-[#024E4D] dark:text-[#5FD6D4]"
+                >
+                  <Download className="size-4" />
+                  Descargar certificado (PDF)
+                </a>
+              )}
+            </div>
           )}
           {pendingId && (
             <Link

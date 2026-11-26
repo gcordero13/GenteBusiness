@@ -637,7 +637,7 @@ The page is a server component.
 **Files:**
 - Modify: `src/app/(app)/aprendizaje/CertificadoCard.tsx`.
   - The card is no longer one big link. It becomes a `div`: the title is a `Link` to the course, and a plain `<a href="/api/aprendizaje/certificado/{id}">` "Descargar certificado (PDF)" with a Download icon replaces "PDF próximamente".
-  - Drop the grade (`· Nota N%`), as the user asked.
+  - Keep the person's own grade on the card. The user's "no grade" applies to the certificate itself.
   - Test: `CertificadoCard.test.tsx`.
 - Modify: `src/app/(app)/aprendizaje/[cursoId]/CursoPortada.tsx`. When `curso.completedAt` is set and the course isn't a preview, add the same download link next to "¡Completaste este curso!". Add a `CursoPortada.test.tsx` case, and a negative one for an unfinished course.
 
