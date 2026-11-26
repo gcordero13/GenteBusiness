@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { toCatalogCurso, toCursoDetail, type RawCurso } from "@/lib/aprendizaje/mapCurso";
-import type { CatalogCurso, CursoDetail } from "@/lib/aprendizaje/types";
+import type { CatalogCurso, CursoDetail, PerfilAprendizaje, ProximoCurso } from "@/lib/aprendizaje/types";
 import {
   summarizeIntentos,
   type EvaluacionEstado,
@@ -13,7 +14,7 @@ import {
 } from "@/lib/aprendizaje/evaluacion";
 
 const CURSO_DETAIL_SELECT =
-  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_questions_per_attempt, eval_passing_score, eval_max_attempts, " +
+  "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_questions_per_attempt, eval_passing_score, eval_max_attempts, anunciar_proximamente, " +
   "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, " +
   "aprendizaje_leccion_archivos(id, filename, content_type, size_bytes, drive_id, item_id, position))";
 
@@ -24,20 +25,35 @@ export async function aprendizajeFlags(): Promise<{ canView: boolean; canManage:
   return { canView: Boolean(data?.[0]?.can_view) || canManage, canManage };
 }
 
-async function myProgress(): Promise<{ leccionIds: Set<string>; completedByCurso: Map<string, string | null> }> {
+async function myProgress(): Promise<{
+  leccionIds: Set<string>;
+  completedByCurso: Map<string, string | null>;
+  bestScoreByCurso: Map<string, number>;
+}> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { leccionIds: new Set(), completedByCurso: new Map() };
+  if (!user) return { leccionIds: new Set(), completedByCurso: new Map(), bestScoreByCurso: new Map() };
 
-  const [{ data: progreso }, { data: inscripciones }] = await Promise.all([
+  const [{ data: progreso }, { data: inscripciones }, { data: intentos }] = await Promise.all([
     supabase.from("aprendizaje_progreso_lecciones").select("leccion_id").eq("app_user_id", user.id),
     supabase.from("aprendizaje_inscripciones").select("curso_id, completed_at").eq("app_user_id", user.id),
+    supabase
+      .from("aprendizaje_intentos")
+      .select("curso_id, score")
+      .eq("app_user_id", user.id)
+      .not("submitted_at", "is", null),
   ]);
+  const bestScoreByCurso = new Map<string, number>();
+  for (const i of intentos ?? []) {
+    const score = (i.score as number | null) ?? 0;
+    bestScoreByCurso.set(i.curso_id as string, Math.max(score, bestScoreByCurso.get(i.curso_id as string) ?? 0));
+  }
   return {
     leccionIds: new Set((progreso ?? []).map((p) => p.leccion_id as string)),
     completedByCurso: new Map((inscripciones ?? []).map((i) => [i.curso_id as string, i.completed_at as string | null])),
+    bestScoreByCurso,
   };
 }
 
@@ -47,13 +63,18 @@ export async function listCatalog(): Promise<CatalogCurso[]> {
   const [{ data }, progress] = await Promise.all([
     supabase
       .from("aprendizaje_cursos")
-      .select("id, title, description, category, status, cover_drive_id, cover_item_id, aprendizaje_lecciones(id)")
+      .select("id, title, description, category, status, cover_drive_id, cover_item_id, eval_questions_per_attempt, aprendizaje_lecciones(id)")
       .eq("status", "publicado")
       .order("created_at", { ascending: false }),
     myProgress(),
   ]);
   return ((data ?? []) as unknown as RawCurso[]).map((raw) =>
-    toCatalogCurso(raw, progress.leccionIds, progress.completedByCurso.get(raw.id) ?? null),
+    toCatalogCurso(
+      raw,
+      progress.leccionIds,
+      progress.completedByCurso.has(raw.id) ? { completedAt: progress.completedByCurso.get(raw.id) ?? null } : null,
+      progress.bestScoreByCurso.get(raw.id) ?? null,
+    ),
   );
 }
 
@@ -133,4 +154,38 @@ export async function enviarIntento(
   revalidatePath(`/aprendizaje/${cursoId}`);
   revalidatePath("/aprendizaje");
   return { resultado: data as IntentoResultado };
+}
+
+/** The banner's identity: the caller's own Agenda contact, matched by email. */
+export async function getMiPerfil(): Promise<PerfilAprendizaje> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const fallback: PerfilAprendizaje = { name: user?.email ?? "", position: null, department: null, photoUrl: null };
+  if (!user?.email) return fallback;
+
+  // Same lookup as planificacion's getMyContact: only the caller's own row, by their own email.
+  const admin = createAdminClient();
+  const { data: contact } = await admin
+    .from("contacts")
+    .select("first_name, last_name, position, photo_url, departments(name)")
+    .eq("email", user.email)
+    .maybeSingle();
+  if (!contact) return fallback;
+  const dept = Array.isArray(contact.departments) ? contact.departments[0] : contact.departments;
+  return {
+    name: `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim() || user.email,
+    position: contact.position || null,
+    department: dept?.name ?? null,
+    photoUrl: contact.photo_url || null,
+  };
+}
+
+export async function listProximos(): Promise<ProximoCurso[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("aprendizaje_proximamente");
+  return ((data ?? []) as { id: string; title: string; description: string | null; category: ProximoCurso["category"] }[]).map(
+    (p) => ({ id: p.id, title: p.title, description: p.description, category: p.category }),
+  );
 }

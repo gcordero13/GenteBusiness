@@ -72,14 +72,38 @@ describe("toCursoDetail", () => {
         .evaluacion,
     ).toEqual({ questionsPerAttempt: 10, passingScore: 80, maxAttempts: 3 });
   });
+
+  it("maps the Próximamente flag", () => {
+    expect(toCursoDetail(RAW, new Set(), null).anunciarProximamente).toBe(false);
+    expect(toCursoDetail({ ...RAW, anunciar_proximamente: true }, new Set(), null).anunciarProximamente).toBe(true);
+  });
 });
 
 describe("toCatalogCurso", () => {
-  it("counts lessons and completed lessons", () => {
-    expect(toCatalogCurso(RAW, new Set(["l2", "other"]), "2026-11-25T12:00:00Z")).toMatchObject({
+  it("counts lessons, completed lessons and carries enrollment, evaluation and best score", () => {
+    expect(
+      toCatalogCurso(
+        { ...RAW, eval_questions_per_attempt: 5 },
+        new Set(["l2", "other"]),
+        { completedAt: "2026-11-25T12:00:00Z" },
+        90,
+      ),
+    ).toMatchObject({
       leccionCount: 2,
       completedLecciones: 1,
       completedAt: "2026-11-25T12:00:00Z",
+      enrolled: true,
+      hasEvaluacion: true,
+      bestScore: 90,
+    });
+  });
+
+  it("marks a course never started as not enrolled", () => {
+    expect(toCatalogCurso(RAW, new Set(), null)).toMatchObject({
+      enrolled: false,
+      completedAt: null,
+      hasEvaluacion: false,
+      bestScore: null,
     });
   });
 });

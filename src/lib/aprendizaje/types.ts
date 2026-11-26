@@ -42,6 +42,7 @@ export interface CursoDetail {
   lecciones: Leccion[];
   completedAt: string | null;
   evaluacion: EvalSettings;
+  anunciarProximamente: boolean;
 }
 
 export interface CatalogCurso {
@@ -53,6 +54,11 @@ export interface CatalogCurso {
   leccionCount: number;
   completedLecciones: number;
   completedAt: string | null;
+  /** The person has started it (an inscripción exists). */
+  enrolled: boolean;
+  hasEvaluacion: boolean;
+  /** Best submitted evaluation score, if any. */
+  bestScore: number | null;
 }
 
 export interface GestionCursoRow {
@@ -82,4 +88,23 @@ export const FIELD_CLASS_NAME =
 /** Permission-checked URL that redirects to the file's short-lived SharePoint download link. */
 export function archivoUrl(ref: DriveFileRef): string {
   return `/api/aprendizaje/archivo/${encodeURIComponent(ref.driveId)}/${encodeURIComponent(ref.itemId)}`;
+}
+
+export const CATEGORY_SHORT_LABELS: Record<CursoCategory, string> = {
+  curso: "Curso",
+  historia: "Historia",
+};
+
+export interface PerfilAprendizaje {
+  name: string;
+  position: string | null;
+  department: string | null;
+  photoUrl: string | null;
+}
+
+export interface ProximoCurso {
+  id: string;
+  title: string;
+  description: string | null;
+  category: CursoCategory;
 }

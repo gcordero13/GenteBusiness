@@ -41,6 +41,7 @@ export interface RawCurso {
   eval_questions_per_attempt?: number | null;
   eval_passing_score?: number | null;
   eval_max_attempts?: number | null;
+  anunciar_proximamente?: boolean | null;
   // The catalog/list queries only select lesson ids; the detail query selects everything.
   aprendizaje_lecciones?: (Pick<RawLeccion, "id"> & Partial<RawLeccion>)[] | null;
 }
@@ -90,13 +91,15 @@ export function toCursoDetail(
       passingScore: raw.eval_passing_score ?? 70,
       maxAttempts: raw.eval_max_attempts ?? null,
     },
+    anunciarProximamente: raw.anunciar_proximamente ?? false,
   };
 }
 
 export function toCatalogCurso(
   raw: RawCurso,
   completedLeccionIds: ReadonlySet<string>,
-  completedAt: string | null,
+  inscripcion: { completedAt: string | null } | null,
+  bestScore: number | null = null,
 ): CatalogCurso {
   const leccionIds = (raw.aprendizaje_lecciones ?? []).map((l) => l.id);
   return {
@@ -107,7 +110,10 @@ export function toCatalogCurso(
     cover: fileRef(raw.cover_drive_id, raw.cover_item_id),
     leccionCount: leccionIds.length,
     completedLecciones: leccionIds.filter((id) => completedLeccionIds.has(id)).length,
-    completedAt,
+    completedAt: inscripcion?.completedAt ?? null,
+    enrolled: inscripcion !== null,
+    hasEvaluacion: raw.eval_questions_per_attempt != null,
+    bestScore,
   };
 }
 
