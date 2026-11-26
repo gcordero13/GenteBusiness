@@ -2,6 +2,9 @@ import { Download, ExternalLink, PlayCircle } from "lucide-react";
 import { archivoUrl, type Leccion } from "@/lib/aprendizaje/types";
 import { toVideoEmbed } from "@/lib/aprendizaje/videoEmbed";
 
+/** Widest the video gets: 16:9 at ~60% of the screen height. Also used to align the text below it. */
+export const VIDEO_MAX_WIDTH = "calc(60dvh * 16 / 9)";
+
 export function hasVideo(leccion: Leccion): boolean {
   return Boolean(leccion.videoFile || (leccion.videoUrl && toVideoEmbed(leccion.videoUrl)));
 }
@@ -14,7 +17,7 @@ export function hasVideo(leccion: Leccion): boolean {
 export function LeccionVideo({ leccion }: { leccion: Pick<Leccion, "title" | "videoUrl" | "videoFile"> }) {
   const embed = leccion.videoUrl ? toVideoEmbed(leccion.videoUrl) : null;
   return (
-    <div className="mx-auto w-full" style={{ maxWidth: "calc(60dvh * 16 / 9)" }}>
+    <div className="mx-auto w-full" style={{ maxWidth: VIDEO_MAX_WIDTH }}>
       <div className="aspect-video w-full overflow-hidden rounded-xl bg-black shadow-sm">
         {leccion.videoFile ? (
           <video controls preload="metadata" src={archivoUrl(leccion.videoFile)} className="size-full" />

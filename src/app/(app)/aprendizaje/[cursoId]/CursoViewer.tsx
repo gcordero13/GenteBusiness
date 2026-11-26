@@ -10,7 +10,7 @@ import { quizDisponibilidad, summarizeIntentos, type EvaluacionEstado } from "@/
 import type { CursoDetail } from "@/lib/aprendizaje/types";
 import { iniciarCuestionario, marcarLeccionVista } from "../actions";
 import { CuestionarioPanel } from "./CuestionarioPanel";
-import { hasVideo, LeccionContent, LeccionVideo } from "./LeccionContent";
+import { hasVideo, LeccionContent, LeccionVideo, VIDEO_MAX_WIDTH } from "./LeccionContent";
 
 const PRIMARY_BUTTON =
   "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg bg-[#036E6C] px-4 text-sm font-semibold text-white hover:bg-[#024E4D] disabled:opacity-60 sm:px-5";
@@ -133,10 +133,11 @@ export function CursoViewer({
   return (
     <div className="flex min-h-full flex-col">
       <div className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="min-w-0 space-y-5">
+        {/* Video and text share one column, so the text starts at the video's left edge. */}
+        <div className="mx-auto w-full min-w-0 space-y-5" style={hasVideo(selected) ? { maxWidth: VIDEO_MAX_WIDTH } : undefined}>
           {hasVideo(selected) && <LeccionVideo leccion={selected} />}
 
-          <section aria-labelledby="leccion-title" className="mx-auto w-full max-w-4xl space-y-4">
+          <section aria-labelledby="leccion-title" className="space-y-4">
             <div className="space-y-1">
               <p className="text-xs font-semibold tracking-wide text-[#036E6C] uppercase dark:text-[#5FD6D4]">
                 Clase {selectedIndex + 1} de {total}
