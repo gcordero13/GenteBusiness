@@ -22,6 +22,7 @@ const actions = {
   setAnunciarProximamente: vi.fn(),
   setLeccionQuiz: vi.fn(),
   setTutorialModulo: vi.fn(),
+  setCursoFirma: vi.fn(),
 };
 const push = vi.fn();
 
@@ -46,6 +47,7 @@ const CURSO: CursoDetail = {
   anunciarProximamente: false,
   tutorialModulo: null,
   anunciarAlIniciar: false,
+  firma: { nombre: null, cargo: null, imagen: null },
   lecciones: [leccion("l1", "Fundación"), leccion("l2", "Crecimiento")],
 };
 

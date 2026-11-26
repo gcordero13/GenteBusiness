@@ -29,6 +29,7 @@ import {
 } from "../actions";
 import type { PreguntaGestion } from "@/lib/aprendizaje/evaluacion";
 import { EvaluacionEditor } from "./EvaluacionEditor";
+import { FirmaCertificadoEditor } from "./FirmaCertificadoEditor";
 import { LeccionEditor } from "./LeccionEditor";
 import { SharePointUploadButton } from "./SharePointUploadButton";
 import { TutorialModuloEditor } from "./TutorialModuloEditor";
@@ -243,6 +244,8 @@ export function CursoEditor({
       <EvaluacionEditor cursoId={curso.id} settings={curso.evaluacion} lecciones={curso.lecciones} />
 
       <TutorialModuloEditor curso={curso} modulos={modulos} />
+
+      <FirmaCertificadoEditor curso={curso} />
     </div>
   );
 }

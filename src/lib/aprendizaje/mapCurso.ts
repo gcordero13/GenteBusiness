@@ -47,6 +47,10 @@ export interface RawCurso {
   anunciar_proximamente?: boolean | null;
   tutorial_module_key?: string | null;
   anunciar_al_iniciar?: boolean | null;
+  firma_nombre?: string | null;
+  firma_cargo?: string | null;
+  firma_drive_id?: string | null;
+  firma_item_id?: string | null;
   // The catalog/list queries only select lesson ids; the detail query selects everything.
   aprendizaje_lecciones?: (Pick<RawLeccion, "id"> & Partial<RawLeccion>)[] | null;
 }
@@ -99,6 +103,11 @@ export function toCursoDetail(
     anunciarProximamente: raw.anunciar_proximamente ?? false,
     tutorialModulo: raw.tutorial_module_key ?? null,
     anunciarAlIniciar: raw.anunciar_al_iniciar ?? false,
+    firma: {
+      nombre: raw.firma_nombre ?? null,
+      cargo: raw.firma_cargo ?? null,
+      imagen: fileRef(raw.firma_drive_id ?? null, raw.firma_item_id ?? null),
+    },
   };
 }
 

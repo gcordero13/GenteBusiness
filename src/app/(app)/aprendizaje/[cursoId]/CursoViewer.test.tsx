@@ -31,6 +31,7 @@ const CURSO: CursoDetail = {
   anunciarProximamente: false,
   tutorialModulo: null,
   anunciarAlIniciar: false,
+  firma: { nombre: null, cargo: null, imagen: null },
   lecciones: [leccion("l1", "Introducción", true), leccion("l2", "Equipos de protección", false), leccion("l3", "Cierre", false)],
 };
 

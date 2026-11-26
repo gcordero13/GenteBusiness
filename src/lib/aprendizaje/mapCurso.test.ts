@@ -94,6 +94,17 @@ describe("toCursoDetail", () => {
     const tutorial = toCursoDetail({ ...RAW, tutorial_module_key: "planificacion", anunciar_al_iniciar: true }, new Set(), null);
     expect([tutorial.tutorialModulo, tutorial.anunciarAlIniciar]).toEqual(["planificacion", true]);
   });
+
+  it("maps who signs the certificate", () => {
+    expect(toCursoDetail(RAW, new Set(), null).firma).toEqual({ nombre: null, cargo: null, imagen: null });
+    expect(
+      toCursoDetail(
+        { ...RAW, firma_nombre: "Laura Martínez", firma_cargo: "Gerente", firma_drive_id: "d9", firma_item_id: "i9" },
+        new Set(),
+        null,
+      ).firma,
+    ).toEqual({ nombre: "Laura Martínez", cargo: "Gerente", imagen: { driveId: "d9", itemId: "i9" } });
+  });
 });
 
 describe("toCatalogCurso", () => {

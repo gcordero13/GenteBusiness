@@ -33,6 +33,7 @@ interface ActionResult {
 
 const CURSO_DETAIL_SELECT =
   "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_passing_score, eval_max_attempts, anunciar_proximamente, tutorial_module_key, anunciar_al_iniciar, " +
+  "firma_nombre, firma_cargo, firma_drive_id, firma_item_id, " +
   "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, " +
   "aprendizaje_leccion_archivos(id, filename, content_type, size_bytes, drive_id, item_id, position))";
 
@@ -160,6 +161,30 @@ export async function setCursoCover(cursoId: string, cover: DriveFileRef | null)
   const { error } = await ctx.supabase
     .from("aprendizaje_cursos")
     .update({ cover_drive_id: cover?.driveId ?? null, cover_item_id: cover?.itemId ?? null })
+    .eq("id", cursoId);
+  if (error) return { error: error.message };
+  revalidateCurso(cursoId);
+  return {};
+}
+
+/** Who signs the course's certificate. Empty text is stored as null. */
+export async function setCursoFirma(
+  cursoId: string,
+  input: { nombre: string; cargo: string; imagen: DriveFileRef | null },
+): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  const nombre = input.nombre.trim() || null;
+  const cargo = input.cargo.trim() || null;
+  if (!nombre && (cargo || input.imagen)) return { error: "Escribe el nombre de quien firma." };
+  const { error } = await ctx.supabase
+    .from("aprendizaje_cursos")
+    .update({
+      firma_nombre: nombre,
+      firma_cargo: cargo,
+      firma_drive_id: input.imagen?.driveId ?? null,
+      firma_item_id: input.imagen?.itemId ?? null,
+    })
     .eq("id", cursoId);
   if (error) return { error: error.message };
   revalidateCurso(cursoId);

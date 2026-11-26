@@ -56,6 +56,16 @@ export interface CursoDetail {
   tutorialModulo: string | null;
   /** Pop the tutorial up at login for people with that module. */
   anunciarAlIniciar: boolean;
+  /** Who signs this course's certificate. */
+  firma: CursoFirma;
+}
+
+/** The certificate's signer; all empty prints a blank line with "Gestión Humana". */
+export interface CursoFirma {
+  nombre: string | null;
+  cargo: string | null;
+  /** Signature image (PNG/JPG) in SharePoint. */
+  imagen: DriveFileRef | null;
 }
 
 /** A platform module a course can be the tutorial of. */

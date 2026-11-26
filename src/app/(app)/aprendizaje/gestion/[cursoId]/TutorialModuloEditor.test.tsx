@@ -26,6 +26,7 @@ const CURSO: CursoDetail = {
   anunciarProximamente: false,
   tutorialModulo: null,
   anunciarAlIniciar: false,
+  firma: { nombre: null, cargo: null, imagen: null },
   lecciones: [
     {
       id: "l1",
