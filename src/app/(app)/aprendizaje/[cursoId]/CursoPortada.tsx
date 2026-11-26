@@ -39,20 +39,24 @@ export function CursoPortada({
       : `Continuar: Clase ${pendingIndex + 1}`;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6">
+    <div className="w-full space-y-6">
       <Link href="/aprendizaje" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" />
         Volver al catálogo
       </Link>
 
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <div className="aspect-video bg-gradient-to-br from-[#036E6C] to-[#04B1AF] sm:aspect-auto sm:min-h-full">
-          {curso.cover && (
+      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm lg:grid lg:grid-cols-2">
+        {/* The whole cover, never cropped: it keeps its own proportions and
+            the cell's background fills any leftover space. */}
+        <div className="flex items-center justify-center bg-gradient-to-br from-[#0B2545] to-[#036E6C]">
+          {curso.cover ? (
             // eslint-disable-next-line @next/next/no-img-element -- redirect to a short-lived SharePoint URL
-            <img src={archivoUrl(curso.cover)} alt="" className="size-full object-cover" />
+            <img src={archivoUrl(curso.cover)} alt={`Portada de ${curso.title}`} className="block h-auto w-full" />
+          ) : (
+            <div className="aspect-video w-full" />
           )}
         </div>
-        <div className="space-y-4 p-5 sm:p-6">
+        <div className="flex flex-col justify-center space-y-4 p-5 sm:p-8">
           <div className="space-y-1.5">
             <p className="text-xs font-semibold tracking-wide text-[#04B1AF] uppercase">{CATEGORY_LABELS[curso.category]}</p>
             <h1 className="text-2xl leading-tight font-bold tracking-tight text-foreground sm:text-3xl">{curso.title}</h1>

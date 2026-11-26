@@ -126,18 +126,23 @@ export function pesoTotal<T extends { quiz: LeccionQuiz | null }>(lecciones: T[]
 }
 
 /**
- * Course grade = floor(sum(weight × best lesson score) / 100). Mirrors
- * aprendizaje_nota_curso in the database, which is what decides completion.
+ * Course grade = floor(sum(weight × best lesson score) / sum(weight)). With
+ * weights adding up to 100 (required to publish) that's the plain weighted
+ * grade; dividing by the actual total keeps it within 0-100 if the weights
+ * were changed after publishing. Mirrors aprendizaje_nota_curso in the
+ * database, which is what decides completion.
  */
 export function notaCurso(
   lecciones: { id: string; quiz: LeccionQuiz | null }[],
   bestScoreByLeccion: ReadonlyMap<string, number>,
 ): number {
+  const totalWeight = pesoTotal(lecciones);
+  if (totalWeight <= 0) return 0;
   const weighted = lecciones.reduce(
     (sum, l) => sum + (l.quiz ? l.quiz.weight * (bestScoreByLeccion.get(l.id) ?? 0) : 0),
     0,
   );
-  return Math.floor(weighted / 100);
+  return Math.floor(weighted / totalWeight);
 }
 
 export function summarizeIntentos(rows: IntentoRow[]): EvaluacionEstado {

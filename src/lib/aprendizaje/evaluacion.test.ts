@@ -124,6 +124,21 @@ describe("course grade", () => {
     expect(notaCurso(lecciones, new Map([["l1", 85]]))).toBe(25);
     expect(notaCurso(lecciones, new Map())).toBe(0);
   });
+
+  // Reported: weights changed after publishing to 100 + 50 showed "150%".
+  it("never goes over 100 when the weights don't add up to 100", () => {
+    const desbalanceados = [
+      { id: "a", quiz: { questionsPerAttempt: 3, weight: 100 } },
+      { id: "b", quiz: { questionsPerAttempt: 3, weight: 50 } },
+    ];
+    expect(notaCurso(desbalanceados, new Map([["a", 100], ["b", 100]]))).toBe(100);
+    // (100 × 90 + 50 × 60) / 150 = 80
+    expect(notaCurso(desbalanceados, new Map([["a", 90], ["b", 60]]))).toBe(80);
+  });
+
+  it("is 0 when no lesson has a quiz", () => {
+    expect(notaCurso([{ id: "a", quiz: null }], new Map())).toBe(0);
+  });
 });
 
 describe("summarizeIntentos", () => {

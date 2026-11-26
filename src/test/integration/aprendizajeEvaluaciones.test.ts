@@ -162,6 +162,19 @@ describe("aprendizaje lesson quizzes", () => {
     expect((preguntas as { seconds: number | null }[])[0].seconds).toBe(25);
   });
 
+  // Reported: weights changed after publishing to 100 + 50 showed "150%".
+  it("keeps the course grade within 100 when the weights don't add up to 100", async () => {
+    const { quizLessonIds, correctByPregunta } = await createCurso({
+      quizzes: [
+        { weight: 100, questionCount: 1, perAttempt: 1 },
+        { weight: 50, questionCount: 1, perAttempt: 1 },
+      ],
+    });
+    await answerQuiz(quizLessonIds[0], correctByPregunta, true);
+    const second = await answerQuiz(quizLessonIds[1], correctByPregunta, true);
+    expect(second.nota_curso).toBe(100);
+  });
+
   it("weights each lesson into the course grade and completes the course at the minimum", async () => {
     const { cursoId, quizLessonIds, plainLessonId, correctByPregunta } = await createCurso({
       quizzes: [
