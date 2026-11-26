@@ -140,4 +140,24 @@ describe("aprendizaje RLS", () => {
       .order("position");
     expect((data ?? []).map((r) => r.id)).toEqual(reversed);
   });
+
+  it("shows learners only the teaser of drafts announced as Próximamente", async () => {
+    const announced = await createCurso("borrador", 1);
+    const hidden = await createCurso("borrador", 1);
+    const published = await createCurso("publicado", 1);
+    await manager.client.from("aprendizaje_cursos").update({ anunciar_proximamente: true }).eq("id", announced.cursoId);
+    await manager.client.from("aprendizaje_cursos").update({ anunciar_proximamente: true }).eq("id", published.cursoId);
+
+    const { data, error } = await learner.client.rpc("aprendizaje_proximamente");
+    expect(error).toBeNull();
+    const ids = (data as { id: string }[]).map((p) => p.id);
+    expect(ids).toContain(announced.cursoId);
+    expect(ids).not.toContain(hidden.cursoId);
+    expect(ids).not.toContain(published.cursoId);
+    expect(Object.keys((data as Record<string, unknown>[])[0]).sort()).toEqual(["category", "description", "id", "title"]);
+
+    // Still no access to the draft itself.
+    const { data: rows } = await learner.client.from("aprendizaje_cursos").select("id").eq("id", announced.cursoId);
+    expect(rows).toEqual([]);
+  });
 });
