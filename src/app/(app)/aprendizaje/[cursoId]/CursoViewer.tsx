@@ -6,11 +6,19 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Circle, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { firstPendingLeccionId, nextLeccionId, progressPercent } from "@/lib/aprendizaje/mapCurso";
+import type { EvaluacionEstado } from "@/lib/aprendizaje/evaluacion";
 import { CATEGORY_LABELS, type CursoDetail } from "@/lib/aprendizaje/types";
 import { marcarLeccionVista } from "../actions";
+import { EvaluacionCard } from "./EvaluacionCard";
 import { LeccionContent } from "./LeccionContent";
 
-export function CursoViewer({ curso }: { curso: CursoDetail }) {
+export function CursoViewer({
+  curso,
+  evaluacion = null,
+}: {
+  curso: CursoDetail;
+  evaluacion?: EvaluacionEstado | null;
+}) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(() => firstPendingLeccionId(curso.lecciones));
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +130,16 @@ export function CursoViewer({ curso }: { curso: CursoDetail }) {
           <p className="text-sm text-muted-foreground">Este curso todavía no tiene lecciones.</p>
         )}
       </div>
+
+      {curso.evaluacion.questionsPerAttempt !== null && evaluacion && (
+        <EvaluacionCard
+          cursoId={curso.id}
+          settings={curso.evaluacion}
+          estado={evaluacion}
+          lessonsDone={curso.lecciones.length > 0 && done === curso.lecciones.length}
+          isPreview={isPreview}
+        />
+      )}
     </div>
   );
 }

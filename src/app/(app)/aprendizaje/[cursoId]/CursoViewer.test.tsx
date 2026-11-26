@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CursoDetail } from "@/lib/aprendizaje/types";
 
 const marcarLeccionVista = vi.fn();
+const iniciarIntento = vi.fn();
 const refresh = vi.fn();
+const push = vi.fn();
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 vi.mock("../actions", () => ({
   marcarLeccionVista: (leccionId: string, cursoId: string) => marcarLeccionVista(leccionId, cursoId),
+  iniciarIntento: (cursoId: string) => iniciarIntento(cursoId),
 }));
 
 const { CursoViewer } = await import("./CursoViewer");
@@ -77,5 +80,32 @@ describe("CursoViewer", () => {
   it("celebrates a completed course", () => {
     render(<CursoViewer curso={{ ...CURSO, completedAt: "2026-11-25T12:00:00Z" }} />);
     expect(screen.getByText("¡Completaste este curso!")).toBeTruthy();
+  });
+
+  describe("evaluation", () => {
+    const withEval: CursoDetail = { ...CURSO, evaluacion: { questionsPerAttempt: 5, passingScore: 70, maxAttempts: 2 } };
+    const estado = { attemptsUsed: 0, passed: false, bestScore: null, openIntentoId: null };
+    const allSeen: CursoDetail = { ...withEval, lecciones: withEval.lecciones.map((l) => ({ ...l, completed: true })) };
+
+    it("asks to finish the lessons first", () => {
+      render(<CursoViewer curso={withEval} evaluacion={estado} />);
+      expect(screen.getByText("Evaluación final")).toBeTruthy();
+      expect(screen.getByText("Completa todas las lecciones para habilitar la evaluación.")).toBeTruthy();
+    });
+
+    it("starts an attempt and opens it", async () => {
+      iniciarIntento.mockResolvedValue({ intentoId: "i1" });
+      render(<CursoViewer curso={allSeen} evaluacion={estado} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Tomar evaluación" }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/aprendizaje/c1/evaluacion/i1"));
+      expect(iniciarIntento).toHaveBeenCalledWith("c1");
+    });
+
+    it("hides the card when the course has no evaluation", () => {
+      render(<CursoViewer curso={CURSO} evaluacion={null} />);
+      expect(screen.queryByText("Evaluación final")).toBeNull();
+    });
   });
 });
