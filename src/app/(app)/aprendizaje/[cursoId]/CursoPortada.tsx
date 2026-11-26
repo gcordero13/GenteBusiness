@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, ClipboardCheck, Download, PartyPopper, PlayCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ClipboardCheck, PartyPopper, PlayCircle } from "lucide-react";
 import { firstPendingLeccionId, progressPercent, resumenLeccion } from "@/lib/aprendizaje/mapCurso";
 import { notaCurso, type EvaluacionEstado } from "@/lib/aprendizaje/evaluacion";
-import { archivoUrl, CATEGORY_LABELS, certificadoUrl, type CursoDetail } from "@/lib/aprendizaje/types";
+import { archivoUrl, CATEGORY_LABELS, type CursoDetail } from "@/lib/aprendizaje/types";
+import { CertificadoPreviewDialog } from "../CertificadoPreviewDialog";
 import { hasVideo } from "./LeccionContent";
 import { NotaCursoCard } from "./NotaCursoCard";
 
@@ -89,13 +90,11 @@ export function CursoPortada({
                 ¡Completaste este curso!
               </span>
               {!isPreview && (
-                <a
-                  href={certificadoUrl(curso.id)}
-                  className="inline-flex items-center gap-1.5 font-semibold text-[#036E6C] underline underline-offset-2 hover:text-[#024E4D] dark:text-[#5FD6D4]"
-                >
-                  <Download className="size-4" />
-                  Descargar certificado (PDF)
-                </a>
+                <CertificadoPreviewDialog
+                  cursoId={curso.id}
+                  cursoTitle={curso.title}
+                  triggerClassName="inline-flex items-center gap-1.5 font-semibold text-[#036E6C] underline underline-offset-2 hover:text-[#024E4D] dark:text-[#5FD6D4]"
+                />
               )}
             </div>
           )}

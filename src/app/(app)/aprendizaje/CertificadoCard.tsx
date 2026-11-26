@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Award, Download } from "lucide-react";
+import { Award } from "lucide-react";
 import { formatFecha } from "@/lib/aprendizaje/portada";
-import { certificadoUrl, type CatalogCurso } from "@/lib/aprendizaje/types";
+import type { CatalogCurso } from "@/lib/aprendizaje/types";
+import { CertificadoPreviewDialog } from "./CertificadoPreviewDialog";
 
-/** A completed course in "Mis certificados", with its PDF download. */
+/** A completed course in "Mis certificados": preview the certificate, then download it. */
 export function CertificadoCard({ curso }: { curso: CatalogCurso }) {
   return (
     <div className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border bg-card p-5 shadow-sm">
@@ -23,13 +24,11 @@ export function CertificadoCard({ curso }: { curso: CatalogCurso }) {
         {curso.completedAt && `Completado el ${formatFecha(curso.completedAt)}`}
         {curso.nota !== null && ` · Nota ${curso.nota}%`}
       </p>
-      <a
-        href={certificadoUrl(curso.id)}
-        className="relative inline-flex items-center gap-1.5 self-start rounded-lg bg-[#036E6C] px-3 py-2 text-sm font-semibold text-white hover:bg-[#024E4D]"
-      >
-        <Download className="size-4" />
-        Descargar certificado (PDF)
-      </a>
+      <CertificadoPreviewDialog
+        cursoId={curso.id}
+        cursoTitle={curso.title}
+        triggerClassName="relative inline-flex items-center gap-1.5 self-start rounded-lg bg-[#036E6C] px-3 py-2 text-sm font-semibold text-white hover:bg-[#024E4D]"
+      />
     </div>
   );
 }

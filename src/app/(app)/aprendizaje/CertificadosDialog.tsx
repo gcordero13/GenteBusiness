@@ -20,7 +20,7 @@ export function CertificadosDialog({ certificados, className }: { certificados: 
         <DialogHeader>
           <DialogTitle>Mis certificados</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">Descarga el certificado de cada curso que completaste.</p>
+        <p className="text-sm text-muted-foreground">Mira y descarga el certificado de cada curso que completaste.</p>
         {certificados.length > 0 ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {certificados.map((c) => (

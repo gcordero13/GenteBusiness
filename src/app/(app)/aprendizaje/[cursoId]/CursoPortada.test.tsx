@@ -72,14 +72,12 @@ describe("CursoPortada", () => {
     render(<CursoPortada curso={{ ...CURSO, completedAt: "2026-11-25T12:00:00Z" }} />);
     expect(screen.getByText("¡Completaste este curso!")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Repasar el curso/ })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Descargar certificado/ }).getAttribute("href")).toBe(
-      "/api/aprendizaje/certificado/c1",
-    );
+    expect(screen.getByRole("button", { name: /Ver certificado/ })).toBeTruthy();
   });
 
   it("offers no certificate until the course is completed", () => {
     render(<CursoPortada curso={CURSO} />);
-    expect(screen.queryByRole("link", { name: /Descargar certificado/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Ver certificado/ })).toBeNull();
   });
 
   it("shows a preview banner for a draft and no progress", () => {
