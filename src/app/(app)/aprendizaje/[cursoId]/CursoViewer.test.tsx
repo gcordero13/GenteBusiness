@@ -78,6 +78,46 @@ describe("CursoViewer", () => {
     expect(screen.queryByRole("button", { name: "Marcar como vista" })).toBeNull();
   });
 
+  describe("player layout", () => {
+    it("puts the lesson video first, above the lesson title", () => {
+      const conVideo: CursoDetail = {
+        ...CURSO,
+        lecciones: CURSO.lecciones.map((l) =>
+          l.id === "l2" ? { ...l, videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" } : l,
+        ),
+      };
+      const { container } = render(<CursoViewer curso={conVideo} />);
+      const iframe = container.querySelector("iframe");
+      const heading = screen.getByRole("heading", { name: "Equipos de protección" });
+      expect(iframe?.getAttribute("src")).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+      expect(iframe!.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("shows the current class in the bottom bar and moves on with 'Siguiente clase'", async () => {
+      marcarLeccionVista.mockResolvedValue({});
+      render(<CursoViewer curso={CURSO} />);
+      expect(screen.getByText("Clase 2 de 3 · Seguridad industrial")).toBeTruthy();
+
+      fireEvent.click(screen.getByRole("button", { name: /Siguiente clase/ }));
+
+      // A plain lesson is recorded as seen when moving on.
+      await waitFor(() => expect(marcarLeccionVista).toHaveBeenCalledWith("l2", "c1"));
+      await waitFor(() => expect(screen.getByRole("heading", { name: "Cierre" })).toBeTruthy());
+    });
+
+    it("just moves on from a lesson already seen", () => {
+      render(<CursoViewer curso={CURSO} initialLeccionId="l1" />);
+      fireEvent.click(screen.getByRole("button", { name: /Siguiente clase/ }));
+      expect(marcarLeccionVista).not.toHaveBeenCalled();
+      expect(screen.getByRole("heading", { name: "Equipos de protección" })).toBeTruthy();
+    });
+
+    it("has no 'Siguiente clase' on the last lesson", () => {
+      render(<CursoViewer curso={CURSO} initialLeccionId="l3" />);
+      expect(screen.queryByRole("button", { name: /Siguiente clase/ })).toBeNull();
+    });
+  });
+
   it("celebrates a completed course", () => {
     render(<CursoViewer curso={{ ...CURSO, completedAt: "2026-11-25T12:00:00Z" }} />);
     expect(screen.getByText("¡Completaste este curso!")).toBeTruthy();
@@ -147,6 +187,12 @@ describe("CursoViewer", () => {
       render(<CursoViewer curso={completadoAntes} cuestionarios={{}} initialLeccionId="l2" />);
       expect(screen.getByText("Ya completaste este curso. Responde el cuestionario para registrar tu nota.")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Responder cuestionario" })).toBeTruthy();
+    });
+
+    it("points the bottom bar to the pending quiz instead of the next class", () => {
+      render(<CursoViewer curso={conQuiz} cuestionarios={estados} />);
+      expect(screen.getByRole("link", { name: /Ir al cuestionario/ }).getAttribute("href")).toBe("#cuestionario");
+      expect(screen.queryByRole("button", { name: /Siguiente clase/ })).toBeNull();
     });
 
     it("hides the course grade when no lesson has a quiz", () => {
