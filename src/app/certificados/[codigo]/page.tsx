@@ -28,12 +28,12 @@ export default async function VerificarCertificadoPage({ params }: { params: Pro
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-[#0B2545] via-[#036E6C] to-[#04B1AF] p-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl bg-white p-6 text-center text-slate-900 shadow-xl sm:p-8">
+      <div className="w-full max-w-md min-w-0 space-y-6 rounded-2xl bg-white p-5 text-center text-slate-900 shadow-xl sm:p-8">
         {/* eslint-disable-next-line @next/next/no-img-element -- inline data URI */}
         <img
           src={`data:image/png;base64,${CERTIFICADO_LOGO_PNG_BASE64}`}
           alt="Sánchez Business & Corp"
-          className="mx-auto h-24 w-auto"
+          className="mx-auto h-20 w-auto max-w-full sm:h-24"
         />
         {certificado ? (
           <div className="space-y-4">
@@ -41,10 +41,12 @@ export default async function VerificarCertificadoPage({ params }: { params: Pro
               <BadgeCheck className="size-4" />
               Certificado válido
             </p>
-            <h1 className="text-2xl font-bold text-[#0B2545]">{certificado.nombre}</h1>
+            <h1 className="text-xl font-bold [overflow-wrap:anywhere] text-[#0B2545] sm:text-2xl">{certificado.nombre}</h1>
             <p className="text-sm text-slate-600">
               completó el curso
-              <span className="mt-1 block text-lg font-semibold text-[#0B2545]">{certificado.curso_title}</span>
+              <span className="mt-1 block text-lg font-semibold [overflow-wrap:anywhere] text-[#0B2545]">
+                {certificado.curso_title}
+              </span>
               el {fechaCertificado(certificado.completed_at)}
             </p>
             <p className="font-mono text-xs text-slate-500">Código {codigoLimpio}</p>

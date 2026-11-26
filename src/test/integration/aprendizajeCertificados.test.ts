@@ -88,6 +88,29 @@ describe("aprendizaje certificates", () => {
     expect(error).not.toBeNull();
   });
 
+  // User report: the certificate printed the email because app_users.full_name is
+  // usually empty. The name comes from the person's Agenda contact, like the portal.
+  it("prints the name from the person's Agenda contact, not the email", async () => {
+    const admin = createAdminClient();
+    const { data: contact, error } = await admin
+      .from("contacts")
+      .insert({ first_name: "Participante", last_name: "De Prueba", email: learner.email.toUpperCase() })
+      .select("id")
+      .single();
+    if (error || !contact) throw new Error(`insert contact: ${error?.message}`);
+    try {
+      const [cert] = await miCertificado(learner);
+      expect(cert.nombre).toBe("Participante De Prueba");
+      const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+        auth: { persistSession: false },
+      });
+      const { data } = await anon.rpc("aprendizaje_verificar_certificado", { p_codigo: cert.codigo });
+      expect(data?.[0]?.nombre).toBe("Participante De Prueba");
+    } finally {
+      await admin.from("contacts").delete().eq("id", contact.id);
+    }
+  });
+
   it("only managers can set the course signature", async () => {
     const { data } = await learner.client
       .from("aprendizaje_cursos")
