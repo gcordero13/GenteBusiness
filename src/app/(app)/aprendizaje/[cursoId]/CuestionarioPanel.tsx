@@ -29,7 +29,7 @@ export function CuestionarioPanel({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const disponibilidad = quizDisponibilidad(settings, estado, cursoCompletado);
+  const disponibilidad = quizDisponibilidad(settings, estado);
 
   function start() {
     setError(null);
@@ -57,6 +57,11 @@ export function CuestionarioPanel({
       {estado.bestScore !== null && (
         <p className="text-sm">
           Tu nota en esta lección: <span className="font-semibold tabular-nums">{estado.bestScore}%</span>
+        </p>
+      )}
+      {cursoCompletado && !isPreview && estado.bestScore === null && (
+        <p className="text-sm text-muted-foreground">
+          Ya completaste este curso. Responde el cuestionario para registrar tu nota.
         </p>
       )}
       {isPreview ? (

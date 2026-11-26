@@ -150,33 +150,42 @@ describe("quizDisponibilidad", () => {
   const fresh = { attemptsUsed: 0, passed: false, bestScore: null, openIntentoId: null };
 
   it("offers the first attempt", () => {
-    expect(quizDisponibilidad(settings, fresh, false)).toEqual({ canStart: true, label: "Responder cuestionario", reason: null });
+    expect(quizDisponibilidad(settings, fresh)).toEqual({ canStart: true, label: "Responder cuestionario", reason: null });
   });
 
   it("resumes an open attempt", () => {
-    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 1, openIntentoId: "x" }, false)).toMatchObject({
+    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 1, openIntentoId: "x" })).toMatchObject({
       canStart: true,
       label: "Continuar cuestionario",
     });
   });
 
   it("offers a retry until attempts run out", () => {
-    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 1, bestScore: 40 }, false)).toMatchObject({
+    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 1, bestScore: 40 })).toMatchObject({
       canStart: true,
       label: "Repetir cuestionario",
     });
-    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 2, bestScore: 40 }, false)).toMatchObject({
+    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 2, bestScore: 40 })).toMatchObject({
       canStart: false,
       reason: "Usaste todos tus intentos de este cuestionario.",
     });
-    expect(quizDisponibilidad({ ...settings, maxAttempts: null }, { ...fresh, attemptsUsed: 9 }, false).canStart).toBe(true);
+    expect(quizDisponibilidad({ ...settings, maxAttempts: null }, { ...fresh, attemptsUsed: 9 }).canStart).toBe(true);
   });
 
-  it("stops once the course is completed", () => {
-    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 1, bestScore: 90 }, true)).toMatchObject({
-      canStart: false,
-      reason: null,
+  // A course completed before its quiz existed (or completed with a low
+  // quiz score) must still let the person answer: the grade can only go up.
+  it("still offers the quiz when the course is already completed", () => {
+    expect(quizDisponibilidad(settings, fresh)).toMatchObject({ canStart: true, label: "Responder cuestionario" });
+    expect(quizDisponibilidad(settings, { ...fresh, attemptsUsed: 1, bestScore: 90 })).toMatchObject({
+      canStart: true,
+      label: "Repetir cuestionario",
     });
+  });
+
+  it("always explains why the quiz can't start", () => {
+    const { canStart, reason } = quizDisponibilidad(settings, { ...fresh, attemptsUsed: 2, bestScore: 40 });
+    expect(canStart).toBe(false);
+    expect(reason).toBe("Usaste todos tus intentos de este cuestionario.");
   });
 });
 

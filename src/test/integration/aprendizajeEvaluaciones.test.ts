@@ -180,8 +180,43 @@ describe("aprendizaje lesson quizzes", () => {
     await learner.client.rpc("aprendizaje_marcar_leccion", { p_leccion_id: plainLessonId });
     expect(await completedAt(cursoId)).not.toBeNull();
 
+    // Completing the course doesn't lock the quizzes: retakes stay available.
     const afterDone = await learner.client.rpc("aprendizaje_iniciar_cuestionario", { p_leccion_id: quizLessonIds[0] });
-    expect(afterDone.error?.message).toContain("Ya completaste este curso");
+    expect(afterDone.error).toBeNull();
+    expect(await completedAt(cursoId)).not.toBeNull();
+  });
+
+  // The reported bug: completed before the lesson had a quiz, then the quiz
+  // could not be answered.
+  it("lets someone who completed the course before a quiz was added answer it", async () => {
+    const { cursoId, plainLessonId } = await createCurso({ quizzes: [], plainLesson: true });
+    await learner.client.rpc("aprendizaje_marcar_leccion", { p_leccion_id: plainLessonId });
+    expect(await completedAt(cursoId)).not.toBeNull();
+
+    // The manager adds a quiz to that same lesson afterwards.
+    await manager.client
+      .from("aprendizaje_lecciones")
+      .update({ eval_questions_per_attempt: 1, eval_weight: 100 })
+      .eq("id", plainLessonId);
+    const { data: pregunta } = await manager.client
+      .from("aprendizaje_preguntas")
+      .insert({ curso_id: cursoId, leccion_id: plainLessonId, text: "¿?", type: "verdadero_falso" })
+      .select("id")
+      .single();
+    const { data: opciones } = await manager.client
+      .from("aprendizaje_opciones")
+      .insert([
+        { pregunta_id: pregunta!.id, text: "Verdadero", is_correct: true, position: 0 },
+        { pregunta_id: pregunta!.id, text: "Falso", is_correct: false, position: 1 },
+      ])
+      .select("id, is_correct");
+
+    const resultado = await answerQuiz(
+      plainLessonId!,
+      new Map([[pregunta!.id as string, (opciones ?? []).find((o) => o.is_correct)!.id as string]]),
+      true,
+    );
+    expect(resultado).toMatchObject({ score: 100, nota_curso: 100, curso_completado: true });
   });
 
   it("lets the learner retake a quiz to reach the minimum, using the best score", async () => {

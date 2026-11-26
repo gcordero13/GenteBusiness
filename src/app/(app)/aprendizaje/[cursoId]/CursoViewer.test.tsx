@@ -136,6 +136,19 @@ describe("CursoViewer", () => {
       expect(screen.getByRole("button", { name: "Marcar como vista" })).toBeTruthy();
     });
 
+    // The reported bug: the course was completed before its lesson got a
+    // quiz, and the quiz then showed no way to answer it.
+    it("still lets someone who already completed the course answer a quiz added later", () => {
+      const completadoAntes: CursoDetail = {
+        ...conQuiz,
+        completedAt: "2026-11-26T00:59:03Z",
+        lecciones: conQuiz.lecciones.map((l) => ({ ...l, completed: true })),
+      };
+      render(<CursoViewer curso={completadoAntes} cuestionarios={{}} initialLeccionId="l2" />);
+      expect(screen.getByText("Ya completaste este curso. Responde el cuestionario para registrar tu nota.")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Responder cuestionario" })).toBeTruthy();
+    });
+
     it("hides the course grade when no lesson has a quiz", () => {
       render(<CursoViewer curso={CURSO} />);
       expect(screen.queryByLabelText("Nota del curso")).toBeNull();

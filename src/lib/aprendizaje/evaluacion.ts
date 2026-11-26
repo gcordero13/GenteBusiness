@@ -153,14 +153,16 @@ export function summarizeIntentosPorLeccion(
   return new Map([...groups].map(([leccionId, group]) => [leccionId, summarizeIntentos(group)]));
 }
 
-/** Mirrors the checks in aprendizaje_iniciar_cuestionario so the UI explains why it can't start. */
+/**
+ * Mirrors the checks in aprendizaje_iniciar_cuestionario so the UI explains
+ * why it can't start. A completed course does NOT block it: someone who
+ * finished before the quiz existed must still be able to answer it.
+ */
 export function quizDisponibilidad(
   settings: EvalSettings,
   estado: EvaluacionEstado,
-  cursoCompletado: boolean,
 ): { canStart: boolean; label: string; reason: string | null } {
   if (estado.openIntentoId) return { canStart: true, label: "Continuar cuestionario", reason: null };
-  if (cursoCompletado) return { canStart: false, label: "", reason: null };
   if (settings.maxAttempts !== null && estado.attemptsUsed >= settings.maxAttempts) {
     return { canStart: false, label: "", reason: "Usaste todos tus intentos de este cuestionario." };
   }
