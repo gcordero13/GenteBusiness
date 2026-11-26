@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IntentoDetail } from "@/lib/aprendizaje/evaluacion";
 
 const enviarIntento = vi.fn();
+const push = vi.fn();
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push }) }));
 vi.mock("../../../actions", () => ({
   enviarIntento: (...args: unknown[]) => enviarIntento(...args),
 }));
@@ -39,13 +40,27 @@ function renderForm(overrides: Partial<Parameters<typeof EvaluacionForm>[0]> = {
       intento={INTENTO}
       passingScore={70}
       siguienteLeccionId="l3"
+      advanceDelayMs={0}
       {...overrides}
     />,
   );
 }
 
+/** Picks an option (shown with a letter badge) by its text. */
+const elegir = (text: string) => fireEvent.click(screen.getByRole("button", { name: new RegExp(text) }));
+
+async function responderTodo() {
+  fireEvent.click(screen.getByRole("button", { name: /Comenzar/ }));
+  elegir("Santo Domingo");
+  await screen.findByText("Pregunta 2 de 2");
+  elegir("Verdadero");
+}
+
 describe("EvaluacionForm", () => {
-  beforeEach(() => enviarIntento.mockReset().mockResolvedValue({ resultado: RESULTADO }));
+  beforeEach(() => {
+    enviarIntento.mockReset().mockResolvedValue({ resultado: RESULTADO });
+    push.mockReset();
+  });
   afterEach(() => vi.useRealTimers());
 
   it("explains the rules before starting", () => {
@@ -56,26 +71,45 @@ describe("EvaluacionForm", () => {
     expect(screen.queryByText("¿Capital de RD?")).toBeNull();
   });
 
-  it("shows one question at a time and advances as soon as it's answered", async () => {
+  it("shows one question at a time with lettered options and advances once answered", async () => {
     renderForm();
-    fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
+    fireEvent.click(screen.getByRole("button", { name: /Comenzar/ }));
 
     expect(screen.getByText("Pregunta 1 de 2")).toBeTruthy();
     expect(screen.getByText("¿Capital de RD?")).toBeTruthy();
     expect(screen.queryByText("El agua hierve a 100 °C")).toBeNull();
+    expect(screen.getByText("A")).toBeTruthy();
+    expect(screen.getByText("B")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Santo Domingo" }));
-    expect(screen.getByText("Pregunta 2 de 2")).toBeTruthy();
+    elegir("Santo Domingo");
+    expect(await screen.findByText("Pregunta 2 de 2")).toBeTruthy();
     expect(screen.queryByText("¿Capital de RD?")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Verdadero" }));
+    elegir("Verdadero");
     await waitFor(() => expect(enviarIntento).toHaveBeenCalledWith("i1", "c1", { p1: "o2", p2: "o3" }));
+  });
+
+  it("highlights the chosen option and ignores further clicks before moving on", () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderForm({ advanceDelayMs: 500 });
+    fireEvent.click(screen.getByRole("button", { name: /Comenzar/ }));
+
+    elegir("Santo Domingo");
+    elegir("Santiago");
+    // Still on the question, options locked while the choice is shown.
+    expect(screen.getByText("Pregunta 1 de 2")).toBeTruthy();
+    expect((screen.getByRole("button", { name: /Santiago/ }) as HTMLButtonElement).disabled).toBe(true);
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(screen.getByText("Pregunta 2 de 2")).toBeTruthy();
   });
 
   it("moves on when the time runs out, leaving the question unanswered", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     renderForm({ intento: conTiempo(10) });
-    fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
+    fireEvent.click(screen.getByRole("button", { name: /Comenzar/ }));
 
     expect(screen.getByText("0:10")).toBeTruthy();
     act(() => {
@@ -88,7 +122,7 @@ describe("EvaluacionForm", () => {
     expect(screen.getByText("Pregunta 2 de 2")).toBeTruthy();
     expect(screen.getByText("0:10")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Falso" }));
+    elegir("Falso");
     await waitFor(() => expect(enviarIntento).toHaveBeenCalledWith("i1", "c1", { p2: "o4" }));
   });
 
@@ -98,10 +132,13 @@ describe("EvaluacionForm", () => {
       intento: { ...INTENTO, preguntas: [{ ...INTENTO.preguntas[0], seconds: 15 }, { ...INTENTO.preguntas[1], seconds: null }] },
     });
     expect(screen.getByText(/Algunas preguntas tienen tiempo límite/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
+    fireEvent.click(screen.getByRole("button", { name: /Comenzar/ }));
     expect(screen.getByText("0:15")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Santo Domingo" }));
+    elegir("Santo Domingo");
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
     expect(screen.getByText("Pregunta 2 de 2")).toBeTruthy();
     expect(screen.queryByRole("timer")).toBeNull();
     act(() => {
@@ -113,7 +150,7 @@ describe("EvaluacionForm", () => {
   it("submits when the last question times out", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     renderForm({ intento: conTiempo(5) });
-    fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
+    fireEvent.click(screen.getByRole("button", { name: /Comenzar/ }));
     act(() => {
       vi.advanceTimersByTime(5000);
     });
@@ -123,42 +160,60 @@ describe("EvaluacionForm", () => {
     await waitFor(() => expect(enviarIntento).toHaveBeenCalledWith("i1", "c1", {}));
   });
 
-  it("shows the result with the course grade and the next lesson", async () => {
+  it("shows the result with the course grade and the next class", async () => {
     renderForm();
-    fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
-    fireEvent.click(screen.getByRole("button", { name: "Santo Domingo" }));
-    fireEvent.click(screen.getByRole("button", { name: "Verdadero" }));
+    await responderTodo();
 
     expect(await screen.findByText("50%")).toBeTruthy();
+    expect(screen.getByText("¡Terminaste el cuestionario!")).toBeTruthy();
     expect(screen.getByText("1 de 2 respuestas correctas")).toBeTruthy();
     expect(screen.getByText("62%")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Siguiente clase/ }).getAttribute("href")).toBe("/aprendizaje/c1?leccion=l3");
-    expect(screen.getByRole("link", { name: "Volver a la lección" }).getAttribute("href")).toBe("/aprendizaje/c1?leccion=l2");
+    expect(screen.getByRole("link", { name: "Volver a la clase" }).getAttribute("href")).toBe("/aprendizaje/c1?leccion=l2");
   });
 
-  it("celebrates when the attempt completes the course", async () => {
+  it("congratulates a passing score and moves to the next class on its own", async () => {
+    enviarIntento.mockResolvedValue({ resultado: { ...RESULTADO, score: 100, correct: 2 } });
+    renderForm({ autoAvanceSegundos: 1 });
+    await responderTodo();
+
+    expect(await screen.findByText("¡Excelente trabajo!")).toBeTruthy();
+    expect(screen.getByText(/Pasando a la siguiente clase en/)).toBeTruthy();
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/aprendizaje/c1?leccion=l3"), { timeout: 4000 });
+  });
+
+  it("lets the person stay on the result instead of moving on", async () => {
+    renderForm({ autoAvanceSegundos: 1 });
+    await responderTodo();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Quedarme aquí" }));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Pasando a la siguiente clase/)).toBeNull();
+  });
+
+  it("celebrates completing the course and offers the course view on the last class", async () => {
     enviarIntento.mockResolvedValue({ resultado: { ...RESULTADO, score: 100, notaCurso: 85, cursoCompletado: true } });
     renderForm({ siguienteLeccionId: null });
-    fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
-    fireEvent.click(screen.getByRole("button", { name: "Santo Domingo" }));
-    fireEvent.click(screen.getByRole("button", { name: "Verdadero" }));
+    await responderTodo();
 
-    expect(await screen.findByText("¡Completaste el curso!")).toBeTruthy();
+    expect(await screen.findByText("¡Felicidades, completaste el curso!")).toBeTruthy();
     expect(screen.queryByRole("link", { name: /Siguiente clase/ })).toBeNull();
+    expect(screen.getByRole("link", { name: /Ver el curso/ }).getAttribute("href")).toBe("/aprendizaje/c1");
+    expect(screen.queryByText(/Pasando a la siguiente clase/)).toBeNull();
   });
 
-  it("shows the stored score for an attempt already submitted", () => {
+  it("shows the stored score for an attempt already submitted, without moving on by itself", () => {
     renderForm({ intento: { ...INTENTO, submitted: true, score: 80, passed: true } });
     expect(screen.getByText("80%")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Comenzar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Comenzar/ })).toBeNull();
+    expect(screen.queryByText(/Pasando a la siguiente clase/)).toBeNull();
   });
 
   it("shows a server error", async () => {
     enviarIntento.mockResolvedValue({ error: "Este intento ya fue enviado" });
     renderForm();
-    fireEvent.click(screen.getByRole("button", { name: "Comenzar" }));
-    fireEvent.click(screen.getByRole("button", { name: "Santo Domingo" }));
-    fireEvent.click(screen.getByRole("button", { name: "Verdadero" }));
+    await responderTodo();
 
     expect(await screen.findByText("Este intento ya fue enviado")).toBeTruthy();
   });

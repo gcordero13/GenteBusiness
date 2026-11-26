@@ -8,13 +8,13 @@ export function hasVideo(leccion: Leccion): boolean {
 
 /**
  * The lesson's video at the top of the page, as large as the width allows
- * without growing taller than ~70% of the screen (so it's fully visible
- * without scrolling, like a course player).
+ * without growing taller than ~60% of the screen, so it's fully visible
+ * with room for the title and the bottom bar.
  */
 export function LeccionVideo({ leccion }: { leccion: Pick<Leccion, "title" | "videoUrl" | "videoFile"> }) {
   const embed = leccion.videoUrl ? toVideoEmbed(leccion.videoUrl) : null;
   return (
-    <div className="mx-auto w-full" style={{ maxWidth: "calc(70dvh * 16 / 9)" }}>
+    <div className="mx-auto w-full" style={{ maxWidth: "calc(60dvh * 16 / 9)" }}>
       <div className="aspect-video w-full overflow-hidden rounded-xl bg-black shadow-sm">
         {leccion.videoFile ? (
           <video controls preload="metadata" src={archivoUrl(leccion.videoFile)} className="size-full" />

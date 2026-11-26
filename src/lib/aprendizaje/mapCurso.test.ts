@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   firstPendingLeccionId,
   nextLeccionId,
+  prevLeccionId,
   progressPercent,
+  resumenLeccion,
   toCatalogCurso,
   toCursoDetail,
   toGestionCursoRow,
@@ -158,5 +160,19 @@ describe("progress helpers", () => {
     expect(nextLeccionId(lecciones, "a")).toBe("b");
     expect(nextLeccionId(lecciones, "c")).toBeNull();
     expect(nextLeccionId(lecciones, "missing")).toBeNull();
+  });
+
+  it("prevLeccionId returns the previous lesson or null at the start", () => {
+    expect(prevLeccionId(lecciones, "b")).toBe("a");
+    expect(prevLeccionId(lecciones, "a")).toBeNull();
+    expect(prevLeccionId(lecciones, "missing")).toBeNull();
+  });
+
+  it("resumenLeccion keeps the first words on one line", () => {
+    expect(resumenLeccion(null)).toBeNull();
+    expect(resumenLeccion("  \n ")).toBeNull();
+    expect(resumenLeccion("Hola\n\nmundo")).toBe("Hola mundo");
+    expect(resumenLeccion("uno dos tres cuatro cinco", 11)).toBe("uno dos…");
+    expect(resumenLeccion("uno dos tres cuatro cinco", 12)).toBe("uno dos tres…");
   });
 });

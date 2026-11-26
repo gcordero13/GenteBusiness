@@ -21,21 +21,24 @@ export default async function EvaluacionPage({
 
   return (
     <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
-      <div className="mx-auto w-full max-w-3xl min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
-        <Link
-          href={leccion ? `/aprendizaje/${cursoId}?leccion=${leccion.id}` : `/aprendizaje/${cursoId}`}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Volver a la lección
-        </Link>
+      <div className="mx-auto w-full max-w-3xl min-w-0 space-y-5 p-4 sm:p-6 lg:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link
+            href={leccion ? `/aprendizaje/${cursoId}?leccion=${leccion.id}` : `/aprendizaje/${cursoId}`}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            Volver a la clase
+          </Link>
+          {leccion?.quiz && (
+            <span className="rounded-full bg-[#04B1AF]/10 px-3 py-1 text-xs font-semibold text-[#036E6C] dark:text-[#5FD6D4]">
+              Vale {leccion.quiz.weight}% de la nota del curso
+            </span>
+          )}
+        </div>
         <div className="space-y-1">
-          <p className="text-xs font-medium tracking-wide text-[#04B1AF] uppercase">Cuestionario · {curso.title}</p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{leccion?.title ?? curso.title}</h1>
-          <p className="text-sm text-muted-foreground">
-            Responde todas las preguntas.
-            {leccion?.quiz && ` Esta lección vale ${leccion.quiz.weight}% de la nota del curso.`}
-          </p>
+          <p className="text-xs font-semibold tracking-wide text-[#04B1AF] uppercase">Cuestionario · {curso.title}</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{leccion?.title ?? curso.title}</h1>
         </div>
         <EvaluacionForm
           cursoId={cursoId}

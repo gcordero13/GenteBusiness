@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CursoDetail } from "@/lib/aprendizaje/types";
 
@@ -37,13 +37,17 @@ const CURSO: CursoDetail = {
 describe("CursoViewer", () => {
   beforeEach(() => {
     marcarLeccionVista.mockReset();
+    iniciarCuestionario.mockReset();
     refresh.mockReset();
+    push.mockReset();
   });
+
+  const barra = () => within(screen.getByRole("navigation", { name: "Anterior y siguiente" }));
 
   it("opens the first pending lesson and shows overall progress", () => {
     render(<CursoViewer curso={CURSO} />);
     expect(screen.getByRole("heading", { name: "Equipos de protección" })).toBeTruthy();
-    expect(screen.getByText("1 de 3 lecciones vistas")).toBeTruthy();
+    expect(screen.getByText("1 de 3 clases vistas")).toBeTruthy();
   });
 
   it("marks the lesson as seen and moves to the next one", async () => {
@@ -71,13 +75,20 @@ describe("CursoViewer", () => {
     render(<CursoViewer curso={CURSO} />);
     fireEvent.click(screen.getByRole("button", { name: /Introducción/ }));
     expect(screen.queryByRole("button", { name: "Marcar como vista" })).toBeNull();
-    expect(screen.getByText("Lección vista")).toBeTruthy();
+    expect(screen.getByText("Clase vista")).toBeTruthy();
   });
 
   it("shows a preview banner and no mark button for a draft course", () => {
     render(<CursoViewer curso={{ ...CURSO, status: "borrador" }} />);
     expect(screen.getByText(/Vista previa/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Marcar como vista" })).toBeNull();
+  });
+
+  it("links back to the course's starting view and keeps the class in the URL", () => {
+    render(<CursoViewer curso={CURSO} />);
+    expect(screen.getByRole("link", { name: /Vista del curso/ }).getAttribute("href")).toBe("/aprendizaje/c1");
+    fireEvent.click(screen.getByRole("button", { name: /Cierre/ }));
+    expect(window.location.search).toBe("?leccion=l3");
   });
 
   describe("player layout", () => {
@@ -95,12 +106,12 @@ describe("CursoViewer", () => {
       expect(iframe!.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
-    it("shows the current class in the bottom bar and moves on with 'Siguiente clase'", async () => {
+    it("shows the current class in the bottom bar and moves on with 'Siguiente'", async () => {
       marcarLeccionVista.mockResolvedValue({});
       render(<CursoViewer curso={CURSO} />);
-      expect(screen.getByText("Clase 2 de 3 · Seguridad industrial")).toBeTruthy();
+      expect(barra().getByText("Clase 2 de 3")).toBeTruthy();
 
-      fireEvent.click(screen.getByRole("button", { name: /Siguiente clase/ }));
+      fireEvent.click(barra().getByRole("button", { name: /Siguiente/ }));
 
       // A plain lesson is recorded as seen when moving on.
       await waitFor(() => expect(marcarLeccionVista).toHaveBeenCalledWith("l2", "c1"));
@@ -109,20 +120,28 @@ describe("CursoViewer", () => {
 
     it("just moves on from a lesson already seen", () => {
       render(<CursoViewer curso={CURSO} initialLeccionId="l1" />);
-      fireEvent.click(screen.getByRole("button", { name: /Siguiente clase/ }));
+      fireEvent.click(barra().getByRole("button", { name: /Siguiente/ }));
       expect(marcarLeccionVista).not.toHaveBeenCalled();
       expect(screen.getByRole("heading", { name: "Equipos de protección" })).toBeTruthy();
     });
 
-    it("has no 'Siguiente clase' on the last lesson", () => {
-      render(<CursoViewer curso={CURSO} initialLeccionId="l3" />);
-      expect(screen.queryByRole("button", { name: /Siguiente clase/ })).toBeNull();
+    it("goes back with 'Anterior', disabled on the first class", () => {
+      render(<CursoViewer curso={CURSO} />);
+      fireEvent.click(barra().getByRole("button", { name: "Anterior" }));
+      expect(screen.getByRole("heading", { name: "Introducción" })).toBeTruthy();
+      expect((barra().getByRole("button", { name: "Anterior" }) as HTMLButtonElement).disabled).toBe(true);
     });
-  });
 
-  it("celebrates a completed course", () => {
-    render(<CursoViewer curso={{ ...CURSO, completedAt: "2026-11-25T12:00:00Z" }} />);
-    expect(screen.getByText("¡Completaste este curso!")).toBeTruthy();
+    it("finishes on the last class: records it and returns to the course view", async () => {
+      marcarLeccionVista.mockResolvedValue({});
+      render(<CursoViewer curso={CURSO} initialLeccionId="l3" />);
+      expect(barra().queryByRole("button", { name: /Siguiente/ })).toBeNull();
+
+      fireEvent.click(barra().getByRole("button", { name: /Terminar/ }));
+
+      await waitFor(() => expect(marcarLeccionVista).toHaveBeenCalledWith("l3", "c1"));
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/aprendizaje/c1"));
+    });
   });
 
   describe("lesson quizzes", () => {
@@ -157,20 +176,28 @@ describe("CursoViewer", () => {
       expect(iniciarCuestionario).toHaveBeenCalledWith("l2", "c1");
     });
 
+    it("starts the pending quiz from the bottom bar instead of 'Siguiente'", async () => {
+      iniciarCuestionario.mockResolvedValue({ intentoId: "i9" });
+      render(<CursoViewer curso={conQuiz} cuestionarios={estados} />);
+      expect(barra().queryByRole("button", { name: /Siguiente/ })).toBeNull();
+
+      fireEvent.click(barra().getByRole("button", { name: "Responder cuestionario de esta clase" }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/aprendizaje/c1/evaluacion/i9"));
+    });
+
     it("shows the lesson score and offers a retry while attempts remain", () => {
       render(<CursoViewer curso={conQuiz} cuestionarios={estados} initialLeccionId="l1" />);
       expect(screen.getByRole("heading", { name: "Introducción" })).toBeTruthy();
-      expect(screen.getByText("Lección completada")).toBeTruthy();
+      expect(screen.getByText("Clase completada")).toBeTruthy();
       expect(screen.getByText("80%")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Repetir cuestionario" })).toBeTruthy();
     });
 
-    it("shows the weighted course grade and the quizzes still pending", () => {
+    it("doesn't show the course grade inside the player", () => {
       render(<CursoViewer curso={conQuiz} cuestionarios={estados} />);
-      // 40% × 80 = 32
-      expect(screen.getByText("32%")).toBeTruthy();
-      expect(screen.getByText(/mínima para aprobar 70%/)).toBeTruthy();
-      expect(screen.getByText("Te falta 1 cuestionario por responder.")).toBeTruthy();
+      expect(screen.queryByLabelText("Nota del curso")).toBeNull();
+      expect(screen.queryByText(/mínima para aprobar/)).toBeNull();
     });
 
     it("keeps 'Marcar como vista' for lessons without a quiz", () => {
@@ -189,17 +216,6 @@ describe("CursoViewer", () => {
       render(<CursoViewer curso={completadoAntes} cuestionarios={{}} initialLeccionId="l2" />);
       expect(screen.getByText("Ya completaste este curso. Responde el cuestionario para registrar tu nota.")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Responder cuestionario" })).toBeTruthy();
-    });
-
-    it("points the bottom bar to the pending quiz instead of the next class", () => {
-      render(<CursoViewer curso={conQuiz} cuestionarios={estados} />);
-      expect(screen.getByRole("link", { name: /Ir al cuestionario/ }).getAttribute("href")).toBe("#cuestionario");
-      expect(screen.queryByRole("button", { name: /Siguiente clase/ })).toBeNull();
-    });
-
-    it("hides the course grade when no lesson has a quiz", () => {
-      render(<CursoViewer curso={CURSO} />);
-      expect(screen.queryByLabelText("Nota del curso")).toBeNull();
     });
   });
 });

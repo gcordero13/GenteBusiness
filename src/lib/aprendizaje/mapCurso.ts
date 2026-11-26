@@ -158,3 +158,18 @@ export function nextLeccionId(lecciones: { id: string }[], currentId: string): s
   const index = lecciones.findIndex((l) => l.id === currentId);
   return index >= 0 && index < lecciones.length - 1 ? lecciones[index + 1].id : null;
 }
+
+export function prevLeccionId(lecciones: { id: string }[], currentId: string): string | null {
+  const index = lecciones.findIndex((l) => l.id === currentId);
+  return index > 0 ? lecciones[index - 1].id : null;
+}
+
+/** First words of the lesson text, on one line, to tell what the class is about. */
+export function resumenLeccion(body: string | null, max = 160): string | null {
+  const text = (body ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:]+$/, "")}…`;
+}
