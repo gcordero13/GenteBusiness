@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { toCatalogCurso, toCursoDetail, type RawCurso } from "@/lib/aprendizaje/mapCurso";
 import type { CatalogCurso, CursoDetail } from "@/lib/aprendizaje/types";
+import {
+  summarizeIntentos,
+  type EvaluacionEstado,
+  type IntentoDetail,
+  type IntentoResultado,
+  type PreguntaIntento,
+} from "@/lib/aprendizaje/evaluacion";
 
 const CURSO_DETAIL_SELECT =
   "id, title, description, category, status, cover_drive_id, cover_item_id, updated_at, eval_questions_per_attempt, eval_passing_score, eval_max_attempts, " +
@@ -67,4 +74,63 @@ export async function marcarLeccionVista(leccionId: string, cursoId: string): Pr
   revalidatePath(`/aprendizaje/${cursoId}`);
   revalidatePath("/aprendizaje");
   return {};
+}
+
+export async function getEvaluacionEstado(cursoId: string): Promise<EvaluacionEstado> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return summarizeIntentos([]);
+  // Filter by user explicitly: managers can read everyone's attempts.
+  const { data } = await supabase
+    .from("aprendizaje_intentos")
+    .select("id, submitted_at, score, passed")
+    .eq("curso_id", cursoId)
+    .eq("app_user_id", user.id);
+  return summarizeIntentos(data ?? []);
+}
+
+export async function iniciarIntento(cursoId: string): Promise<{ intentoId?: string; error?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("aprendizaje_iniciar_intento", { p_curso_id: cursoId });
+  if (error) return { error: error.message };
+  revalidatePath(`/aprendizaje/${cursoId}`);
+  return { intentoId: data as string };
+}
+
+export async function getIntento(intentoId: string): Promise<IntentoDetail | null> {
+  const supabase = await createClient();
+  const { data: intento } = await supabase
+    .from("aprendizaje_intentos")
+    .select("id, curso_id, submitted_at, score, passed")
+    .eq("id", intentoId)
+    .maybeSingle();
+  if (!intento) return null;
+  const { data: preguntas, error } = await supabase.rpc("aprendizaje_preguntas_intento", { p_intento_id: intentoId });
+  if (error) return null;
+  return {
+    id: intento.id,
+    cursoId: intento.curso_id,
+    submitted: intento.submitted_at !== null,
+    score: intento.score,
+    passed: intento.passed,
+    preguntas: (preguntas ?? []) as PreguntaIntento[],
+  };
+}
+
+export async function enviarIntento(
+  intentoId: string,
+  cursoId: string,
+  answers: Record<string, string>,
+): Promise<{ resultado?: IntentoResultado; error?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("aprendizaje_enviar_intento", {
+    p_intento_id: intentoId,
+    p_answers: answers,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/aprendizaje/${cursoId}`);
+  revalidatePath("/aprendizaje");
+  return { resultado: data as IntentoResultado };
 }
