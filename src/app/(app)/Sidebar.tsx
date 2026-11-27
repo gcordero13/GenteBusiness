@@ -34,6 +34,8 @@ import {
   Users,
   Wrench,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -41,6 +43,23 @@ interface NavLink {
   href: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
+}
+
+// Navy menu with the current page highlighted in the brand teal (approved
+// redesign 2026-11-27). Same in light and dark themes.
+const LINK_BASE =
+  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[#04B1AF] focus-visible:outline-none";
+const LINK_IDLE = "text-[#C9D6E0] hover:bg-white/10 hover:text-white";
+const LINK_ACTIVE = "bg-[#04B1AF]/20 font-semibold text-[#7FE3E1]";
+
+/** The link whose href is the longest prefix of the current path (so "/a/b" wins over "/a"). */
+function activeHref(pathname: string, hrefs: string[]): string | null {
+  let best: string | null = null;
+  for (const href of hrefs) {
+    const matches = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+    if (matches && (!best || href.length > best.length)) best = href;
+  }
+  return best;
 }
 
 // A group whose sub-links open in a flyout to the side instead of pushing
@@ -53,12 +72,15 @@ function FlyoutNavGroup({
   links,
   collapsed,
   onNavigate,
+  current,
 }: {
   label: string;
   icon: ComponentType<{ className?: string }>;
   links: NavLink[];
   collapsed: boolean;
   onNavigate?: () => void;
+  /** The active link's href, to highlight the group and the sub-link. */
+  current: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -75,6 +97,7 @@ function FlyoutNavGroup({
   }, [open]);
 
   if (links.length === 0) return null;
+  const groupActive = links.some((l) => l.href === current);
 
   return (
     <div className="relative" ref={ref}>
@@ -83,31 +106,32 @@ function FlyoutNavGroup({
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         title={label}
-        className={cn(
-          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted",
-          open && "bg-muted",
-        )}
+        className={cn("w-full", LINK_BASE, groupActive ? LINK_ACTIVE : LINK_IDLE, open && !groupActive && "bg-white/10 text-white")}
       >
-        <Icon className="size-4 shrink-0" />
+        <Icon className="size-[18px] shrink-0" />
         {!collapsed && (
           <>
             <span className="flex-1 text-left">{label}</span>
-            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+            <ChevronRight className="size-4 shrink-0 opacity-70" />
           </>
         )}
       </button>
       {open && (
-        <div className="absolute top-0 left-full z-50 ml-1 min-w-[220px] space-y-0.5 rounded-lg border bg-card p-1.5 shadow-lg">
+        <div className="absolute top-0 left-full z-50 ml-2 min-w-[230px] space-y-0.5 rounded-xl border bg-card p-1.5 shadow-lg">
           {links.map(({ href, label: subLabel, icon: SubIcon }) => (
             <a
               key={href}
               href={href}
               title={subLabel}
+              aria-current={href === current ? "page" : undefined}
               onClick={() => {
                 setOpen(false);
                 onNavigate?.();
               }}
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm whitespace-nowrap hover:bg-muted"
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm whitespace-nowrap hover:bg-muted",
+                href === current && "bg-[#04B1AF]/12 font-semibold text-[#036E6C] dark:text-[#5FD6D4]",
+              )}
             >
               <SubIcon className="size-4 shrink-0" />
               <span>{subLabel}</span>
@@ -173,6 +197,7 @@ export function Sidebar({
   onNavigate?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     // One-time sync from localStorage on mount; deferred to an effect (rather
@@ -225,7 +250,7 @@ export function Sidebar({
   ];
 
   const mainLinksAfterMaintenance: NavLink[] = [
-    { href: "/planificacion", label: "Proyecto", icon: Target },
+    { href: "/planificacion", label: "Proyectos", icon: Target },
     ...(canViewAprendizaje ? [{ href: "/aprendizaje", label: "Aprendizaje", icon: GraduationCap }] : []),
     ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
   ];
@@ -263,68 +288,81 @@ export function Sidebar({
       : []),
   ];
 
+  const current = activeHref(pathname ?? "", [
+    ...mainLinksBeforeMaintenance,
+    ...mantenimientosLinks,
+    ...mainLinksAfterMaintenance,
+    ...suministrosSubLinks,
+    ...solicitudesLinks,
+    ...settingsLinks,
+  ].map((l) => l.href));
+
+  function renderLink({ href, label, icon: Icon }: NavLink) {
+    const active = href === current;
+    return (
+      <a
+        key={href}
+        href={href}
+        title={label}
+        aria-current={active ? "page" : undefined}
+        onClick={onNavigate}
+        className={cn(LINK_BASE, active ? LINK_ACTIVE : LINK_IDLE)}
+      >
+        <Icon className="size-[18px] shrink-0" />
+        {!collapsed && <span className="truncate">{label}</span>}
+      </a>
+    );
+  }
+
+  const sectionLabel = (text: string) =>
+    !collapsed && <p className="px-2.5 pb-1 text-[11px] font-semibold tracking-[0.08em] text-[#6F879A] uppercase">{text}</p>;
+
   return (
     <aside
-      className={`flex h-full shrink-0 flex-col justify-between border-r bg-card p-3 transition-all duration-150 ${
-        collapsed ? "w-16" : "w-64 md:w-56"
+      className={`flex h-full shrink-0 flex-col justify-between overflow-y-auto bg-[#0B2545] p-3 text-[#C9D6E0] transition-all duration-150 dark:bg-[#071a31] ${
+        collapsed ? "w-16" : "w-64 md:w-60"
       }`}
     >
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          {!collapsed && (
-            <a href="/" className="text-lg font-semibold">
-              Gente Sánchez Business
-            </a>
-          )}
+      <div className="space-y-5">
+        <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : "justify-between"}`}>
+          <Link href="/" className="flex min-w-0 items-center gap-2.5 rounded-lg px-1 py-1" title="Gente Sánchez Business">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#04B1AF] text-xs font-bold text-white">
+              GSB
+            </span>
+            {!collapsed && (
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-sm font-semibold text-white">Gente Sánchez</span>
+                <span className="block text-xs text-[#8FA6B8]">Business</span>
+              </span>
+            )}
+          </Link>
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={toggle}
             title={collapsed ? "Expandir menú" : "Colapsar menú"}
+            aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
+            className="text-[#C9D6E0] hover:bg-white/10 hover:text-white"
           >
-            {collapsed ? (
-              <PanelLeftOpen className="size-4" />
-            ) : (
-              <PanelLeftClose className="size-4" />
-            )}
+            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
           </Button>
         </div>
-        <nav className="space-y-1 text-sm">
-          {mainLinksBeforeMaintenance.map(({ href, label, icon: Icon }) => (
-            <a
-              key={href}
-              href={href}
-              title={label}
-              onClick={onNavigate}
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
-            >
-              <Icon className="size-4 shrink-0" />
-              {!collapsed && <span>{label}</span>}
-            </a>
-          ))}
+        <nav className="space-y-0.5" aria-label="Menú principal">
+          {sectionLabel("Módulos")}
+          {mainLinksBeforeMaintenance.map(renderLink)}
           <FlyoutNavGroup
             label="Mantenimientos"
             icon={Wrench}
             links={mantenimientosLinks}
             collapsed={collapsed}
             onNavigate={onNavigate}
+            current={current}
           />
-          {mainLinksAfterMaintenance.map(({ href, label, icon: Icon }) => (
-            <a
-              key={href}
-              href={href}
-              title={label}
-              onClick={onNavigate}
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
-            >
-              <Icon className="size-4 shrink-0" />
-              {!collapsed && <span>{label}</span>}
-            </a>
-          ))}
+          {mainLinksAfterMaintenance.map(renderLink)}
           {(suministrosSubLinks.length > 0 || solicitudesLinks.length > 0) && (
-            <div className="space-y-1 pt-4">
+            <div className="space-y-0.5 pt-4">
               {!collapsed && (
-                <p className="flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground">
+                <p className="flex items-center gap-2 px-2.5 pb-1 text-[11px] font-semibold tracking-[0.08em] text-[#6F879A] uppercase">
                   <Palmtree className="size-3.5" />
                   Solicitudes
                 </p>
@@ -335,47 +373,35 @@ export function Sidebar({
                 links={suministrosSubLinks}
                 collapsed={collapsed}
                 onNavigate={onNavigate}
+                current={current}
               />
-              {solicitudesLinks.map(({ href, label, icon: Icon }) => (
-                <a
-                  key={href}
-                  href={href}
-                  title={label}
-                  onClick={onNavigate}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
-                >
-                  <Icon className="size-4 shrink-0" />
-                  {!collapsed && <span>{label}</span>}
-                </a>
-              ))}
+              {solicitudesLinks.map(renderLink)}
             </div>
           )}
           {settingsLinks.length > 0 && (
-            <div className="space-y-1 pt-4">
-              {!collapsed && (
-                <p className="flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground">
-                  <Settings className="size-3.5" />
-                  Ajustes
-                </p>
-              )}
+            <div className="space-y-0.5 pt-4">
+              {sectionLabel("Ajustes")}
               <FlyoutNavGroup
                 label="Ajustes"
                 icon={Settings}
                 links={settingsLinks}
                 collapsed={collapsed}
                 onNavigate={onNavigate}
+                current={current}
               />
             </div>
           )}
         </nav>
       </div>
-      <div className="hidden space-y-2 md:block">
-        {!collapsed && <p className="truncate px-2 text-xs text-muted-foreground">{email}</p>}
+      <div className="hidden space-y-2 pt-4 md:block">
+        {!collapsed && <p className="truncate px-2.5 text-xs text-[#8FA6B8]">{email}</p>}
         <form action={onLogout}>
           <Button
             type="submit"
             variant="outline"
-            className={collapsed ? "w-full px-0" : "w-full justify-start gap-2"}
+            className={`border-white/15 bg-transparent text-[#C9D6E0] hover:bg-white/10 hover:text-white dark:border-white/15 dark:bg-transparent ${
+              collapsed ? "w-full px-0" : "w-full justify-start gap-2"
+            }`}
             title="Cerrar sesión"
           >
             <LogOut className="size-4" />
