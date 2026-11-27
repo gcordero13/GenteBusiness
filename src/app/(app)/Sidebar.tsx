@@ -112,14 +112,21 @@ function FlyoutNavGroup({
         {!collapsed && (
           <>
             <span className="flex-1 text-left">{label}</span>
-            <ChevronRight className="size-4 shrink-0 opacity-70" />
+            <ChevronRight
+              className={cn("size-4 shrink-0 opacity-70 transition-transform", open && "rotate-90 md:rotate-0")}
+            />
           </>
         )}
       </button>
       {open && (
-        // Its own text color: otherwise it inherits the navy menu's light gray
-        // and the options look washed out on the white panel (user report).
-        <div className="absolute top-0 left-full z-50 ml-2 min-w-[230px] space-y-0.5 rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-lg">
+        // Phone: the options open BELOW the group, inside the menu (a side
+        // flyout didn't fit next to the drawer on a phone screen - user report
+        // 2026-11-27). Computer: a white panel to the side, with its own text
+        // color so it doesn't inherit the navy menu's light gray.
+        <div
+          data-testid="submenu"
+          className="mt-0.5 ml-4 space-y-0.5 border-l border-white/15 pl-2 md:absolute md:top-0 md:left-full md:z-50 md:mt-0 md:ml-2 md:min-w-[230px] md:rounded-xl md:border md:border-border md:bg-popover md:p-1.5 md:text-popover-foreground md:shadow-lg"
+        >
           {links.map(({ href, label: subLabel, icon: SubIcon }) => (
             <a
               key={href}
@@ -131,8 +138,10 @@ function FlyoutNavGroup({
                 onNavigate?.();
               }}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium whitespace-nowrap hover:bg-muted",
-                href === current && "bg-[#04B1AF]/12 font-semibold text-[#036E6C] dark:text-[#5FD6D4]",
+                "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium md:whitespace-nowrap",
+                href === current
+                  ? "bg-[#04B1AF]/20 font-semibold text-[#7FE3E1] md:bg-[#04B1AF]/12 md:text-[#036E6C] md:dark:text-[#5FD6D4]"
+                  : "text-[#C9D6E0] hover:bg-white/10 hover:text-white md:text-popover-foreground md:hover:bg-muted md:hover:text-popover-foreground",
               )}
             >
               <SubIcon className="size-4 shrink-0" />
@@ -198,8 +207,20 @@ export function Sidebar({
   onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsedPref, setCollapsed] = useState(false);
   const pathname = usePathname();
+  // On a phone the menu is a drawer: always show the names (an icons-only
+  // drawer is useless there), whatever was chosen on a computer.
+  const [isDesktop, setIsDesktop] = useState(true);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return; // very old browsers / tests
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  const collapsed = collapsedPref && isDesktop;
 
   useEffect(() => {
     // One-time sync from localStorage on mount; deferred to an effect (rather
@@ -253,7 +274,7 @@ export function Sidebar({
 
   const mainLinksAfterMaintenance: NavLink[] = [
     { href: "/planificacion", label: "Proyectos", icon: Target },
-    ...(canViewAprendizaje ? [{ href: "/aprendizaje", label: "Aprendizaje", icon: GraduationCap }] : []),
+    ...(canViewAprendizaje ? [{ href: "/aprendizaje", label: "Aprende", icon: GraduationCap }] : []),
     ...(canManageUsers ? [{ href: "/users", label: "Usuarios", icon: Users }] : []),
   ];
 
@@ -321,10 +342,10 @@ export function Sidebar({
 
   return (
     <aside
-      // No overflow-* here: any overflow value clips the side flyouts
-      // (Mantenimientos, Suministros, Ajustes), which open outside the menu
-      // (user report 2026-11-27: "no se muestra si le doy un clic").
-      className={`flex h-full shrink-0 flex-col justify-between bg-[#0B2545] p-3 text-[#C9D6E0] transition-all duration-150 dark:bg-[#071a31] ${
+      // Computer: overflow must stay visible - any other value clips the side
+      // flyouts (user report 2026-11-27: "no se muestra si le doy un clic").
+      // Phone: sub-menus open inline, so the drawer may scroll.
+      className={`flex h-full shrink-0 flex-col justify-between overflow-y-auto bg-[#0B2545] md:overflow-visible p-3 text-[#C9D6E0] transition-all duration-150 dark:bg-[#071a31] ${
         collapsed ? "w-16" : "w-64 md:w-60"
       }`}
     >
@@ -347,7 +368,7 @@ export function Sidebar({
             onClick={toggle}
             title={collapsed ? "Expandir menú" : "Colapsar menú"}
             aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-            className="text-[#C9D6E0] hover:bg-white/10 hover:text-white"
+            className="hidden text-[#C9D6E0] hover:bg-white/10 hover:text-white md:inline-flex"
           >
             {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
           </Button>

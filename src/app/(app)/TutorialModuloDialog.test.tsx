@@ -31,7 +31,7 @@ describe("TutorialModuloDialog", () => {
     expect(screen.getByText(/Nuevo módulo: Planificación/)).toBeTruthy();
     expect(screen.getByText("Cómo usar Planificación")).toBeTruthy();
     expect(baseElement.querySelector("video")?.getAttribute("src")).toBe("/api/aprendizaje/archivo/d1/i1");
-    expect(screen.getByRole("link", { name: "Ver en Aprendizaje" }).getAttribute("href")).toBe("/aprendizaje/c1");
+    expect(screen.getByRole("link", { name: "Ver en Aprende" }).getAttribute("href")).toBe("/aprendizaje/c1");
   });
 
   it("records the close so it doesn't show again", async () => {
@@ -45,6 +45,6 @@ describe("TutorialModuloDialog", () => {
 
   it("hides the Aprendizaje link from people without access to it", () => {
     render(<TutorialModuloDialog tutorial={TUTORIAL} canViewAprendizaje={false} />);
-    expect(screen.queryByRole("link", { name: "Ver en Aprendizaje" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Ver en Aprende" })).toBeNull();
   });
 });

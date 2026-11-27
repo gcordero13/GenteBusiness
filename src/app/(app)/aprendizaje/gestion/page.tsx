@@ -22,7 +22,7 @@ export default async function AprendizajeGestionPage() {
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Gestión de Aprendizaje</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Aprende · Gestión</h1>
             <p className="text-sm text-muted-foreground">Crea cursos y contenidos de historia, y publícalos.</p>
           </div>
           <NuevoCursoDialog />

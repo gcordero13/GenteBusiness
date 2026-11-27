@@ -62,7 +62,7 @@ export function PortadaBanner({
             </div>
           )}
           <div className="min-w-0 space-y-1.5">
-            <p className="text-xs font-semibold tracking-widest text-[#CFF5F3] uppercase">Aprendizaje</p>
+            <p className="text-xs font-semibold tracking-widest text-[#CFF5F3] uppercase">Aprende</p>
             <h1 className="text-3xl leading-tight font-extrabold sm:text-4xl">Hola, {primerNombre(perfil.name)}</h1>
             {role && <p className="text-sm text-[#E6FAF9] sm:text-base">{role}</p>}
             <p className="pt-1 text-base font-medium sm:text-lg">

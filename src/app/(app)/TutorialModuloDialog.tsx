@@ -57,7 +57,7 @@ export function TutorialModuloDialog({
               onClick={close}
               className="inline-flex h-9 items-center justify-center rounded-lg border px-4 text-sm font-medium hover:bg-muted"
             >
-              Ver en Aprendizaje
+              Ver en Aprende
             </Link>
           )}
           <Button onClick={close}>Cerrar</Button>

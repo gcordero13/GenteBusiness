@@ -61,7 +61,7 @@ export default async function VerificarCertificadoPage({ params }: { params: Pro
             <p className="text-sm text-slate-600">Revisa el código o escanea de nuevo el QR.</p>
           </div>
         )}
-        <p className="text-xs text-slate-500">Gente Sánchez Business · Aprendizaje</p>
+        <p className="text-xs text-slate-500">Gente Sánchez Business · Aprende</p>
       </div>
     </main>
   );
