@@ -319,7 +319,10 @@ export function Sidebar({
 
   return (
     <aside
-      className={`flex h-full shrink-0 flex-col justify-between overflow-y-auto bg-[#0B2545] p-3 text-[#C9D6E0] transition-all duration-150 dark:bg-[#071a31] ${
+      // No overflow-* here: any overflow value clips the side flyouts
+      // (Mantenimientos, Suministros, Ajustes), which open outside the menu
+      // (user report 2026-11-27: "no se muestra si le doy un clic").
+      className={`flex h-full shrink-0 flex-col justify-between bg-[#0B2545] p-3 text-[#C9D6E0] transition-all duration-150 dark:bg-[#071a31] ${
         collapsed ? "w-16" : "w-64 md:w-60"
       }`}
     >
