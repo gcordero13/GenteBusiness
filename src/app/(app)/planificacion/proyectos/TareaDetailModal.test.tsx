@@ -60,6 +60,39 @@ function tarea(overrides: Partial<TareaListRow>): TareaListRow {
 const PARENT = tarea({ id: "parent", title: "Tarea principal" });
 const SUB = tarea({ id: "sub", title: "Subtarea", parentTaskId: "parent" });
 
+describe("TareaDetailModal - side panel", () => {
+  it("shows the task as a side panel with its estado, priority and readable dates", () => {
+    render(
+      <TareaDetailModal
+        tarea={tarea({
+          title: "Conciliación bancaria",
+          proyectoName: "Cierre fiscal",
+          planificacionName: "Conciliaciones",
+          estadoName: "En proceso",
+          estadoColor: "#3b82f6",
+          estadoKind: "en_proceso",
+          priority: "alta",
+          startDate: "2026-11-10",
+          dueDate: "2026-12-05",
+        })}
+        onClose={vi.fn()}
+      />,
+    );
+    const panel = screen.getByRole("dialog", { name: "Conciliación bancaria" });
+    expect(panel.textContent).toContain("Cierre fiscal › Conciliaciones");
+    expect(screen.getByText("En proceso")).toBeTruthy();
+    expect(screen.getByText("Alta")).toBeTruthy();
+    expect(screen.getByText("10 nov 2026 → 5 dic 2026")).toBeTruthy();
+  });
+
+  it("closes with Esc", () => {
+    const onClose = vi.fn();
+    render(<TareaDetailModal tarea={PARENT} onClose={onClose} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+  });
+});
+
 describe("TareaDetailModal - back to the parent task", () => {
   beforeEach(() => getTarea.mockReset());
 

@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   addAdjunto,
   addComentario,
@@ -47,7 +46,9 @@ import {
   type TareaAdjuntoRow,
   type TareaListRow,
 } from "./actions";
-import { AssigneePicker, initials } from "./AssigneePicker";
+import { AssigneePicker } from "./AssigneePicker";
+import { EstadoPill, FechaLimiteText, PersonaAvatar, PrioridadBadge } from "./Distintivos";
+import { esCerrada, fechaCorta, hoyISO } from "./visual";
 import { CompartirDialog } from "./CompartirDialog";
 import { ESTADO_COLORS } from "./EstadosEditor";
 import { progressOpacity } from "./progress";
@@ -191,6 +192,18 @@ export function TareaDetailModal({
       cancelled = true;
     };
   }, [tareaId]);
+
+  // Esc closes the side panel (the attachment viewer on top closes first).
+  useEffect(() => {
+    if (!tarea) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (viewingAdjunto) setViewingAdjunto(null);
+      else onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tarea, viewingAdjunto, onClose]);
 
   if (!tarea) return null;
 
@@ -398,66 +411,87 @@ export function TareaDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90dvh] w-full max-w-4xl overflow-y-auto rounded-2xl border bg-card p-4 shadow-xl sm:p-5"
+    // A panel that slides in from the right (approved redesign 2026-11-27);
+    // full screen on a phone. Clicking the dimmed page behind closes it.
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label={tarea.title}
+        className="flex h-dvh w-full max-w-2xl flex-col overflow-hidden border-l bg-card shadow-2xl duration-200 animate-in slide-in-from-right-8 fade-in-0 sm:rounded-l-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {tarea.parentTaskId && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={goToParentTarea}
-            disabled={isPending}
-            className="-ml-2 mb-2 text-muted-foreground"
-          >
-            <ArrowLeft data-icon="inline-start" />
-            Volver a la tarea principal
-          </Button>
-        )}
-        <div className="mb-3 flex items-start justify-between gap-3">
-          {isEditing ? (
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="text-lg font-semibold"
-              placeholder="Título"
-            />
-          ) : (
-            <div className="flex min-w-0 items-center gap-2">
-              {tarea.color && <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: tarea.color }} />}
-              <h2 className="truncate text-lg font-semibold text-foreground">{tarea.title}</h2>
-            </div>
-          )}
-          <div className="flex shrink-0 items-center gap-1">
-            {!isEditing && (
-              <Button size="icon-sm" variant="ghost" onClick={startEdit} title="Editar">
-                <Pencil className="size-4" />
+        <header className="space-y-3 border-b px-5 pt-4 pb-4 sm:px-7">
+          <div className="flex items-center justify-between gap-3">
+            {tarea.parentTaskId ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={goToParentTarea}
+                disabled={isPending}
+                className="-ml-2 text-muted-foreground"
+              >
+                <ArrowLeft data-icon="inline-start" />
+                Volver a la tarea principal
               </Button>
+            ) : (
+              <p className="min-w-0 truncate text-sm text-muted-foreground">
+                {tarea.proyectoName}
+                {tarea.planificacionName && <> <span aria-hidden="true">›</span> {tarea.planificacionName}</>}
+              </p>
             )}
-            <Button size="icon-sm" variant="ghost" onClick={onClose}>
-              <X className="size-4" />
-            </Button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {!isEditing && (
+                <Button size="icon-sm" variant="outline" onClick={startEdit} title="Editar" aria-label="Editar tarea">
+                  <Pencil className="size-4" />
+                </Button>
+              )}
+              <Button size="icon-sm" variant="outline" onClick={onClose} aria-label="Cerrar">
+                <X className="size-4" />
+              </Button>
+            </div>
           </div>
-        </div>
-        {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+          {isEditing ? (
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-lg font-semibold" placeholder="Título" />
+          ) : (
+            <>
+              <div className="flex items-start gap-2.5">
+                {tarea.color && <span className="mt-2.5 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: tarea.color }} />}
+                <h2 className="text-xl leading-snug font-bold tracking-tight text-[#0B2545] dark:text-foreground">{tarea.title}</h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <EstadoPill name={tarea.estadoName} color={tarea.estadoColor} />
+                <PrioridadBadge priority={tarea.priority} />
+                {tarea.dueDate && (
+                  <FechaLimiteText
+                    dueDate={tarea.dueDate}
+                    hoy={hoyISO()}
+                    cerrada={esCerrada(tarea.estadoKind) || tarea.percentComplete === 100}
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </header>
 
-        <div className="md:grid md:grid-cols-2 md:gap-x-6">
+        <div className="flex-1 space-y-7 overflow-y-auto px-5 py-5 sm:px-7">
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
         <div>
-        <div className="mb-4 space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-muted-foreground">Progreso</span>
-            <span className="font-semibold text-foreground">{tarea.hasChildren ? tarea.percentComplete : percentDraft}%</span>
+        <div className="mb-5 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-semibold text-foreground">Avance</span>
+            <span className="font-semibold text-foreground tabular-nums">{tarea.hasChildren ? tarea.percentComplete : percentDraft}%</span>
           </div>
           {tarea.hasChildren ? (
             <>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full bg-[#04B1AF]"
+                  className="h-full rounded-full bg-[#04B1AF]"
                   style={{ width: `${tarea.percentComplete}%`, opacity: progressOpacity(tarea.percentComplete) }}
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground">Calculado a partir de las subtareas</p>
+              <p className="text-xs text-muted-foreground">Calculado a partir de las subtareas</p>
             </>
           ) : (
             <input
@@ -593,126 +627,143 @@ export function TareaDetailModal({
           </div>
         ) : (
           <>
-            {tarea.description && <p className="mb-3 text-sm text-muted-foreground">{tarea.description}</p>}
-            <dl className="mb-4 grid grid-cols-2 gap-2 text-xs">
+            <dl className="mb-5 grid grid-cols-2 gap-x-6 gap-y-4">
               <div>
-                <dt className="text-muted-foreground">Estado</dt>
-                <dd className="flex items-center gap-1.5 font-medium text-foreground">
-                  {tarea.estadoName && (
-                    <span className="size-1.5 rounded-full" style={{ backgroundColor: tarea.estadoColor ?? "#94a3b8" }} />
-                  )}
-                  {tarea.estadoName ?? "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Prioridad</dt>
-                <dd className="font-medium text-foreground">{tarea.priority ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Fecha límite</dt>
-                <dd className="font-medium text-foreground">{tarea.dueDate ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Proyecto</dt>
-                <dd className="font-medium text-foreground">{tarea.proyectoName}</dd>
-              </div>
-              {!tarea.parentTaskId && (
-                <div>
-                  <dt className="text-muted-foreground">Planificación</dt>
-                  <dd className="font-medium text-foreground">{tarea.planificacionName ?? "—"}</dd>
-                </div>
-              )}
-              <div className="col-span-2">
-                <dt className="text-muted-foreground">Responsable</dt>
-                <dd className="mt-0.5 flex items-center gap-1.5 font-medium text-foreground">
-                  <Avatar size="sm">
-                    {tarea.assigneePhotoUrl && <AvatarImage src={tarea.assigneePhotoUrl} alt="" />}
-                    <AvatarFallback>{tarea.assigneeName ? initials(tarea.assigneeName) : "—"}</AvatarFallback>
-                  </Avatar>
+                <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Responsable</dt>
+                <dd className="mt-1.5 flex items-center gap-2 text-sm text-foreground">
+                  <PersonaAvatar name={tarea.assigneeName} photoUrl={tarea.assigneePhotoUrl} />
                   {tarea.assigneeName ?? "Sin asignar"}
                 </dd>
               </div>
+              <div>
+                <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Fechas</dt>
+                <dd className="mt-1.5 text-sm text-foreground">
+                  {tarea.startDate || tarea.dueDate
+                    ? `${tarea.startDate ? fechaCorta(tarea.startDate) : "—"} → ${tarea.dueDate ? fechaCorta(tarea.dueDate) : "—"}`
+                    : "Sin fechas"}
+                </dd>
+              </div>
+              {!tarea.parentTaskId && (
+                <div>
+                  <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Planificación</dt>
+                  <dd className="mt-1.5 text-sm text-foreground">{tarea.planificacionName ?? "—"}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Creada por</dt>
+                <dd className="mt-1.5 flex items-center gap-2 text-sm text-foreground">
+                  <PersonaAvatar name={tarea.creatorName} photoUrl={tarea.creatorPhotoUrl} />
+                  {tarea.creatorName}
+                </dd>
+              </div>
             </dl>
+            {tarea.description && (
+              <section className="mb-1 space-y-1.5">
+                <h3 className="text-sm font-semibold text-foreground">Descripción</h3>
+                <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">{tarea.description}</p>
+              </section>
+            )}
           </>
         )}
         </div>
 
-        <div className="md:border-l md:pl-6">
-        <div className="mb-4 space-y-2">
+        <div className="space-y-7">
+        <section className="space-y-2.5">
           <button
             type="button"
             onClick={() => setSubtareasExpanded((e) => !e)}
-            className="flex w-full items-center gap-1.5 text-left text-xs font-semibold text-muted-foreground"
+            aria-expanded={subtareasExpanded}
+            className="flex w-full items-center gap-2 text-left text-sm font-semibold text-foreground"
           >
-            {subtareasExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-            <ListTodo className="size-3.5" />
-            Subtareas {subtareas.length > 0 && `(${subtareas.length})`}
+            {subtareasExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+            <ListTodo className="size-4 text-muted-foreground" />
+            Subtareas
+            {subtareas.length > 0 && (
+              <span className="font-normal text-muted-foreground">
+                {subtareas.filter((s) => s.percentComplete === 100).length} de {subtareas.length}
+              </span>
+            )}
           </button>
           {subtareasExpanded && (
-            <>
-              <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
+            <div className="overflow-hidden rounded-xl border">
+              <div className="max-h-64 overflow-y-auto">
                 {subtareas.map((sub) => (
-                  <div key={sub.id} className="flex items-center gap-2 rounded-lg border p-2 text-xs">
-                    <button type="button" disabled={isPending} onClick={(e) => toggleSubtarea(sub, e.currentTarget)} className="shrink-0 text-muted-foreground">
+                  <div key={sub.id} className="flex items-center gap-3 border-b px-3.5 py-2.5 text-sm last:border-b-0">
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={(e) => toggleSubtarea(sub, e.currentTarget)}
+                      aria-label={sub.percentComplete === 100 ? `"${sub.title}" completada` : `Completar "${sub.title}"`}
+                      className="shrink-0 text-muted-foreground"
+                    >
                       {sub.percentComplete === 100 ? (
-                        <CheckSquare className="size-4 text-[#04B1AF]" />
+                        <CheckSquare className="size-[18px] text-[#04B1AF]" />
                       ) : (
-                        <Square className="size-4" />
+                        <Square className="size-[18px]" />
                       )}
                     </button>
                     <button
                       type="button"
                       onClick={() => onSelectTarea?.(sub)}
-                      className={`min-w-0 flex-1 truncate text-left ${sub.percentComplete === 100 ? "text-muted-foreground line-through" : "text-foreground"}`}
+                      className={`min-w-0 flex-1 truncate text-left hover:underline ${sub.percentComplete === 100 ? "text-muted-foreground line-through" : "text-foreground"}`}
                     >
                       {sub.title}
                     </button>
                     {sub.percentComplete > 0 && sub.percentComplete < 100 && (
-                      <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{sub.percentComplete}%</span>
+                      <span className="shrink-0 text-xs font-semibold text-muted-foreground tabular-nums">{sub.percentComplete}%</span>
                     )}
+                    {sub.assigneeName && <PersonaAvatar name={sub.assigneeName} photoUrl={sub.assigneePhotoUrl} />}
                   </div>
                 ))}
-                {subtareas.length === 0 && (
-                  <p className="py-1 text-xs text-muted-foreground">Todavía no hay subtareas.</p>
-                )}
+                {subtareas.length === 0 && <p className="px-3.5 py-3 text-sm text-muted-foreground">Todavía no hay subtareas.</p>}
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2 border-t bg-muted/30 px-2 py-1.5">
+                <Plus className="ml-1.5 size-4 shrink-0 text-muted-foreground" />
                 <Input
-                  placeholder="Agregar subtarea..."
+                  placeholder="Agregar subtarea"
+                  aria-label="Agregar subtarea"
                   value={newSubtarea}
                   onChange={(e) => setNewSubtarea(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addSubtarea()}
-                  className="h-8 text-xs"
+                  className="h-8 border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
                 />
-                <Button size="sm" disabled={isPending || !newSubtarea.trim()} onClick={addSubtarea} className="h-8 gap-1.5 px-2.5">
-                  <Plus className="size-3.5" />
+                <Button size="sm" disabled={isPending || !newSubtarea.trim()} onClick={addSubtarea} className="h-8 px-3">
+                  Agregar
                 </Button>
               </div>
-            </>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-            <Paperclip className="size-3.5" />
-            Adjuntos
-          </p>
-          {adjuntos.map((a) => (
-            <div key={a.id} className="flex items-center justify-between rounded-lg border p-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setViewingAdjunto(a)}
-                className="min-w-0 flex-1 truncate text-left text-[#04B1AF] hover:underline"
-              >
-                {a.fileName}
-              </button>
-              <Button size="icon-sm" variant="ghost" disabled={isPending} onClick={() => remove(a.id)}>
-                <Trash2 className="size-3.5 text-red-600" />
-              </Button>
             </div>
-          ))}
-          <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed p-2 text-xs text-muted-foreground hover:bg-muted">
-            <Upload className="size-3.5" />
+          )}
+        </section>
+
+        <section className="space-y-2.5">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Paperclip className="size-4 text-muted-foreground" />
+            Adjuntos
+          </h3>
+          {adjuntos.length > 0 && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {adjuntos.map((a) => (
+                <div key={a.id} className="flex items-center gap-2.5 rounded-xl border p-2.5">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#04B1AF]/10 text-[10px] font-bold text-[#036E6C] uppercase dark:text-[#5FD6D4]">
+                    {a.fileName.includes(".") ? a.fileName.split(".").pop()!.slice(0, 4) : "ARCH"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setViewingAdjunto(a)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <span className="block truncate text-sm font-medium text-foreground hover:underline">{a.fileName}</span>
+                    <span className="text-xs text-muted-foreground">Ver</span>
+                  </button>
+                  <Button size="icon-sm" variant="ghost" disabled={isPending} onClick={() => remove(a.id)} aria-label={`Quitar ${a.fileName}`}>
+                    <Trash2 className="size-4 text-red-600" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground hover:bg-muted">
+            <Upload className="size-4" />
             Subir archivo
             <input
               type="file"
@@ -724,62 +775,66 @@ export function TareaDetailModal({
               }}
             />
           </label>
-        </div>
+        </section>
 
-        <div className="mt-4 space-y-2">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-            <MessageSquare className="size-3.5" />
+        <section className="space-y-3">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <MessageSquare className="size-4 text-muted-foreground" />
             Comentarios
-          </p>
-          <div ref={comentariosScrollRef} className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+          </h3>
+          <div ref={comentariosScrollRef} className="max-h-72 space-y-3 overflow-y-auto pr-1">
             {comentarios.map((c) => (
-              <div key={c.id} className="rounded-lg border p-1.5 text-xs">
-                <div className="mb-0.5 flex items-center justify-between gap-2">
-                  <span className="font-semibold text-foreground">{c.createdByName}</span>
-                  <span className="shrink-0 text-[10px] text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
+              <div key={c.id} className="flex gap-2.5">
+                <PersonaAvatar name={c.createdByName} photoUrl={null} className="mt-0.5" />
+                <div className="min-w-0 flex-1 rounded-xl rounded-tl-sm bg-muted/60 px-3 py-2">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-sm font-semibold text-foreground">{c.createdByName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(c.createdAt).toLocaleString("es-DO", { dateStyle: "medium", timeStyle: "short" })}
+                    </span>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap text-foreground/90">{c.body}</p>
                 </div>
-                <p className="whitespace-pre-wrap text-muted-foreground">{c.body}</p>
               </div>
             ))}
-            {comentarios.length === 0 && (
-              <p className="py-2 text-center text-xs text-muted-foreground">Todavía no hay comentarios.</p>
-            )}
+            {comentarios.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay comentarios.</p>}
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-end gap-2 rounded-xl border p-2 focus-within:ring-3 focus-within:ring-ring/50">
             <textarea
-              placeholder="Escribe un comentario..."
+              placeholder="Escribe un comentario…"
+              aria-label="Escribe un comentario"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               rows={2}
-              className="w-full resize-none rounded-md border border-input bg-background p-2 text-sm"
+              className="w-full resize-none bg-transparent px-1 text-sm outline-none"
             />
             <Button
               size="sm"
               disabled={isPending || !newComment.trim()}
               onClick={submitComment}
-              className="shrink-0 self-end bg-[#036E6C] text-white hover:bg-[#024E4D]"
+              className="shrink-0 bg-[#036E6C] text-white hover:bg-[#024E4D]"
             >
               Comentar
             </Button>
           </div>
-        </div>
+        </section>
         </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <CompartirDialog tareaId={tarea.id} parentProyectoId={tarea.proyectoId} />
+        <footer className="flex items-center justify-between gap-2 border-t bg-card px-5 py-3 sm:px-7">
           <Button
             size="sm"
             variant="outline"
             disabled={isPending}
             onClick={remove_task}
-            className="gap-1.5 text-red-600"
+            className="gap-1.5 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40"
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 className="size-4" />
             Eliminar tarea
           </Button>
-        </div>
-      </div>
+          <CompartirDialog tareaId={tarea.id} parentProyectoId={tarea.proyectoId} />
+        </footer>
+      </aside>
 
       {viewingAdjunto && (
         <div
