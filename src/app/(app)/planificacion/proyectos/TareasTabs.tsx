@@ -12,6 +12,9 @@ import { colorDe, iniciales, SALUD_TONE_CLASS, saludProyecto, type ResumenTareas
 
 type TareasTab = "proyectos" | "mias" | "compartidas";
 
+/** Top-level tasks of a list (sub-tasks are counted inside their parent). */
+const raices = (list: TareaListRow[]) => list.filter((t) => !t.parentTaskId).length;
+
 /** A project at a glance (approved redesign): color, area, health, progress, workload and team. */
 function ProyectoCard({ proyecto, resumen }: { proyecto: ProyectoListRow; resumen?: ResumenTareas }) {
   const color = colorDe(proyecto.id);
@@ -122,6 +125,10 @@ export function TareasTabs({
 }) {
   const [tab, setTab] = useState<TareasTab>("proyectos");
   const [query, setQuery] = useState("");
+  // Opens on the tasks assigned to me, unless I only have ones I created.
+  const [vistaMias, setVistaMias] = useState<"asignadas" | "creadas">(
+    misTareas.length === 0 && misTareasCreadas.length > 0 ? "creadas" : "asignadas",
+  );
 
   const filtrar = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -133,8 +140,8 @@ export function TareasTabs({
 
   const tabs: { key: TareasTab; label: string; count: number }[] = [
     { key: "proyectos", label: "Mis proyectos", count: misProyectos.length + proyectosCompartidos.length },
-    { key: "mias", label: "Mis tareas", count: misTareas.filter((t) => !t.parentTaskId).length },
-    { key: "compartidas", label: "Compartido conmigo", count: compartidoConmigo.filter((t) => !t.parentTaskId).length },
+    { key: "mias", label: "Mis tareas", count: raices(misTareas) + raices(misTareasCreadas) },
+    { key: "compartidas", label: "Compartido conmigo", count: raices(compartidoConmigo) },
   ];
 
   return (
@@ -218,29 +225,57 @@ export function TareasTabs({
               />
             </div>
           )}
-
-          {misTareasCreadas.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-base font-semibold text-[#0B2545] dark:text-foreground">Tareas que he creado</h3>
-              <ProyectosWorkspace
-                tasks={misTareasCreadas}
-                columns={misTareasCreadasColumns}
-                columnKeyBy="estadoName"
-                estados={estados}
-                assignees={assignees}
-              />
-            </div>
-          )}
         </div>
       )}
+      {/* "Mis tareas" holds both the tasks assigned to me and the ones I
+          created, each in its own tab (user request, 2026-11-27: "Tareas
+          que he creado" belongs here, not under "Mis proyectos"). */}
       {tab === "mias" && (
-        <ProyectosWorkspace
-          tasks={misTareas}
-          columns={misColumns}
-          columnKeyBy="estadoName"
-          estados={estados}
-          assignees={assignees}
-        />
+        <div className="space-y-4">
+          <div role="tablist" aria-label="Mis tareas" className="inline-flex gap-1 rounded-xl border bg-card p-1 shadow-xs">
+            {(
+              [
+                { key: "asignadas", label: "Asignadas a mí", count: raices(misTareas) },
+                { key: "creadas", label: "Creadas por mí", count: raices(misTareasCreadas) },
+              ] as const
+            ).map((v) => (
+              <button
+                key={v.key}
+                type="button"
+                role="tab"
+                aria-selected={vistaMias === v.key}
+                onClick={() => setVistaMias(v.key)}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  vistaMias === v.key
+                    ? "bg-[#04B1AF]/12 font-semibold text-[#036E6C] dark:bg-[#04B1AF]/20 dark:text-[#5FD6D4]"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {v.label}
+                <span className="rounded-full bg-muted px-1.5 text-xs font-semibold text-muted-foreground tabular-nums">{v.count}</span>
+              </button>
+            ))}
+          </div>
+          {vistaMias === "asignadas" ? (
+            <ProyectosWorkspace
+              key="asignadas"
+              tasks={misTareas}
+              columns={misColumns}
+              columnKeyBy="estadoName"
+              estados={estados}
+              assignees={assignees}
+            />
+          ) : (
+            <ProyectosWorkspace
+              key="creadas"
+              tasks={misTareasCreadas}
+              columns={misTareasCreadasColumns}
+              columnKeyBy="estadoName"
+              estados={estados}
+              assignees={assignees}
+            />
+          )}
+        </div>
       )}
       {tab === "compartidas" && (
         <ProyectosWorkspace
