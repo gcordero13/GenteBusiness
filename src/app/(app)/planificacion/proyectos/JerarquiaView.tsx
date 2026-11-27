@@ -2,21 +2,22 @@
 
 import { useState } from "react";
 import { Calendar, ChevronDown, ChevronRight } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { TareaListRow } from "./actions";
-import { initials } from "./AssigneePicker";
-import { progressOpacity } from "./progress";
+import { BarraAvance, EstadoPill, FechaLimiteText, PersonaAvatar } from "./Distintivos";
+import { esCerrada, hoyISO } from "./visual";
 
 function TreeNode({
   task,
   childrenByParent,
   onSelect,
   depth,
+  hoy,
 }: {
   task: TareaListRow;
   childrenByParent: Map<string, TareaListRow[]>;
   onSelect: (t: TareaListRow) => void;
   depth: number;
+  hoy: string;
 }) {
   const [expanded, setExpanded] = useState(true);
   const children = childrenByParent.get(task.id) ?? [];
@@ -53,42 +54,22 @@ function TreeNode({
           {task.title}
         </button>
 
-        <div className="flex shrink-0 items-center gap-1.5" title={`Progreso: ${task.percentComplete}%`}>
-          <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full bg-[#04B1AF]"
-              style={{ width: `${task.percentComplete}%`, opacity: progressOpacity(task.percentComplete) }}
-            />
-          </div>
-          <span className="w-8 shrink-0 text-right text-[11px] font-semibold text-muted-foreground">
-            {task.percentComplete}%
-          </span>
-        </div>
+        <BarraAvance percent={task.percentComplete} className="w-28 shrink-0" />
 
-        {task.estadoName && (
-          <span
-            className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold"
-            style={{ borderColor: task.estadoColor ?? undefined, color: task.estadoColor ?? undefined }}
-          >
-            {task.estadoName}
-          </span>
-        )}
+        {task.estadoName && <EstadoPill name={task.estadoName} color={task.estadoColor} className="shrink-0" />}
 
         {task.dueDate && (
-          <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
-            <Calendar className="size-3" />
-            {task.dueDate}
+          <span className="flex shrink-0 items-center gap-1">
+            <Calendar className="size-3.5 text-muted-foreground" aria-hidden="true" />
+            <FechaLimiteText dueDate={task.dueDate} hoy={hoy} cerrada={esCerrada(task.estadoKind) || task.percentComplete === 100} />
           </span>
         )}
 
-        <Avatar size="sm" className="shrink-0" title={task.assigneeName ?? "Sin asignar"}>
-          {task.assigneePhotoUrl && <AvatarImage src={task.assigneePhotoUrl} alt="" />}
-          <AvatarFallback>{task.assigneeName ? initials(task.assigneeName) : "—"}</AvatarFallback>
-        </Avatar>
+        <PersonaAvatar name={task.assigneeName} photoUrl={task.assigneePhotoUrl} className="shrink-0" />
       </div>
       {expanded &&
         children.map((c) => (
-          <TreeNode key={c.id} task={c} childrenByParent={childrenByParent} onSelect={onSelect} depth={depth + 1} />
+          <TreeNode key={c.id} task={c} childrenByParent={childrenByParent} onSelect={onSelect} depth={depth + 1} hoy={hoy} />
         ))}
     </div>
   );
@@ -111,20 +92,21 @@ export function JerarquiaView({ tasks, onSelect }: { tasks: TareaListRow[]; onSe
     }
   }
 
+  const hoy = hoyISO();
+
   if (roots.length === 0) {
     return <p className="py-10 text-center text-sm text-muted-foreground">Sin tareas todavía.</p>;
   }
 
   return (
-    <div className="space-y-1 rounded-2xl border bg-card p-3 shadow-sm">
-      <p className="px-2 pb-1 text-[11px] text-muted-foreground">
-        Las tareas en <strong className="text-foreground">negrita</strong> tienen subtareas - su progreso se calcula
-        automáticamente a partir de ellas. Cada fila muestra, de izquierda a derecha: progreso, estado, fecha límite y
-        responsable.
+    <div className="space-y-1 rounded-2xl border bg-card p-4 shadow-xs">
+      <p className="px-2 pb-2 text-sm text-muted-foreground">
+        Las tareas en <strong className="text-foreground">negrita</strong> tienen subtareas: su avance se calcula
+        automáticamente a partir de ellas.
       </p>
       <div className="space-y-0.5">
         {roots.map((t) => (
-          <TreeNode key={t.id} task={t} childrenByParent={childrenByParent} onSelect={onSelect} depth={0} />
+          <TreeNode key={t.id} task={t} childrenByParent={childrenByParent} onSelect={onSelect} depth={0} hoy={hoy} />
         ))}
       </div>
     </div>

@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { TareaListRow } from "./actions";
-import { initials } from "./AssigneePicker";
+import { hoyISO } from "./visual";
 
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MONTH_NAMES = [
@@ -50,9 +49,9 @@ export function CalendarioView({
   onSelect: (t: TareaListRow) => void;
   onReschedule: (taskId: string, newDateIso: string) => void;
 }) {
-  const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth() + 1);
+  const hoy = hoyISO();
+  const [year, setYear] = useState(Number(hoy.slice(0, 4)));
+  const [month, setMonth] = useState(Number(hoy.slice(5, 7)));
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
@@ -78,22 +77,31 @@ export function CalendarioView({
   }
 
   return (
-    <div className="rounded-2xl border bg-card p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Calendario</h3>
-        <div className="flex items-center gap-2 text-sm">
-          <button type="button" onClick={goPrev} className="flex size-6 items-center justify-center rounded hover:bg-muted">
+    <div className="overflow-x-auto rounded-2xl border bg-card p-4 shadow-xs">
+      <div className="mb-4 flex min-w-[40rem] items-center justify-between">
+        <h3 className="text-base font-semibold text-foreground">
+          {MONTH_NAMES[month - 1]} {year}
+        </h3>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={goPrev}
+            aria-label="Mes anterior"
+            className="flex size-9 items-center justify-center rounded-lg border hover:bg-muted"
+          >
             <ChevronLeft className="size-4" />
           </button>
-          <span className="min-w-[9rem] text-center font-medium text-foreground">
-            {MONTH_NAMES[month - 1]} {year}
-          </span>
-          <button type="button" onClick={goNext} className="flex size-6 items-center justify-center rounded hover:bg-muted">
+          <button
+            type="button"
+            onClick={goNext}
+            aria-label="Mes siguiente"
+            className="flex size-9 items-center justify-center rounded-lg border hover:bg-muted"
+          >
             <ChevronRight className="size-4" />
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-1 text-xs">
+      <div className="grid min-w-[40rem] grid-cols-7 gap-1.5 text-xs">
         {WEEKDAYS.map((w) => (
           <div key={w} className="px-1 pb-1 text-center font-semibold text-muted-foreground">
             {w}
@@ -116,14 +124,20 @@ export function CalendarioView({
               setDraggingId(null);
               if (id) onReschedule(id, cell.dateIso);
             }}
-            className={`min-h-[72px] rounded-lg border p-1 ${cell ? "bg-background" : "border-transparent"} ${
+            className={`min-h-[88px] rounded-lg border p-1.5 ${cell ? "bg-background" : "border-transparent"} ${
               cell && dragOverDate === cell.dateIso ? "border-[#04B1AF] bg-[#04B1AF]/5 ring-2 ring-[#04B1AF]/30" : ""
             }`}
           >
             {cell && (
               <>
-                <p className="mb-1 text-right text-[11px] text-muted-foreground">{cell.day}</p>
-                <div className="space-y-0.5">
+                <p
+                  className={`mb-1 ml-auto flex size-6 items-center justify-center rounded-full text-xs tabular-nums ${
+                    cell.dateIso === hoy ? "bg-[#036E6C] font-semibold text-white" : "text-muted-foreground"
+                  }`}
+                >
+                  {cell.day}
+                </p>
+                <div className="space-y-1">
                   {cell.tasks.slice(0, 3).map((t) => (
                     <button
                       key={t.id}
@@ -135,19 +149,18 @@ export function CalendarioView({
                       }}
                       onDragEnd={() => setDraggingId(null)}
                       onClick={() => onSelect(t)}
-                      className={`flex w-full items-center gap-1 rounded px-1 text-left text-[10px] hover:bg-muted ${
+                      title={`${t.title}${t.assigneeName ? ` · ${t.assigneeName}` : ""}`}
+                      style={{ backgroundColor: `color-mix(in srgb, ${t.estadoColor ?? "#94a3b8"} 16%, transparent)` }}
+                      className={`flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-xs text-foreground hover:brightness-95 ${
                         draggingId === t.id ? "opacity-40" : ""
-                      }`}
+                      } ${t.percentComplete === 100 ? "line-through opacity-70" : ""}`}
                     >
-                      <Avatar className="size-3.5 shrink-0" title={t.assigneeName ?? "Sin asignar"}>
-                        {t.assigneePhotoUrl && <AvatarImage src={t.assigneePhotoUrl} alt="" />}
-                        <AvatarFallback className="text-[7px]">{t.assigneeName ? initials(t.assigneeName) : "—"}</AvatarFallback>
-                      </Avatar>
+                      <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: t.estadoColor ?? "#94a3b8" }} />
                       <span className="truncate">{t.title}</span>
                     </button>
                   ))}
                   {cell.tasks.length > 3 && (
-                    <p className="text-[10px] text-muted-foreground">+{cell.tasks.length - 3} más</p>
+                    <p className="px-1.5 text-xs text-muted-foreground">+{cell.tasks.length - 3} más</p>
                   )}
                 </div>
               </>

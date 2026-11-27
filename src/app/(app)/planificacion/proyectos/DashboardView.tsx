@@ -2,6 +2,10 @@
 
 import { AlertTriangle, PieChart, TrendingUp, Users } from "lucide-react";
 import type { TareaListRow } from "./actions";
+import { FechaLimiteText } from "./Distintivos";
+import { hoyISO } from "./visual";
+
+const CARD = "rounded-2xl border bg-card p-5 shadow-xs";
 
 // Icon bubble + title shared by every widget header, themed per widget via
 // `accent` (a Tailwind text-color class) - the colored top border on each
@@ -12,7 +16,7 @@ function WidgetHeader({ icon: Icon, accent, title }: { icon: typeof TrendingUp; 
       <span className={`flex size-8 shrink-0 items-center justify-center rounded-full bg-current/10 ${accent}`}>
         <Icon className="size-4" />
       </span>
-      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="text-base font-semibold text-foreground">{title}</p>
     </div>
   );
 }
@@ -91,16 +95,16 @@ function AvanceGeneralWidget({ tasks }: { tasks: TareaListRow[] }) {
       : 0;
 
   return (
-    <div className="rounded-2xl border border-t-4 border-t-[#04B1AF] bg-card p-4 shadow-sm">
-      <WidgetHeader icon={TrendingUp} accent="text-[#04B1AF]" title="Avance general" />
+    <div className={CARD}>
+      <WidgetHeader icon={TrendingUp} accent="text-[#036E6C] dark:text-[#5FD6D4]" title="Avance general" />
       {rootTasks.length === 0 ? (
-        <p className="py-6 text-center text-xs text-muted-foreground">Sin tareas todavía.</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin tareas todavía.</p>
       ) : (
         <div className="flex justify-center">
           <Donut
             segments={[
               { value: percent, color: "#04B1AF" },
-              { value: 100 - percent, color: "#e5e7eb" },
+              { value: 100 - percent, color: "var(--muted)" },
             ]}
             centerLabel={`${percent}%`}
           />
@@ -128,16 +132,16 @@ function DesgloseEstadoWidget({ tasks }: { tasks: TareaListRow[] }) {
   const entries = [...groups.values()].sort((a, b) => b.count - a.count);
 
   return (
-    <div className="rounded-2xl border border-t-4 border-t-indigo-400 bg-card p-4 shadow-sm">
-      <WidgetHeader icon={PieChart} accent="text-indigo-500" title="Desglose por estado" />
+    <div className={CARD}>
+      <WidgetHeader icon={PieChart} accent="text-indigo-600 dark:text-indigo-400" title="Desglose por estado" />
       {tasks.length === 0 ? (
-        <p className="py-6 text-center text-xs text-muted-foreground">Sin tareas todavía.</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin tareas todavía.</p>
       ) : (
         <div className="flex flex-wrap items-center gap-4">
           <Donut segments={entries.map((e) => ({ value: e.count, color: e.color }))} centerLabel={String(tasks.length)} />
           <div className="min-w-0 flex-1 space-y-1">
             {entries.map((e) => (
-              <div key={e.name} className="flex items-center gap-1.5 text-xs">
+              <div key={e.name} className="flex items-center gap-2 text-sm">
                 <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} />
                 <span className="min-w-0 flex-1 truncate text-foreground">{e.name}</span>
                 <span className="shrink-0 font-semibold text-muted-foreground">{e.count}</span>
@@ -168,15 +172,15 @@ function CargaResponsableWidget({ tasks }: { tasks: TareaListRow[] }) {
   const max = entries.length > 0 ? entries[0][1] : 0;
 
   return (
-    <div className="rounded-2xl border border-t-4 border-t-blue-400 bg-card p-4 shadow-sm">
-      <WidgetHeader icon={Users} accent="text-blue-500" title="Carga por responsable" />
+    <div className={CARD}>
+      <WidgetHeader icon={Users} accent="text-blue-600 dark:text-blue-400" title="Carga por responsable" />
       {entries.length === 0 ? (
-        <p className="py-6 text-center text-xs text-muted-foreground">Sin tareas todavía.</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin tareas todavía.</p>
       ) : (
         <div className="space-y-2">
           {entries.map(([name, count]) => (
-            <div key={name} className="flex items-center gap-2 text-xs">
-              <span className="w-24 shrink-0 truncate text-foreground">{name}</span>
+            <div key={name} className="flex items-center gap-2 text-sm">
+              <span className="w-32 shrink-0 truncate text-foreground">{name}</span>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                 <div className="h-full bg-[#04B1AF]" style={{ width: `${max > 0 ? (count / max) * 100 : 0}%` }} />
               </div>
@@ -195,10 +199,10 @@ function CargaResponsableWidget({ tasks }: { tasks: TareaListRow[] }) {
 // lexicographically - the same pattern ProyectosWorkspace's own
 // fromDate/toDate filter already relies on.
 function VencidasWidget({ tasks, onSelect }: { tasks: TareaListRow[]; onSelect: (t: TareaListRow) => void }) {
-  const now = new Date();
-  const todayIso = now.toISOString().slice(0, 10);
-  const in7Days = new Date(now);
-  in7Days.setDate(in7Days.getDate() + 7);
+  // Company time zone, not UTC: late in the evening UTC is already tomorrow.
+  const todayIso = hoyISO();
+  const in7Days = new Date(`${todayIso}T12:00:00Z`);
+  in7Days.setUTCDate(in7Days.getUTCDate() + 7);
   const in7DaysIso = in7Days.toISOString().slice(0, 10);
 
   const pending = tasks.filter((t) => t.dueDate && t.percentComplete !== 100);
@@ -209,33 +213,31 @@ function VencidasWidget({ tasks, onSelect }: { tasks: TareaListRow[]; onSelect: 
     .slice(0, 5);
 
   return (
-    <div className="rounded-2xl border border-t-4 border-t-red-400 bg-card p-4 shadow-sm">
-      <WidgetHeader icon={AlertTriangle} accent="text-red-500" title="Vencidas / por vencer" />
+    <div className={CARD}>
+      <WidgetHeader icon={AlertTriangle} accent="text-red-600 dark:text-red-400" title="Vencidas / por vencer" />
       <div className="mb-3 grid grid-cols-2 gap-2">
-        <div className="rounded-lg bg-red-50 p-3 text-center">
-          <p className="text-3xl font-bold text-red-600">{vencidas.length}</p>
-          <p className="text-[11px] text-muted-foreground">Vencidas</p>
+        <div className="rounded-xl bg-red-50 p-3 text-center dark:bg-red-950/40">
+          <p className="text-3xl font-bold text-red-700 tabular-nums dark:text-red-400">{vencidas.length}</p>
+          <p className="text-xs text-muted-foreground">Vencidas</p>
         </div>
-        <div className="rounded-lg bg-amber-50 p-3 text-center">
-          <p className="text-3xl font-bold text-amber-600">{porVencer.length}</p>
-          <p className="text-[11px] text-muted-foreground">Por vencer (7 días)</p>
+        <div className="rounded-xl bg-amber-50 p-3 text-center dark:bg-amber-950/40">
+          <p className="text-3xl font-bold text-amber-700 tabular-nums dark:text-amber-400">{porVencer.length}</p>
+          <p className="text-xs text-muted-foreground">Por vencer (7 días)</p>
         </div>
       </div>
       {urgentes.length === 0 ? (
-        <p className="py-4 text-center text-xs text-muted-foreground">Sin tareas vencidas ni próximas a vencer.</p>
+        <p className="py-4 text-center text-sm text-muted-foreground">Sin tareas vencidas ni próximas a vencer.</p>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {urgentes.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => onSelect(t)}
-              className="flex w-full items-center justify-between gap-2 rounded-lg border p-2 text-left text-xs hover:bg-muted"
+              className="flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm hover:bg-muted"
             >
               <span className="min-w-0 flex-1 truncate text-foreground">{t.title}</span>
-              <span className={`shrink-0 font-semibold ${t.dueDate! < todayIso ? "text-red-600" : "text-amber-600"}`}>
-                {t.dueDate}
-              </span>
+              <FechaLimiteText dueDate={t.dueDate} hoy={todayIso} cerrada={false} className="shrink-0" />
             </button>
           ))}
         </div>
