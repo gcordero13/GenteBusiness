@@ -12,9 +12,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { updateUserFullName } from "./actions";
+import { useOpenState } from "./useOpenState";
 
-export function EditUserDialog({ userId, fullName }: { userId: string; fullName: string | null }) {
-  const [open, setOpen] = useState(false);
+export function EditUserDialog({
+  userId,
+  fullName,
+  open: openProp,
+  onOpenChange,
+}: {
+  userId: string;
+  fullName: string | null;
+  /** Controlled from outside (e.g. an actions menu): then it shows no button of its own. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [open, setOpen, controlled] = useOpenState(openProp, onOpenChange);
   const [name, setName] = useState(fullName ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -40,11 +52,14 @@ export function EditUserDialog({ userId, fullName }: { userId: string; fullName:
         }
       }}
     >
-      <DialogTrigger render={<Button variant="outline" size="sm">Editar</Button>} />
+      {!controlled && <DialogTrigger render={<Button variant="outline" size="sm">Editar</Button>} />}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar usuario</DialogTitle>
+          <DialogTitle>Nombre del usuario</DialogTitle>
         </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Se usa si la persona no está en la Agenda; si está, se muestra el nombre de la Agenda.
+        </p>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Input
           placeholder="Nombre completo"

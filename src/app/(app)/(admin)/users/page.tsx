@@ -53,12 +53,15 @@ export default async function UsersPage() {
   });
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">Usuarios</h1>
+    <div className="w-full min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1.5">
           <p className="text-sm text-muted-foreground">
-            Administra el acceso, el perfil y la contraseña de cada usuario de la plataforma.
+            Ajustes <span aria-hidden="true">/</span> <span className="font-medium text-foreground">Usuarios</span>
+          </p>
+          <h1 className="text-[28px] font-bold tracking-tight text-[#0B2545] dark:text-foreground">Usuarios</h1>
+          <p className="text-[15px] text-muted-foreground">
+            Quién entra a la plataforma, con qué perfil, y su contraseña.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

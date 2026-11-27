@@ -12,9 +12,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { setUserPassword } from "./actions";
+import { useOpenState } from "./useOpenState";
 
-export function SetPasswordDialog({ userId, email }: { userId: string; email: string }) {
-  const [open, setOpen] = useState(false);
+export function SetPasswordDialog({
+  userId,
+  email,
+  open: openProp,
+  onOpenChange,
+}: {
+  userId: string;
+  email: string;
+  /** Controlled from outside (e.g. an actions menu): then it shows no button of its own. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [open, setOpen, controlled] = useOpenState(openProp, onOpenChange);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -43,7 +55,7 @@ export function SetPasswordDialog({ userId, email }: { userId: string; email: st
         }
       }}
     >
-      <DialogTrigger render={<Button variant="outline" size="sm">Contraseña</Button>} />
+      {!controlled && <DialogTrigger render={<Button variant="outline" size="sm">Contraseña</Button>} />}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Establecer contraseña para {email}</DialogTitle>

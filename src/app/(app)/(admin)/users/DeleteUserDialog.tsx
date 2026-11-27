@@ -11,9 +11,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { deleteUser } from "./actions";
+import { useOpenState } from "./useOpenState";
 
-export function DeleteUserDialog({ userId, email }: { userId: string; email: string }) {
-  const [open, setOpen] = useState(false);
+export function DeleteUserDialog({
+  userId,
+  email,
+  open: openProp,
+  onOpenChange,
+}: {
+  userId: string;
+  email: string;
+  /** Controlled from outside (e.g. an actions menu): then it shows no button of its own. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [open, setOpen, controlled] = useOpenState(openProp, onOpenChange);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -36,7 +48,7 @@ export function DeleteUserDialog({ userId, email }: { userId: string; email: str
         if (!next) setError(null);
       }}
     >
-      <DialogTrigger render={<Button variant="destructive" size="sm">Eliminar</Button>} />
+      {!controlled && <DialogTrigger render={<Button variant="destructive" size="sm">Eliminar</Button>} />}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>¿Eliminar a {email}?</DialogTitle>

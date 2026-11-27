@@ -54,7 +54,7 @@ export function InviteUserForm({ profiles }: { profiles: Profile[] }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>Invitar usuario</Button>} />
+      <DialogTrigger render={<Button className="bg-[#036E6C] text-white hover:bg-[#024E4D]">Invitar usuario</Button>} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Invitar usuario</DialogTitle>
