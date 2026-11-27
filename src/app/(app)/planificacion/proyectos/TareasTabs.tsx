@@ -139,10 +139,44 @@ export function TareasTabs({
   const compartidos = filtrar(proyectosCompartidos);
 
   const tabs: { key: TareasTab; label: string; count: number }[] = [
-    { key: "proyectos", label: "Mis proyectos", count: misProyectos.length + proyectosCompartidos.length },
+    { key: "proyectos", label: "Mis proyectos", count: misProyectos.length },
     { key: "mias", label: "Mis tareas", count: raices(misTareas) + raices(misTareasCreadas) },
-    { key: "compartidas", label: "Compartido conmigo", count: raices(compartidoConmigo) },
+    { key: "compartidas", label: "Compartido conmigo", count: proyectosCompartidos.length + raices(compartidoConmigo) },
   ];
+  const selectorMias = (
+    <div role="tablist" aria-label="Mis tareas" className="flex gap-1 rounded-xl border bg-card p-1 shadow-xs">
+      {(
+        [
+          { key: "asignadas", label: "Asignadas a mí", count: raices(misTareas) },
+          { key: "creadas", label: "Creadas por mí", count: raices(misTareasCreadas) },
+        ] as const
+      ).map((v) => (
+        <button
+          key={v.key}
+          type="button"
+          role="tab"
+          aria-selected={vistaMias === v.key}
+          onClick={() => setVistaMias(v.key)}
+          className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            vistaMias === v.key
+              ? "bg-[#0B2545] font-semibold text-white dark:bg-[#04B1AF]/25 dark:text-[#7FE3E1]"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          {v.label}
+          <span
+            className={`rounded-full px-1.5 text-xs font-semibold tabular-nums ${
+              vistaMias === v.key ? "bg-white/20 text-white dark:text-[#7FE3E1]" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {v.count}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+  const mostrarBuscador =
+    (tab === "proyectos" && misProyectos.length > 0) || (tab === "compartidas" && proyectosCompartidos.length > 0);
 
   return (
     <section className="space-y-5">
@@ -172,7 +206,7 @@ export function TareasTabs({
             </button>
           ))}
         </div>
-        {tab === "proyectos" && (misProyectos.length + proyectosCompartidos.length > 0) && (
+        {mostrarBuscador && (
           <label className="mb-2.5 flex h-10 w-full items-center gap-2 rounded-xl border bg-card px-3 text-muted-foreground shadow-xs focus-within:ring-3 focus-within:ring-ring/50 sm:w-72">
             <Search className="size-4 shrink-0" />
             <input
@@ -187,32 +221,52 @@ export function TareasTabs({
         )}
       </div>
 
-      {tab === "proyectos" && (
-        <div className="space-y-8">
-          {misProyectos.length === 0 && proyectosCompartidos.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-card/60 px-6 py-12 text-center">
-              <FolderPlus className="size-8 text-muted-foreground" />
-              <p className="text-sm font-medium text-foreground">Todavía no tienes proyectos</p>
-              <p className="text-sm text-muted-foreground">Crea uno con «Nuevo proyecto» o pide que te lo compartan.</p>
-            </div>
+      {/* Only the projects I created (user request, 2026-11-27); projects
+          shared with me live in "Compartido conmigo". */}
+      {tab === "proyectos" &&
+        (misProyectos.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-card/60 px-6 py-12 text-center">
+            <FolderPlus className="size-8 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">Todavía no has creado proyectos</p>
+            <p className="text-sm text-muted-foreground">Crea uno con «Nuevo proyecto».</p>
+          </div>
+        ) : mios.length > 0 ? (
+          <ProyectosGrid proyectos={mios} resumenByProyecto={resumenByProyecto} />
+        ) : (
+          <p className="text-sm text-muted-foreground">Ningún proyecto coincide con «{query}».</p>
+        ))}
+      {/* "Mis tareas" holds both the tasks assigned to me and the ones I
+          created, each in its own tab (user request, 2026-11-27: "Tareas
+          que he creado" belongs here, not under "Mis proyectos"). */}
+      {tab === "mias" && (
+        <div className="space-y-6">
+          {/* The Asignadas/Creadas switch sits on the same row as Lista,
+              Tablero… (user request, 2026-11-27: fewer rows). */}
+          {vistaMias === "asignadas" ? (
+            <ProyectosWorkspace
+              key="asignadas"
+              tasks={misTareas}
+              columns={misColumns}
+              columnKeyBy="estadoName"
+              estados={estados}
+              assignees={assignees}
+              toolbarStart={selectorMias}
+            />
           ) : (
-            <>
-              {mios.length > 0 && <ProyectosGrid proyectos={mios} resumenByProyecto={resumenByProyecto} />}
-              {compartidos.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-muted-foreground">Compartidos conmigo</h3>
-                  <ProyectosGrid proyectos={compartidos} resumenByProyecto={resumenByProyecto} />
-                </div>
-              )}
-              {query && mios.length === 0 && compartidos.length === 0 && (
-                <p className="text-sm text-muted-foreground">Ningún proyecto coincide con «{query}».</p>
-              )}
-            </>
+            <ProyectosWorkspace
+              key="creadas"
+              tasks={misTareasCreadas}
+              columns={misTareasCreadasColumns}
+              columnKeyBy="estadoName"
+              estados={estados}
+              assignees={assignees}
+              toolbarStart={selectorMias}
+            />
           )}
-
-          {tareasSinResponsableActivo.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400">
+          {/* Tasks I created whose responsible was deactivated: mine to reassign. */}
+          {vistaMias === "creadas" && tareasSinResponsableActivo.length > 0 && (
+            <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
                 <TriangleAlert className="size-4" />
                 Tareas sin responsable activo: reasígnalas a alguien
               </h3>
@@ -227,64 +281,31 @@ export function TareasTabs({
           )}
         </div>
       )}
-      {/* "Mis tareas" holds both the tasks assigned to me and the ones I
-          created, each in its own tab (user request, 2026-11-27: "Tareas
-          que he creado" belongs here, not under "Mis proyectos"). */}
-      {tab === "mias" && (
-        <div className="space-y-4">
-          <div role="tablist" aria-label="Mis tareas" className="inline-flex gap-1 rounded-xl border bg-card p-1 shadow-xs">
-            {(
-              [
-                { key: "asignadas", label: "Asignadas a mí", count: raices(misTareas) },
-                { key: "creadas", label: "Creadas por mí", count: raices(misTareasCreadas) },
-              ] as const
-            ).map((v) => (
-              <button
-                key={v.key}
-                type="button"
-                role="tab"
-                aria-selected={vistaMias === v.key}
-                onClick={() => setVistaMias(v.key)}
-                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  vistaMias === v.key
-                    ? "bg-[#04B1AF]/12 font-semibold text-[#036E6C] dark:bg-[#04B1AF]/20 dark:text-[#5FD6D4]"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {v.label}
-                <span className="rounded-full bg-muted px-1.5 text-xs font-semibold text-muted-foreground tabular-nums">{v.count}</span>
-              </button>
-            ))}
-          </div>
-          {vistaMias === "asignadas" ? (
-            <ProyectosWorkspace
-              key="asignadas"
-              tasks={misTareas}
-              columns={misColumns}
-              columnKeyBy="estadoName"
-              estados={estados}
-              assignees={assignees}
-            />
-          ) : (
-            <ProyectosWorkspace
-              key="creadas"
-              tasks={misTareasCreadas}
-              columns={misTareasCreadasColumns}
-              columnKeyBy="estadoName"
-              estados={estados}
-              assignees={assignees}
-            />
-          )}
-        </div>
-      )}
       {tab === "compartidas" && (
-        <ProyectosWorkspace
-          tasks={compartidoConmigo}
-          columns={compartidoColumns}
-          columnKeyBy="estadoName"
-          estados={estados}
-          assignees={assignees}
-        />
+        <div className="space-y-8">
+          {proyectosCompartidos.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold text-[#0B2545] dark:text-foreground">Proyectos compartidos</h3>
+              {compartidos.length > 0 ? (
+                <ProyectosGrid proyectos={compartidos} resumenByProyecto={resumenByProyecto} />
+              ) : (
+                <p className="text-sm text-muted-foreground">Ningún proyecto coincide con «{query}».</p>
+              )}
+            </div>
+          )}
+          <div className="space-y-3">
+            {proyectosCompartidos.length > 0 && (
+              <h3 className="text-base font-semibold text-[#0B2545] dark:text-foreground">Tareas compartidas</h3>
+            )}
+            <ProyectosWorkspace
+              tasks={compartidoConmigo}
+              columns={compartidoColumns}
+              columnKeyBy="estadoName"
+              estados={estados}
+              assignees={assignees}
+            />
+          </div>
+        </div>
       )}
     </section>
   );

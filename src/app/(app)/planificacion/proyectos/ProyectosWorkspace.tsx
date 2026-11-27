@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Download, LayoutDashboard, LayoutGrid, List, Network } from "lucide-react";
 import { updateTareaFecha, updateTareaPercent, type EstadoOption, type PlanificacionRow, type TareaListRow } from "./actions";
@@ -39,7 +39,10 @@ export function ProyectosWorkspace({
   estados,
   assignees,
   planificaciones = [],
+  toolbarStart,
 }: {
+  /** Extra control shown first on the view-switcher row (e.g. Mis tareas' Asignadas/Creadas). */
+  toolbarStart?: ReactNode;
   tasks: TareaListRow[];
   columns: TableroColumn[];
   columnKeyBy: "estadoId" | "estadoName";
@@ -147,6 +150,8 @@ export function ProyectosWorkspace({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        {toolbarStart}
         <div role="tablist" aria-label="Vistas" className="flex gap-1 overflow-x-auto rounded-xl border bg-card p-1 shadow-xs">
           {VIEW_OPTIONS.map((v) => (
             <button
@@ -167,6 +172,7 @@ export function ProyectosWorkspace({
               <span className="hidden sm:inline">{v.label}</span>
             </button>
           ))}
+        </div>
         </div>
 
         {/* Lives here (not inside any one view, not a tab of its own) so it
