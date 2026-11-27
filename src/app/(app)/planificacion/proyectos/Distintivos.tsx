@@ -3,9 +3,10 @@
 // view. No hooks, so they render in server and client components alike.
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { initials } from "./AssigneePicker";
 import { progressOpacity } from "./progress";
-import { colorDe, FECHA_TONE_CLASS, fechaLimite } from "./visual";
+// Server components render these pieces too, so nothing here may come from
+// a "use client" module (see initials() in ./visual).
+import { colorDe, FECHA_TONE_CLASS, fechaLimite, initials } from "./visual";
 
 const SIN_COLOR = "#94a3b8";
 

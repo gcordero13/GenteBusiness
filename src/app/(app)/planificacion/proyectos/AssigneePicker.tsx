@@ -7,10 +7,9 @@ import type { AssigneeOption } from "./TareaCreateDialog";
 // Shared by every place that shows a person's avatar fallback (Jerarquía,
 // Lista, the detail modal) - first letter of the first two words of their
 // name.
-export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
-}
+// Kept as a re-export for the client components that import it from here;
+// server components must import it from ./visual (see the note there).
+export { initials } from "./visual";
 
 // Free-text search over the assignable-users list, with suggestions shown
 // as the user types (confirmed with the user: a plain dropdown with every

@@ -125,6 +125,18 @@ export function resumenTareas(tasks: TareaResumible[], hoy: string): ResumenTare
   };
 }
 
+/**
+ * A person's initials ("María Fernández" → "MF"). Lives here, not in the
+ * "use client" AssigneePicker, because server components (the project
+ * header's avatars) call it too: a function imported from a "use client"
+ * module becomes a client reference on the server and crashes the page
+ * ("This page couldn't load") when called - the same trap progress.ts notes.
+ */
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+}
+
 const CONECTORES = new Set(["de", "del", "la", "las", "el", "los", "y", "e", "o", "en", "para", "a", "al"]);
 
 /** "PC" for "Portal de clientes": first letters of the first two words that aren't connectors. */

@@ -127,6 +127,25 @@ export default async function PlanificacionPage() {
         ))}
       </div>
 
+
+      <TareasTabs
+        misProyectos={misProyectos}
+        proyectosCompartidos={proyectosCompartidos}
+        resumenByProyecto={resumenByProyecto}
+        misTareasCreadas={misTareasCreadas}
+        misTareasCreadasColumns={buildMixedColumns(misTareasCreadas)}
+        misTareas={misTareas}
+        misColumns={buildMixedColumns(misTareas)}
+        compartidoConmigo={compartidoConmigo}
+        compartidoColumns={buildMixedColumns(compartidoConmigo)}
+        tareasSinResponsableActivo={tareasSinResponsableActivo}
+        tareasSinResponsableActivoColumns={buildMixedColumns(tareasSinResponsableActivo)}
+        estados={[]}
+        assignees={assignableUsers}
+      />
+
+      {/* At the bottom (user request, 2026-11-27): the tabs and "Tareas que he
+          creado" come first, right under the numbers. */}
       <section aria-labelledby="atencion-title" className="overflow-hidden rounded-2xl border bg-card shadow-xs">
         <div className="flex items-center justify-between gap-3 border-b px-4 py-3.5 sm:px-5">
           <h2 id="atencion-title" className="text-base font-semibold text-[#0B2545] dark:text-foreground">
@@ -164,22 +183,6 @@ export default async function PlanificacionPage() {
           </ul>
         )}
       </section>
-
-      <TareasTabs
-        misProyectos={misProyectos}
-        proyectosCompartidos={proyectosCompartidos}
-        resumenByProyecto={resumenByProyecto}
-        misTareasCreadas={misTareasCreadas}
-        misTareasCreadasColumns={buildMixedColumns(misTareasCreadas)}
-        misTareas={misTareas}
-        misColumns={buildMixedColumns(misTareas)}
-        compartidoConmigo={compartidoConmigo}
-        compartidoColumns={buildMixedColumns(compartidoConmigo)}
-        tareasSinResponsableActivo={tareasSinResponsableActivo}
-        tareasSinResponsableActivoColumns={buildMixedColumns(tareasSinResponsableActivo)}
-        estados={[]}
-        assignees={assignableUsers}
-      />
     </div>
   );
 }
