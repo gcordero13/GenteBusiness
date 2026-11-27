@@ -65,10 +65,12 @@ export function SearchFilters({
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
       <Input
-        placeholder="Buscar por nombre"
+        type="search"
+        placeholder="Buscar por nombre, correo o teléfono"
+        aria-label="Buscar por nombre, correo o teléfono"
         defaultValue={searchParams.get("q") ?? ""}
         onChange={(e) => updateParam("q", e.target.value)}
-        className="w-full sm:max-w-xs"
+        className="w-full sm:max-w-sm"
       />
       <Select
         value={searchParams.get("company") ?? ""}

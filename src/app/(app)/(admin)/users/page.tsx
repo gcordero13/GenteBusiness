@@ -25,14 +25,32 @@ export default async function UsersPage() {
   const admin = createAdminClient();
   const { data: contactsWithEmail } = await admin
     .from("contacts")
-    .select("id, first_name, last_name, email")
+    .select("id, first_name, last_name, email, status, photo_url")
     .not("email", "is", null)
-    .eq("status", "active")
     .order("first_name");
   const existingEmails = new Set((users ?? []).map((u) => u.email.toLowerCase()));
   const availableContacts = (contactsWithEmail ?? [])
-    .filter((c) => c.email && !existingEmails.has(c.email.toLowerCase()))
+    .filter((c) => c.status === "active" && c.email && !existingEmails.has(c.email.toLowerCase()))
     .map((c) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, email: c.email! }));
+
+  // Each user's name and photo come from their Agenda contact, matched by
+  // email (most accounts have no full_name) - user request, 2026-11-27.
+  const contactByEmail = new Map<string, { name: string; photoUrl: string | null }>();
+  for (const c of contactsWithEmail ?? []) {
+    const key = c.email!.trim().toLowerCase();
+    const current = contactByEmail.get(key);
+    if (!current || c.status === "active") {
+      contactByEmail.set(key, { name: `${c.first_name} ${c.last_name}`.trim(), photoUrl: c.photo_url });
+    }
+  }
+  const rows = (users ?? []).map((u) => {
+    const contact = contactByEmail.get(u.email.trim().toLowerCase());
+    return {
+      ...u,
+      display_name: contact?.name || u.full_name?.trim() || null,
+      photo_url: contact?.photoUrl ?? null,
+    };
+  });
 
   return (
     <div className="space-y-6 p-6">
@@ -48,7 +66,7 @@ export default async function UsersPage() {
           <InviteUserForm profiles={profiles ?? []} />
         </div>
       </div>
-      <UsersTable users={users ?? []} profiles={profiles ?? []} />
+      <UsersTable users={rows} profiles={profiles ?? []} />
     </div>
   );
 }

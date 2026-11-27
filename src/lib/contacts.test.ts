@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOrgTree,
+  contactsSearchFilter,
   escapeIlikePattern,
   formatMonthDay,
   formatTenure,
@@ -103,6 +104,38 @@ describe("escapeIlikePattern", () => {
 
   it("keeps commas and parentheses harmless by keeping them inside the quoted value", () => {
     expect(escapeIlikePattern("a,b(c)")).toBe('"%a,b(c)%"');
+  });
+});
+
+describe("contactsSearchFilter", () => {
+  it("searches names, email and position", () => {
+    expect(contactsSearchFilter("ana")).toBe(
+      'first_name.ilike."%ana%",last_name.ilike."%ana%",email.ilike."%ana%",position.ilike."%ana%"',
+    );
+  });
+
+  it("finds an email", () => {
+    expect(contactsSearchFilter("ana.perez@empresa.com")).toContain('email.ilike."%ana.perez@empresa.com%"');
+  });
+
+  it("matches a full name across first and last name", () => {
+    expect(contactsSearchFilter("Ana Pérez García")).toContain(
+      'and(first_name.ilike."%Ana%",last_name.ilike."%Pérez García%")',
+    );
+  });
+
+  it("matches phones however they're written", () => {
+    const filter = contactsSearchFilter("809-555 12")!;
+    expect(filter).toContain('fleet_phone.ilike."%8%0%9%5%5%5%1%2%"');
+    expect(filter).toContain('extension.ilike."%8%0%9%5%5%5%1%2%"');
+  });
+
+  it("doesn't search phones for a couple of digits", () => {
+    expect(contactsSearchFilter("12")).not.toContain("fleet_phone");
+  });
+
+  it("has no filter for an empty search", () => {
+    expect(contactsSearchFilter("   ")).toBeNull();
   });
 });
 

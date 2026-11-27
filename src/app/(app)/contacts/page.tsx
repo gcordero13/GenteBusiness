@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { BookUser } from "lucide-react";
-import { escapeIlikePattern } from "@/lib/contacts";
+import { contactsSearchFilter } from "@/lib/contacts";
 import { resolveScheduleLine } from "@/lib/schedules";
 import { getScheduleTemplatesContext } from "@/lib/scheduleTemplates";
 import { SearchFilters } from "./SearchFilters";
@@ -57,9 +57,9 @@ export default async function ContactsPage({
   if (!showInactive || !(flags.can_deactivate || flags.can_delete)) {
     query = query.eq("status", "active");
   }
-  if (q) {
-    const pattern = escapeIlikePattern(q);
-    query = query.or(`first_name.ilike.${pattern},last_name.ilike.${pattern}`);
+  const searchFilter = q ? contactsSearchFilter(q) : null;
+  if (searchFilter) {
+    query = query.or(searchFilter);
   }
   if (company) {
     query = query.eq("company_id", company);

@@ -48,6 +48,37 @@ export function escapeIlikePattern(value: string): string {
   return `"%${escaped}%"`;
 }
 
+/**
+ * PostgREST `or` filter for the Agenda's search box (user request,
+ * 2026-11-27): name or last name, full name ("Ana Pérez"), email, position,
+ * extension and phone. Phones match however they're typed or stored
+ * ("809-555-1234", "809 555 1234", "8095551234"): the digits are searched
+ * with wildcards between them.
+ */
+export function contactsSearchFilter(q: string): string | null {
+  const term = q.trim();
+  if (!term) return null;
+  const like = escapeIlikePattern(term);
+  const filters = [
+    `first_name.ilike.${like}`,
+    `last_name.ilike.${like}`,
+    `email.ilike.${like}`,
+    `position.ilike.${like}`,
+  ];
+  const words = term.split(/\s+/);
+  if (words.length > 1) {
+    filters.push(
+      `and(first_name.ilike.${escapeIlikePattern(words[0])},last_name.ilike.${escapeIlikePattern(words.slice(1).join(" "))})`,
+    );
+  }
+  const digits = term.replace(/\D/g, "");
+  if (digits.length >= 3) {
+    const phone = `"%${digits.split("").join("%")}%"`;
+    filters.push(`fleet_phone.ilike.${phone}`, `extension.ilike.${phone}`);
+  }
+  return filters.join(",");
+}
+
 export interface OrgTreeContact {
   id: string;
   name: string;
