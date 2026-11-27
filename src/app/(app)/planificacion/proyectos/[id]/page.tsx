@@ -15,6 +15,7 @@ import {
 import { ProyectosWorkspace } from "../ProyectosWorkspace";
 import { TareaCreateDialog } from "../TareaCreateDialog";
 import { CompartirDialog } from "../CompartirDialog";
+import { EditarProyectoDialog } from "../EditarProyectoDialog";
 import { EstadosEditor } from "../EstadosEditor";
 import { PlanificacionesManager } from "../PlanificacionesManager";
 import { ProyectoEncabezado } from "../ProyectoEncabezado";
@@ -31,12 +32,15 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
   const proyecto = await getProyecto(id);
   if (!proyecto) redirect("/planificacion");
 
-  const [tasks, estados, assignees, planificaciones] = await Promise.all([
+  const [tasks, estados, assignees, planificaciones, { data: canEdit }] = await Promise.all([
     listTareasDeProyecto(id),
     listEstados(id),
     listAssignableUsers(),
     listPlanificaciones(id),
+    // The owner and "Editar" shares may edit it (same check RLS uses).
+    supabase.rpc("plan_can_edit_proyecto", { p_proyecto_id: id }),
   ]);
+  const isOwner = proyecto.createdBy === user.id;
 
   const columns = estados.map((e) => ({ key: e.id, label: e.name, color: e.color }));
 
@@ -66,6 +70,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
         resumen={resumen}
         actions={
           <>
+            {canEdit === true && <EditarProyectoDialog proyecto={proyecto} isOwner={isOwner} />}
             <EstadosEditor proyectoId={id} estados={estados} />
             <PlanificacionesManager proyectoId={id} planificaciones={planificaciones} />
             <CompartirDialog proyectoId={id} parentProyectoId={id} />
@@ -77,7 +82,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
               planificaciones={planificaciones}
               triggerLabel="Nueva tarea"
             />
-            {proyecto.createdBy === user.id && (
+            {isOwner && (
               <DeleteIconButton
                 confirmMessage={`¿Eliminar el proyecto "${proyecto.name}"? Se eliminarán también todas sus tareas. Esta acción no se puede deshacer.`}
                 action={deleteProyecto.bind(null, id)}

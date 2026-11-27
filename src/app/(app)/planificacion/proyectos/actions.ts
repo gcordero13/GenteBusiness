@@ -200,6 +200,44 @@ export async function listProyectosDeDepartamento(departamentoId: string): Promi
 // plan_ciclos/plan_modulos/plan_proyecto_compartidos row for this project
 // cascades via its own FK's ON DELETE CASCADE, so a single delete here is
 // enough.
+/**
+ * Edits a project (user request, 2026-11-27): name and description for the
+ * owner and "Editar" shares (RLS + column grant); the department only for the
+ * creator, through plan_set_departamento_proyecto. `departamentoId`
+ * undefined leaves the department as it is.
+ */
+export async function updateProyecto(
+  id: string,
+  input: { name: string; description: string; departamentoId?: string | null },
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autorizado" };
+  if (!input.name.trim()) return { error: "El nombre es obligatorio" };
+
+  const { data, error } = await supabase
+    .from("plan_proyectos")
+    .update({ name: input.name.trim(), description: input.description.trim() || null })
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No tienes permiso para editar este proyecto." };
+
+  if (input.departamentoId !== undefined) {
+    const { error: depError } = await supabase.rpc("plan_set_departamento_proyecto", {
+      p_proyecto_id: id,
+      p_departamento_id: input.departamentoId,
+    });
+    if (depError) return { error: depError.message };
+  }
+
+  revalidatePath(`/planificacion/proyectos/${id}`);
+  revalidatePath("/planificacion");
+  return {};
+}
+
 export async function deleteProyecto(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("plan_proyectos").delete().eq("id", id).select("id");
