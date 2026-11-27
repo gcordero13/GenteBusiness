@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colorDe, fechaLimite, saludProyecto, subtareasResumen, esCerrada } from "./visual";
+import { colorDe, esCerrada, fechaLimite, iniciales, resumenTareas, saludProyecto, subtareasResumen } from "./visual";
 
 describe("fechaLimite", () => {
   const HOY = "2026-11-27";
@@ -38,7 +38,42 @@ describe("subtareasResumen", () => {
   });
 });
 
+describe("resumenTareas", () => {
+  const base = { parentTaskId: null, percentComplete: 0, dueDate: null, estadoKind: "asignado", assigneeName: null, assigneePhotoUrl: null };
+  it("sums up a project's tasks for its header", () => {
+    const r = resumenTareas(
+      [
+        { ...base, percentComplete: 100, estadoKind: "completado", assigneeName: "Ana" },
+        { ...base, percentComplete: 20, dueDate: "2026-11-20", assigneeName: "Luis" },
+        { ...base, parentTaskId: "x", percentComplete: 100, assigneeName: "Ana" },
+        { ...base, dueDate: "2026-12-20" },
+      ],
+      "2026-11-27",
+    );
+    expect(r).toEqual({
+      percent: 40,
+      tareas: 4,
+      completadas: 2,
+      vencidas: 1,
+      personas: [
+        { name: "Ana", photoUrl: null },
+        { name: "Luis", photoUrl: null },
+      ],
+    });
+  });
+
+  it("is zero for an empty project", () => {
+    expect(resumenTareas([], "2026-11-27")).toMatchObject({ percent: 0, tareas: 0, vencidas: 0 });
+  });
+});
+
 describe("helpers", () => {
+  it("makes a project's initials", () => {
+    expect(iniciales("Portal de clientes")).toBe("PC");
+    expect(iniciales("Cierre fiscal 2026")).toBe("CF");
+    expect(iniciales("  ")).toBe("?");
+  });
+
   it("gives the same color to the same id, from the palette", () => {
     expect(colorDe("abc")).toBe(colorDe("abc"));
     expect(colorDe("abc")).toMatch(/^#[0-9A-F]{6}$/i);

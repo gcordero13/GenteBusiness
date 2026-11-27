@@ -68,7 +68,7 @@ export function NuevoProyectoDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
-      <DialogTrigger render={<Button className="gap-2 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90" />}>
+      <DialogTrigger render={<Button className="gap-2 bg-[#036E6C] text-white hover:bg-[#024E4D]" />}>
         <Plus className="size-4" />
         Nuevo proyecto
       </DialogTrigger>
@@ -127,7 +127,7 @@ export function NuevoProyectoDialog() {
           )}
         </div>
         <DialogFooter>
-          <Button onClick={submit} disabled={isPending || !name.trim()} className="w-full bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90">
+          <Button onClick={submit} disabled={isPending || !name.trim()} className="w-full bg-[#036E6C] text-white hover:bg-[#024E4D]">
             Crear
           </Button>
         </DialogFooter>

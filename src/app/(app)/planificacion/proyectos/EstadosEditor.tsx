@@ -206,7 +206,7 @@ export function EstadosEditor({ proyectoId, estados }: { proyectoId: string; est
                     />
                   ))}
                 </div>
-                <Button size="sm" disabled={isPending || !name.trim()} onClick={add} className="gap-1.5 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90">
+                <Button size="sm" disabled={isPending || !name.trim()} onClick={add} className="gap-1.5 bg-[#036E6C] text-white hover:bg-[#024E4D]">
                   <Plus className="size-3.5" />
                   Agregar
                 </Button>

@@ -108,7 +108,7 @@ export function TareaCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
-      <DialogTrigger render={<Button size="sm" className="gap-1.5 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90" />}>
+      <DialogTrigger render={<Button size="sm" className="gap-1.5 bg-[#036E6C] text-white hover:bg-[#024E4D]" />}>
         <Plus className="size-3.5" />
         {triggerLabel}
       </DialogTrigger>
@@ -213,7 +213,7 @@ export function TareaCreateDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={submit} disabled={isPending || !title.trim()} className="w-full bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90">
+          <Button onClick={submit} disabled={isPending || !title.trim()} className="w-full bg-[#036E6C] text-white hover:bg-[#024E4D]">
             Guardar
           </Button>
         </DialogFooter>

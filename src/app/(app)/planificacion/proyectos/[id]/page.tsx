@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { DeleteIconButton } from "@/components/DeleteIconButton";
 import {
@@ -17,7 +17,8 @@ import { TareaCreateDialog } from "../TareaCreateDialog";
 import { CompartirDialog } from "../CompartirDialog";
 import { EstadosEditor } from "../EstadosEditor";
 import { PlanificacionesManager } from "../PlanificacionesManager";
-import { progressOpacity } from "../progress";
+import { ProyectoEncabezado } from "../ProyectoEncabezado";
+import { hoyISO, resumenTareas } from "../visual";
 
 export default async function ProyectoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,49 +42,30 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
 
   // Overall project progress: the average of ROOT-level tasks' percent, not
   // every row - a root task's own percent already folds in its whole
-  // subtree via the rollup trigger, so averaging every row too would
-  // double-count subtrees and skew the number toward whoever has the most
-  // sub-tasks.
-  const rootTasks = tasks.filter((t) => !t.parentTaskId);
-  const proyectoPercent =
-    rootTasks.length > 0 ? Math.round(rootTasks.reduce((sum, t) => sum + t.percentComplete, 0) / rootTasks.length) : 0;
+  // subtree via the rollup trigger (see resumenTareas).
+  const resumen = resumenTareas(tasks, hoyISO());
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
-      <div className="w-full min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
-        <Link
-          href="/planificacion"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          Volver a Planificación
-        </Link>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-[14rem] space-y-1">
-            {proyecto.departamentoName && (
-              <Link
-                href={`/planificacion/departamentos/${proyecto.departamentoId}`}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-[#04B1AF]"
-              >
-                <Building2 className="size-3" />
-                {proyecto.departamentoName}
-              </Link>
-            )}
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{proyecto.name}</h1>
-            {proyecto.description && <p className="text-sm text-muted-foreground">{proyecto.description}</p>}
-            {rootTasks.length > 0 && (
-              <div className="flex items-center gap-2 pt-1">
-                <div className="h-1.5 w-40 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-[#04B1AF]"
-                    style={{ width: `${proyectoPercent}%`, opacity: progressOpacity(proyectoPercent) }}
-                  />
-                </div>
-                <span className="text-xs font-semibold text-muted-foreground">{proyectoPercent}% completado</span>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
+    <div className="w-full min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
+      <ProyectoEncabezado
+        migas={[{ label: "Proyectos", href: "/planificacion" }]}
+        colorKey={proyecto.id}
+        title={proyecto.name}
+        description={proyecto.description}
+        meta={
+          proyecto.departamentoName && (
+            <Link
+              href={`/planificacion/departamentos/${proyecto.departamentoId}`}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-[#036E6C] dark:hover:text-[#5FD6D4]"
+            >
+              <Building2 className="size-4" />
+              {proyecto.departamentoName}
+            </Link>
+          )
+        }
+        resumen={resumen}
+        actions={
+          <>
             <EstadosEditor proyectoId={id} estados={estados} />
             <PlanificacionesManager proyectoId={id} planificaciones={planificaciones} />
             <CompartirDialog proyectoId={id} parentProyectoId={id} />
@@ -101,20 +83,20 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                 action={deleteProyecto.bind(null, id)}
               />
             )}
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        <ProyectosWorkspace
-          tasks={tasks}
-          columns={columns}
-          columnKeyBy="estadoId"
-          onDropEstado={updateTareaEstado.bind(null, id)}
-          defaultProyectoId={id}
-          estados={estados}
-          assignees={assignees}
-          planificaciones={planificaciones}
-        />
-      </div>
+      <ProyectosWorkspace
+        tasks={tasks}
+        columns={columns}
+        columnKeyBy="estadoId"
+        onDropEstado={updateTareaEstado.bind(null, id)}
+        defaultProyectoId={id}
+        estados={estados}
+        assignees={assignees}
+        planificaciones={planificaciones}
+      />
     </div>
   );
 }

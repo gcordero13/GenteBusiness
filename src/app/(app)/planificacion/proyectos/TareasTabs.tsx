@@ -1,41 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { TriangleAlert } from "lucide-react";
+import { FolderPlus, Search, TriangleAlert } from "lucide-react";
 import type { EstadoOption, ProyectoListRow, TareaListRow } from "./actions";
 import { ProyectosWorkspace } from "./ProyectosWorkspace";
 import type { TableroColumn } from "./TableroView";
-import { progressOpacity } from "./progress";
 import type { AssigneeOption } from "./TareaCreateDialog";
+import { BarraAvance, PersonaAvatar } from "./Distintivos";
+import { colorDe, iniciales, SALUD_TONE_CLASS, saludProyecto, type ResumenTareas } from "./visual";
 
 type TareasTab = "proyectos" | "mias" | "compartidas";
 
-const TAB_OPTIONS: { key: TareasTab; label: string }[] = [
-  { key: "proyectos", label: "Mis proyectos" },
-  { key: "mias", label: "Mis tareas" },
-  { key: "compartidas", label: "Compartido conmigo" },
-];
-
-function ProyectoCard({ proyecto, percent }: { proyecto: ProyectoListRow; percent?: number }) {
+/** A project at a glance (approved redesign): color, area, health, progress, workload and team. */
+function ProyectoCard({ proyecto, resumen }: { proyecto: ProyectoListRow; resumen?: ResumenTareas }) {
+  const color = colorDe(proyecto.id);
+  const salud = resumen && resumen.tareas > 0 ? saludProyecto(resumen.vencidas) : null;
+  const personas = resumen?.personas.slice(0, 3) ?? [];
   return (
     <Link
       href={`/planificacion/proyectos/${proyecto.id}`}
-      className="block rounded-xl border p-3 text-sm transition-colors hover:border-[#04B1AF] hover:bg-[#04B1AF]/5"
+      className="group flex flex-col gap-3.5 rounded-2xl border bg-card p-4 shadow-xs transition-all hover:-translate-y-0.5 hover:border-[#04B1AF]/60 hover:shadow-md sm:p-5"
     >
-      <p className="font-semibold text-foreground">{proyecto.name}</p>
-      {proyecto.description && (
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{proyecto.description}</p>
-      )}
-      {percent !== undefined && (
-        <div className="mt-2 flex items-center gap-1.5">
-          <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-            <div className="h-full bg-[#04B1AF]" style={{ width: `${percent}%`, opacity: progressOpacity(percent) }} />
-          </div>
-          <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{percent}%</span>
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-[15px] font-bold text-white"
+          style={{ backgroundColor: color }}
+        >
+          {iniciales(proyecto.name)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-base font-semibold text-[#0B2545] group-hover:text-[#036E6C] dark:text-foreground dark:group-hover:text-[#5FD6D4]">
+            {proyecto.name}
+          </p>
+          <p className="truncate text-sm text-muted-foreground">{proyecto.departamentoName ?? "Sin departamento"}</p>
         </div>
-      )}
+        {salud && (
+          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${SALUD_TONE_CLASS[salud.tone]}`}>
+            {salud.label}
+          </span>
+        )}
+      </div>
+      {proyecto.description && <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{proyecto.description}</p>}
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Avance</span>
+          <span className="font-semibold tabular-nums">{resumen?.percent ?? 0}%</span>
+        </div>
+        <BarraAvance percent={resumen?.percent ?? 0} showLabel={false} color={color} />
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3">
+        <span className="flex gap-3 text-sm">
+          <span className="text-muted-foreground">
+            {resumen?.tareas ?? 0} {resumen?.tareas === 1 ? "tarea" : "tareas"}
+          </span>
+          {resumen && resumen.tareas > 0 && (
+            <span
+              className={
+                resumen.vencidas > 0 ? "font-semibold text-red-700 dark:text-red-400" : "font-semibold text-emerald-700 dark:text-emerald-400"
+              }
+            >
+              {resumen.vencidas > 0 ? `${resumen.vencidas} ${resumen.vencidas === 1 ? "vencida" : "vencidas"}` : "Al día"}
+            </span>
+          )}
+        </span>
+        {personas.length > 0 && (
+          <span className="flex -space-x-2">
+            {personas.map((p) => (
+              <PersonaAvatar key={p.name} name={p.name} photoUrl={p.photoUrl} className="ring-2 ring-card" />
+            ))}
+          </span>
+        )}
+      </div>
     </Link>
+  );
+}
+
+function ProyectosGrid({ proyectos, resumenByProyecto }: { proyectos: ProyectoListRow[]; resumenByProyecto: Record<string, ResumenTareas> }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {proyectos.map((p) => (
+        <ProyectoCard key={p.id} proyecto={p} resumen={resumenByProyecto[p.id]} />
+      ))}
+    </div>
   );
 }
 
@@ -46,7 +94,7 @@ function ProyectoCard({ proyecto, percent }: { proyecto: ProyectoListRow; percen
 export function TareasTabs({
   misProyectos,
   proyectosCompartidos,
-  percentByProyecto,
+  resumenByProyecto,
   misTareasCreadas,
   misTareasCreadasColumns,
   misTareas,
@@ -60,7 +108,7 @@ export function TareasTabs({
 }: {
   misProyectos: ProyectoListRow[];
   proyectosCompartidos: ProyectoListRow[];
-  percentByProyecto: Record<string, number>;
+  resumenByProyecto: Record<string, ResumenTareas>;
   misTareasCreadas: TareaListRow[];
   misTareasCreadasColumns: TableroColumn[];
   misTareas: TareaListRow[];
@@ -73,56 +121,93 @@ export function TareasTabs({
   assignees: AssigneeOption[];
 }) {
   const [tab, setTab] = useState<TareasTab>("proyectos");
+  const [query, setQuery] = useState("");
+
+  const filtrar = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (list: ProyectoListRow[]) =>
+      q ? list.filter((p) => `${p.name} ${p.description ?? ""} ${p.departamentoName ?? ""}`.toLowerCase().includes(q)) : list;
+  }, [query]);
+  const mios = filtrar(misProyectos);
+  const compartidos = filtrar(proyectosCompartidos);
+
+  const tabs: { key: TareasTab; label: string; count: number }[] = [
+    { key: "proyectos", label: "Mis proyectos", count: misProyectos.length + proyectosCompartidos.length },
+    { key: "mias", label: "Mis tareas", count: misTareas.filter((t) => !t.parentTaskId).length },
+    { key: "compartidas", label: "Compartido conmigo", count: compartidoConmigo.filter((t) => !t.parentTaskId).length },
+  ];
 
   return (
-    <section className="space-y-3">
-      <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
-        {TAB_OPTIONS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${
-              tab === t.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+    <section className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b">
+        <div role="tablist" aria-label="Secciones" className="-mb-px flex gap-5 overflow-x-auto sm:gap-7">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex shrink-0 items-center gap-2 border-b-2 pt-1 pb-3 text-[15px] transition-colors ${
+                tab === t.key
+                  ? "border-[#04B1AF] font-semibold text-[#0B2545] dark:text-foreground"
+                  : "border-transparent font-medium text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                  tab === t.key ? "bg-[#04B1AF]/15 text-[#036E6C] dark:text-[#5FD6D4]" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {t.count}
+              </span>
+            </button>
+          ))}
+        </div>
+        {tab === "proyectos" && (misProyectos.length + proyectosCompartidos.length > 0) && (
+          <label className="mb-2.5 flex h-10 w-full items-center gap-2 rounded-xl border bg-card px-3 text-muted-foreground shadow-xs focus-within:ring-3 focus-within:ring-ring/50 sm:w-72">
+            <Search className="size-4 shrink-0" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar proyecto…"
+              aria-label="Buscar proyecto"
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+        )}
       </div>
 
       {tab === "proyectos" && (
-        <div className="space-y-6">
-          <div className="space-y-3">
-            {misProyectos.length > 0 ? (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {misProyectos.map((p) => (
-                  <ProyectoCard key={p.id} proyecto={p} percent={percentByProyecto[p.id]} />
-                ))}
-              </div>
-            ) : (
-              <p className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                Todavía no has creado ningún proyecto.
-              </p>
-            )}
-          </div>
-
-          {proyectosCompartidos.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground">Compartidos conmigo</h3>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {proyectosCompartidos.map((p) => (
-                  <ProyectoCard key={p.id} proyecto={p} percent={percentByProyecto[p.id]} />
-                ))}
-              </div>
+        <div className="space-y-8">
+          {misProyectos.length === 0 && proyectosCompartidos.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-card/60 px-6 py-12 text-center">
+              <FolderPlus className="size-8 text-muted-foreground" />
+              <p className="text-sm font-medium text-foreground">Todavía no tienes proyectos</p>
+              <p className="text-sm text-muted-foreground">Crea uno con «Nuevo proyecto» o pide que te lo compartan.</p>
             </div>
+          ) : (
+            <>
+              {mios.length > 0 && <ProyectosGrid proyectos={mios} resumenByProyecto={resumenByProyecto} />}
+              {compartidos.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground">Compartidos conmigo</h3>
+                  <ProyectosGrid proyectos={compartidos} resumenByProyecto={resumenByProyecto} />
+                </div>
+              )}
+              {query && mios.length === 0 && compartidos.length === 0 && (
+                <p className="text-sm text-muted-foreground">Ningún proyecto coincide con «{query}».</p>
+              )}
+            </>
           )}
 
           {tareasSinResponsableActivo.length > 0 && (
             <div className="space-y-3">
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-amber-600">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400">
                 <TriangleAlert className="size-4" />
-                Tareas sin responsable activo - reasigna a alguien
+                Tareas sin responsable activo: reasígnalas a alguien
               </h3>
               <ProyectosWorkspace
                 tasks={tareasSinResponsableActivo}
@@ -136,7 +221,7 @@ export function TareasTabs({
 
           {misTareasCreadas.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground">Tareas que he creado</h3>
+              <h3 className="text-base font-semibold text-[#0B2545] dark:text-foreground">Tareas que he creado</h3>
               <ProyectosWorkspace
                 tasks={misTareasCreadas}
                 columns={misTareasCreadasColumns}

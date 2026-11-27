@@ -582,7 +582,7 @@ export function TareaDetailModal({
               <Button
                 onClick={saveEdit}
                 disabled={isPending || !title.trim()}
-                className="flex-1 bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90"
+                className="flex-1 bg-[#036E6C] text-white hover:bg-[#024E4D]"
               >
                 Guardar
               </Button>
@@ -757,7 +757,7 @@ export function TareaDetailModal({
               size="sm"
               disabled={isPending || !newComment.trim()}
               onClick={submitComment}
-              className="shrink-0 self-end bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90"
+              className="shrink-0 self-end bg-[#036E6C] text-white hover:bg-[#024E4D]"
             >
               Comentar
             </Button>

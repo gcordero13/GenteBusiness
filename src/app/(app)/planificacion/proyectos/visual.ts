@@ -88,6 +88,54 @@ export function subtareasResumen(hijas: { percentComplete: number }[]): string |
   return `${hijas.filter((h) => h.percentComplete === 100).length}/${hijas.length}`;
 }
 
+export interface ResumenTareas {
+  /** Average of ROOT tasks' percent (each already folds in its sub-tasks). */
+  percent: number;
+  tareas: number;
+  completadas: number;
+  vencidas: number;
+  /** Distinct assignees, in order of appearance. */
+  personas: { name: string; photoUrl: string | null }[];
+}
+
+interface TareaResumible {
+  parentTaskId: string | null;
+  percentComplete: number;
+  dueDate: string | null;
+  estadoKind: string | null;
+  assigneeName: string | null;
+  assigneePhotoUrl: string | null;
+}
+
+/** Header numbers of a project (or planificación) from its tasks. */
+export function resumenTareas(tasks: TareaResumible[], hoy: string): ResumenTareas {
+  const roots = tasks.filter((t) => !t.parentTaskId);
+  const personas = new Map<string, { name: string; photoUrl: string | null }>();
+  for (const t of tasks) {
+    if (t.assigneeName && !personas.has(t.assigneeName)) {
+      personas.set(t.assigneeName, { name: t.assigneeName, photoUrl: t.assigneePhotoUrl });
+    }
+  }
+  return {
+    percent: roots.length > 0 ? Math.round(roots.reduce((sum, t) => sum + t.percentComplete, 0) / roots.length) : 0,
+    tareas: tasks.length,
+    completadas: tasks.filter((t) => t.percentComplete === 100 || t.estadoKind === "completado").length,
+    vencidas: tasks.filter((t) => estaVencida(t, hoy)).length,
+    personas: [...personas.values()],
+  };
+}
+
+const CONECTORES = new Set(["de", "del", "la", "las", "el", "los", "y", "e", "o", "en", "para", "a", "al"]);
+
+/** "PC" for "Portal de clientes": first letters of the first two words that aren't connectors. */
+export function iniciales(name: string): string {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter((w) => /[\p{L}\p{N}]/u.test(w[0] ?? "") && !CONECTORES.has(w.toLowerCase()));
+  return ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? "")).toUpperCase() || "?";
+}
+
 // Project and avatar colors: deterministic from an id/name, so each project
 // and person keeps the same color everywhere (projects have no color field).
 const PALETA = ["#04B1AF", "#2563EB", "#7C3AED", "#B45309", "#0B2545", "#BE185D", "#036E6C", "#4F46E5"];

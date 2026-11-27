@@ -162,7 +162,7 @@ export function CompartirDialog({ proyectoId, tareaId, parentProyectoId }: Compa
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={add} disabled={isPending || !userId} className="w-full bg-[#04B1AF] text-white hover:bg-[#04B1AF]/90">
+          <Button onClick={add} disabled={isPending || !userId} className="w-full bg-[#036E6C] text-white hover:bg-[#024E4D]">
             Compartir
           </Button>
         </div>
