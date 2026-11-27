@@ -1,4 +1,8 @@
-export type CursoCategory = "curso" | "historia";
+/** Fixed categories (user decision, 2026-11-27): Cursos, Tutoriales, Historias. */
+export type CursoCategory = "curso" | "tutorial" | "historia";
+
+/** Display order of the categories (catalog tabs, selectors). */
+export const CATEGORIES: CursoCategory[] = ["curso", "tutorial", "historia"];
 export type CursoStatus = "borrador" | "publicado" | "archivado";
 
 /** A file stored in SharePoint, referenced by Graph drive/item ids. */
@@ -101,8 +105,9 @@ export interface GestionCursoRow {
 }
 
 export const CATEGORY_LABELS: Record<CursoCategory, string> = {
-  curso: "Cursos y tutoriales",
-  historia: "Historia",
+  curso: "Cursos",
+  tutorial: "Tutoriales",
+  historia: "Historias",
 };
 
 export const STATUS_LABELS: Record<CursoStatus, string> = {
@@ -132,6 +137,7 @@ export function certificadoUrl(cursoId: string): string {
 
 export const CATEGORY_SHORT_LABELS: Record<CursoCategory, string> = {
   curso: "Curso",
+  tutorial: "Tutorial",
   historia: "Historia",
 };
 

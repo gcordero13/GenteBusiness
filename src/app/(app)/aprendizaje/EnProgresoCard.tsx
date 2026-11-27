@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { BookOpen, Landmark } from "lucide-react";
 import { progressPercent } from "@/lib/aprendizaje/mapCurso";
 import { archivoUrl, CATEGORY_SHORT_LABELS, type CatalogCurso } from "@/lib/aprendizaje/types";
+import { CATEGORIA_ICONO } from "./categoriaIcono";
 
 export function EnProgresoCard({ curso }: { curso: CatalogCurso }) {
   const percent = progressPercent(curso.completedLecciones, curso.leccionCount);
@@ -12,7 +12,7 @@ export function EnProgresoCard({ curso }: { curso: CatalogCurso }) {
       : curso.hasEvaluacion
         ? "Lecciones listas · falta la evaluación"
         : `${curso.leccionCount} lecciones`;
-  const Icon = curso.category === "historia" ? Landmark : BookOpen;
+  const Icon = CATEGORIA_ICONO[curso.category];
 
   return (
     <Link

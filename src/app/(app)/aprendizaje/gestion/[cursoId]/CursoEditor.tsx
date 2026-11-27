@@ -243,7 +243,8 @@ export function CursoEditor({
 
       <EvaluacionEditor cursoId={curso.id} settings={curso.evaluacion} lecciones={curso.lecciones} />
 
-      <TutorialModuloEditor curso={curso} modulos={modulos} />
+      {/* Only tutorials pop up when the platform opens. */}
+      {curso.category === "tutorial" && <TutorialModuloEditor curso={curso} modulos={modulos} />}
 
       <FirmaCertificadoEditor curso={curso} />
     </div>

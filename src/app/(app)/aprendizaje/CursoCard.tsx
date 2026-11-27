@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { BookOpen, CheckCircle2, Landmark } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { progressPercent } from "@/lib/aprendizaje/mapCurso";
 import { archivoUrl, type CatalogCurso } from "@/lib/aprendizaje/types";
+import { CATEGORIA_ICONO } from "./categoriaIcono";
 
 export function CursoCard({ curso }: { curso: CatalogCurso }) {
   const percent = progressPercent(curso.completedLecciones, curso.leccionCount);
-  const Icon = curso.category === "historia" ? Landmark : BookOpen;
+  const Icon = CATEGORIA_ICONO[curso.category];
 
   return (
     <Link

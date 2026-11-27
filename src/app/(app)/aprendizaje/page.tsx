@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { splitMisCursos, siguientePaso } from "@/lib/aprendizaje/portada";
-import { CATEGORY_LABELS, type CursoCategory } from "@/lib/aprendizaje/types";
+import { CATEGORIES, CATEGORY_LABELS, type CursoCategory } from "@/lib/aprendizaje/types";
 import { aprendizajeFlags, getMiPerfil, listCatalog, listProximos } from "./actions";
 import { CursoCard } from "./CursoCard";
 import { EnProgresoCard } from "./EnProgresoCard";
 import { PortadaBanner } from "./PortadaBanner";
 import { ProximoCard } from "./ProximoCard";
-
-const CATEGORIES: CursoCategory[] = ["curso", "historia"];
 
 function Section({
   id,
@@ -43,7 +41,7 @@ export default async function AprendizajePage({
   if (!flags.canView) redirect("/");
 
   const { categoria } = await searchParams;
-  const category: CursoCategory = categoria === "historia" ? "historia" : "curso";
+  const category: CursoCategory = CATEGORIES.find((c) => c === categoria) ?? "curso";
   const [catalogo, perfil, proximos] = await Promise.all([listCatalog(), getMiPerfil(), listProximos()]);
   const { enProgreso, completados } = splitMisCursos(catalogo);
   const visibles = catalogo.filter((c) => c.category === category);

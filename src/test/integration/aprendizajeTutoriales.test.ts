@@ -25,7 +25,7 @@ describe("aprendizaje module tutorials (login pop-up)", () => {
       .from("aprendizaje_cursos")
       .insert({
         title: "Tutorial de Planificación (test)",
-        category: "curso",
+        category: "tutorial",
         created_by: manager.id,
         status: "publicado",
         tutorial_module_key: "planificacion",
@@ -54,7 +54,13 @@ describe("aprendizaje module tutorials (login pop-up)", () => {
   async function pendientes(user: TestUser) {
     const { data, error } = await user.client.rpc("aprendizaje_tutoriales_pendientes");
     if (error) throw new Error(error.message);
-    return (data ?? []) as { curso_id: string; module_label: string; leccion_title: string; video_drive_id: string | null }[];
+    return (data ?? []) as {
+      curso_id: string;
+      module_label: string | null;
+      leccion_title: string;
+      video_drive_id: string | null;
+      imagen_drive_id: string | null;
+    }[];
   }
 
   async function videoVisible(user: TestUser) {
@@ -97,6 +103,53 @@ describe("aprendizaje module tutorials (login pop-up)", () => {
     } finally {
       await manager.client.from("aprendizaje_cursos").update({ anunciar_al_iniciar: true }).eq("id", cursoId);
       await deleteAprendizajeTestUser(other);
+    }
+  }, 60_000);
+
+  it("only pops up content of the Tutoriales category", async () => {
+    try {
+      await manager.client.from("aprendizaje_cursos").update({ category: "curso" }).eq("id", cursoId);
+      const other = await createAprendizajeTestUser({ canView: false, canManage: false }, ["planificacion"]);
+      try {
+        expect((await pendientes(other)).some((t) => t.curso_id === cursoId)).toBe(false);
+      } finally {
+        await deleteAprendizajeTestUser(other);
+      }
+    } finally {
+      await manager.client.from("aprendizaje_cursos").update({ category: "tutorial" }).eq("id", cursoId);
+    }
+  }, 60_000);
+
+  // A tutorial that explains no module goes to everyone with Aprende access;
+  // without a video it shows its image (here, its cover).
+  it("pops a general tutorial up for Aprende users, with its image when it has no video", async () => {
+    const COVER = `test-cover-${Date.now()}`;
+    const { data: general, error } = await manager.client
+      .from("aprendizaje_cursos")
+      .insert({
+        title: "Tutorial general (test)",
+        category: "tutorial",
+        created_by: manager.id,
+        status: "publicado",
+        anunciar_al_iniciar: true,
+        cover_drive_id: COVER,
+        cover_item_id: "cover-item",
+      })
+      .select("id")
+      .single();
+    if (error || !general) throw new Error(`insert general: ${error?.message}`);
+    try {
+      const mio = (await pendientes(sinModulo)).find((t) => t.curso_id === general.id);
+      expect(mio).toMatchObject({ module_label: null, video_drive_id: null, imagen_drive_id: COVER });
+      const { data: visible } = await sinModulo.client.rpc("aprendizaje_tutorial_video_visible", {
+        p_drive_id: COVER,
+        p_item_id: "cover-item",
+      });
+      expect(visible).toBe(true);
+      // Someone without Aprende access doesn't get a general tutorial.
+      expect((await pendientes(conModulo)).some((t) => t.curso_id === general.id)).toBe(false);
+    } finally {
+      await createAdminClient().from("aprendizaje_cursos").delete().eq("id", general.id);
     }
   }, 60_000);
 

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createSharePointUploadSession } from "@/lib/sharepoint";
 import { validateUpload, type UploadKind } from "@/lib/aprendizaje/files";
 import { toCursoDetail, toGestionCursoRow, type RawCurso } from "@/lib/aprendizaje/mapCurso";
+import { CATEGORIES } from "@/lib/aprendizaje/types";
 import type {
   CursoCategory,
   CursoDetail,
@@ -37,7 +38,6 @@ const CURSO_DETAIL_SELECT =
   "aprendizaje_lecciones(id, position, title, body, video_url, video_drive_id, video_item_id, eval_questions_per_attempt, eval_weight, " +
   "aprendizaje_leccion_archivos(id, filename, content_type, size_bytes, drive_id, item_id, position))";
 
-const CATEGORIES: CursoCategory[] = ["curso", "historia"];
 const STATUSES: CursoStatus[] = ["borrador", "publicado", "archivado"];
 
 /** Every manager action re-checks can_manage server-side; RLS enforces it again on each write. */
@@ -93,6 +93,8 @@ export async function createCurso(input: {
       description: input.description.trim() || null,
       category: input.category,
       created_by: ctx.userId,
+      // A tutorial pops up when the platform opens unless turned off in Gestión.
+      anunciar_al_iniciar: input.category === "tutorial",
     })
     .select("id")
     .single();
@@ -110,12 +112,21 @@ export async function updateCurso(
   if (!input.title.trim()) return { error: "El título es obligatorio." };
   if (!CATEGORIES.includes(input.category)) return { error: "Categoría inválida." };
 
+  // Becoming a tutorial turns its pop-up on (it can be turned off again in Gestión).
+  const { data: antes } = await ctx.supabase.from("aprendizaje_cursos").select("category").eq("id", cursoId).maybeSingle();
+  const pasaATutorial = input.category === "tutorial" && antes?.category !== "tutorial";
   const { error } = await ctx.supabase
     .from("aprendizaje_cursos")
-    .update({ title: input.title.trim(), description: input.description.trim() || null, category: input.category })
+    .update({
+      title: input.title.trim(),
+      description: input.description.trim() || null,
+      category: input.category,
+      ...(pasaATutorial ? { anunciar_al_iniciar: true } : {}),
+    })
     .eq("id", cursoId);
   if (error) return { error: error.message };
   revalidateCurso(cursoId);
+  if (pasaATutorial || antes?.category === "tutorial") revalidatePath("/", "layout");
   return {};
 }
 
@@ -497,8 +508,9 @@ export async function listModulos(): Promise<ModuloOption[]> {
 }
 
 /**
- * Tags the course as a module's tutorial (or clears it with null) and
- * whether it pops up at login for people with that module.
+ * A tutorial's pop-up settings: the module it explains (null = a general
+ * tutorial, shown to everyone with Aprende access; a module = only people
+ * with that module) and whether it pops up when the platform opens.
  */
 export async function setTutorialModulo(
   cursoId: string,
@@ -507,10 +519,9 @@ export async function setTutorialModulo(
 ): Promise<ActionResult> {
   const ctx = await managerClient();
   if (!ctx) return { error: "No autorizado" };
-  if (anunciarAlIniciar && !moduleKey) return { error: "Elige el módulo del tutorial para poder anunciarlo." };
   const { error } = await ctx.supabase
     .from("aprendizaje_cursos")
-    .update({ tutorial_module_key: moduleKey, anunciar_al_iniciar: Boolean(moduleKey) && anunciarAlIniciar })
+    .update({ tutorial_module_key: moduleKey, anunciar_al_iniciar: anunciarAlIniciar })
     .eq("id", cursoId);
   if (error) return { error: error.message };
   revalidateCurso(cursoId);

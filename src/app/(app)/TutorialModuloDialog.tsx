@@ -6,12 +6,15 @@ import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { TutorialPendiente } from "@/lib/aprendizaje/tutoriales";
+import { tieneVideo, type TutorialPendiente } from "@/lib/aprendizaje/tutoriales";
+import { archivoUrl } from "@/lib/aprendizaje/types";
 import { LeccionVideo } from "./aprendizaje/[cursoId]/LeccionContent";
 import { cerrarTutorial } from "./actions";
 
 /**
- * "Nuevo módulo" pop-up shown after login with a module's tutorial video.
+ * Tutorial pop-up shown when the platform opens: its video, or its image when
+ * it has none ("Nuevo módulo: X" for a module's tutorial, "Nuevo tutorial"
+ * otherwise).
  * Closing it (button, X or Esc; not a click outside) records it so it
  * doesn't come back; the layout then offers the next pending one, if any.
  */
@@ -42,14 +45,23 @@ export function TutorialModuloDialog({
         <DialogHeader>
           <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-wide text-[#036E6C] uppercase dark:text-[#5FD6D4]">
             <Sparkles className="size-4" />
-            Nuevo módulo: {tutorial.moduleLabel}
+            {tutorial.moduleLabel ? `Nuevo módulo: ${tutorial.moduleLabel}` : "Nuevo tutorial"}
           </p>
           <DialogTitle className="text-lg font-bold">{tutorial.title}</DialogTitle>
           {tutorial.description && <DialogDescription>{tutorial.description}</DialogDescription>}
         </DialogHeader>
-        <LeccionVideo
-          leccion={{ title: tutorial.leccionTitle, videoUrl: tutorial.videoUrl, videoFile: tutorial.videoFile }}
-        />
+        {tieneVideo(tutorial) ? (
+          <LeccionVideo
+            leccion={{ title: tutorial.leccionTitle, videoUrl: tutorial.videoUrl, videoFile: tutorial.videoFile }}
+          />
+        ) : (
+          tutorial.imagen && (
+            <div className="flex max-h-[60dvh] justify-center overflow-hidden rounded-xl bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element -- redirect to a short-lived SharePoint URL */}
+              <img src={archivoUrl(tutorial.imagen)} alt={tutorial.title} className="max-h-[60dvh] w-auto max-w-full object-contain" />
+            </div>
+          )
+        )}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           {canViewAprendizaje && (
             <Link

@@ -18,6 +18,7 @@ const TUTORIAL: TutorialPendiente = {
   leccionTitle: "Introducción",
   videoUrl: null,
   videoFile: { driveId: "d1", itemId: "i1" },
+  imagen: null,
 };
 
 describe("TutorialModuloDialog", () => {
@@ -41,6 +42,17 @@ describe("TutorialModuloDialog", () => {
     await waitFor(() => expect(cerrarTutorial).toHaveBeenCalledWith("c1"));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText("Cómo usar Planificación")).toBeNull());
+  });
+
+  it("shows a general tutorial's image when it has no video", () => {
+    render(
+      <TutorialModuloDialog
+        tutorial={{ ...TUTORIAL, moduleLabel: null, videoFile: null, imagen: { driveId: "d9", itemId: "i9" } }}
+        canViewAprendizaje
+      />,
+    );
+    expect(screen.getByText("Nuevo tutorial")).toBeTruthy();
+    expect(screen.getByAltText("Cómo usar Planificación").getAttribute("src")).toBe("/api/aprendizaje/archivo/d9/i9");
   });
 
   it("hides the Aprendizaje link from people without access to it", () => {

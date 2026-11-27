@@ -45,28 +45,31 @@ const CURSO: CursoDetail = {
 describe("TutorialModuloEditor", () => {
   beforeEach(() => setTutorialModulo.mockReset().mockResolvedValue({}));
 
-  it("tags the course as a module tutorial announced at login", async () => {
+  it("announces a tutorial of a module when the platform opens", async () => {
     render(<TutorialModuloEditor curso={CURSO} modulos={MODULOS} />);
-    const checkbox = screen.getByLabelText("Mostrar al iniciar sesión") as HTMLInputElement;
-    expect(checkbox.disabled).toBe(true);
-
-    fireEvent.change(screen.getByLabelText("Módulo"), { target: { value: "planificacion" } });
-    fireEvent.click(screen.getByLabelText("Mostrar al iniciar sesión"));
-    fireEvent.click(screen.getByRole("button", { name: "Guardar tutorial" }));
+    fireEvent.change(screen.getByLabelText("¿Explica un módulo?"), { target: { value: "planificacion" } });
+    fireEvent.click(screen.getByLabelText("Mostrar al abrir la plataforma"));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar aviso" }));
 
     await waitFor(() => expect(setTutorialModulo).toHaveBeenCalledWith("c1", "planificacion", true));
-    expect(await screen.findByText("Tutorial guardado.")).toBeTruthy();
+    expect(await screen.findByText("Aviso guardado.")).toBeTruthy();
   });
 
-  it("clears the module and the announcement", async () => {
+  it("announces a general tutorial (no module) too", async () => {
+    render(<TutorialModuloEditor curso={{ ...CURSO, anunciarAlIniciar: true }} modulos={MODULOS} />);
+    expect((screen.getByLabelText("Mostrar al abrir la plataforma") as HTMLInputElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Guardar aviso" }));
+    await waitFor(() => expect(setTutorialModulo).toHaveBeenCalledWith("c1", null, true));
+  });
+
+  it("can turn the announcement off", async () => {
     render(<TutorialModuloEditor curso={{ ...CURSO, tutorialModulo: "suministros", anunciarAlIniciar: true }} modulos={MODULOS} />);
-    fireEvent.change(screen.getByLabelText("Módulo"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar tutorial" }));
-
-    await waitFor(() => expect(setTutorialModulo).toHaveBeenCalledWith("c1", null, false));
+    fireEvent.click(screen.getByLabelText("Mostrar al abrir la plataforma"));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar aviso" }));
+    await waitFor(() => expect(setTutorialModulo).toHaveBeenCalledWith("c1", "suministros", false));
   });
 
-  it("warns when the course isn't published or has no video", () => {
+  it("warns when the tutorial isn't published or has no video or image", () => {
     render(
       <TutorialModuloEditor
         curso={{
@@ -79,14 +82,14 @@ describe("TutorialModuloEditor", () => {
         modulos={MODULOS}
       />,
     );
-    expect(screen.getByText("Se mostrará cuando publiques el curso.")).toBeTruthy();
-    expect(screen.getByText(/Agrega un video a una lección/)).toBeTruthy();
+    expect(screen.getByText("Se mostrará cuando publiques el tutorial.")).toBeTruthy();
+    expect(screen.getByText(/Agrega un video o una imagen/)).toBeTruthy();
   });
 
   it("shows a server error", async () => {
     setTutorialModulo.mockResolvedValue({ error: "No autorizado" });
     render(<TutorialModuloEditor curso={CURSO} modulos={MODULOS} />);
-    fireEvent.click(screen.getByRole("button", { name: "Guardar tutorial" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar aviso" }));
     expect(await screen.findByText("No autorizado")).toBeTruthy();
   });
 });
