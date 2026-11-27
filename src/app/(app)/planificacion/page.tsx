@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, CircleCheck } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -12,7 +12,7 @@ import {
 } from "./proyectos/actions";
 import { NuevoProyectoDialog } from "./proyectos/NuevoProyectoDialog";
 import { TareasTabs } from "./proyectos/TareasTabs";
-import { EstadoPill, FechaLimiteText, PrioridadBadge } from "./proyectos/Distintivos";
+import { AtencionDock } from "./AtencionDock";
 import { esCerrada, estaVencida, hoyISO, resumenTareas, type ResumenTareas } from "./proyectos/visual";
 
 export default async function PlanificacionPage() {
@@ -87,7 +87,7 @@ export default async function PlanificacionPage() {
   }
 
   return (
-    <div className="w-full min-w-0 space-y-7 p-4 sm:p-6 lg:p-8">
+    <div className="w-full min-w-0 space-y-7 px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1.5">
           <p className="text-sm text-muted-foreground">
@@ -144,45 +144,20 @@ export default async function PlanificacionPage() {
         assignees={assignableUsers}
       />
 
-      {/* At the bottom (user request, 2026-11-27): the tabs and "Tareas que he
-          creado" come first, right under the numbers. */}
-      <section aria-labelledby="atencion-title" className="overflow-hidden rounded-2xl border bg-card shadow-xs">
-        <div className="flex items-center justify-between gap-3 border-b px-4 py-3.5 sm:px-5">
-          <h2 id="atencion-title" className="text-base font-semibold text-[#0B2545] dark:text-foreground">
-            Necesitan tu atención
-          </h2>
-          <span className="text-sm text-muted-foreground">Vencidas o por vencer en 2 días</span>
-        </div>
-        {atencion.length === 0 ? (
-          <p className="flex items-center gap-2 px-4 py-5 text-sm text-muted-foreground sm:px-5">
-            <CircleCheck className="size-4 text-emerald-600" />
-            Nada urgente por ahora. ¡Vas al día!
-          </p>
-        ) : (
-          <ul>
-            {atencion.map((t) => (
-              <li key={t.id} className="border-b last:border-0">
-                <Link
-                  href={`/planificacion/proyectos/${t.proyectoId}`}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 px-4 py-3 hover:bg-muted/50 sm:grid-cols-[minmax(0,2.4fr)_minmax(0,1.2fr)_6rem_9rem] sm:px-5"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-foreground">{t.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{t.proyectoName}</span>
-                  </span>
-                  <span className="hidden sm:block">
-                    <EstadoPill name={t.estadoName} color={t.estadoColor} />
-                  </span>
-                  <span className="hidden sm:block">
-                    <PrioridadBadge priority={t.priority} />
-                  </span>
-                  <FechaLimiteText dueDate={t.dueDate} hoy={hoy} cerrada={false} className="justify-self-end sm:justify-self-start" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* Docked at the bottom of the screen (user request, 2026-11-27). */}
+      <AtencionDock
+        hoy={hoy}
+        items={atencion.map((t) => ({
+          id: t.id,
+          title: t.title,
+          proyectoId: t.proyectoId,
+          proyectoName: t.proyectoName,
+          estadoName: t.estadoName,
+          estadoColor: t.estadoColor,
+          priority: t.priority,
+          dueDate: t.dueDate,
+        }))}
+      />
     </div>
   );
 }
