@@ -120,6 +120,11 @@ export function archivoUrl(ref: DriveFileRef): string {
   return `/api/aprendizaje/archivo/${encodeURIComponent(ref.driveId)}/${encodeURIComponent(ref.itemId)}`;
 }
 
+/** JSON { url } with the in-platform viewer (Microsoft's online viewer) for a guide. */
+export function archivoVistaUrl(ref: DriveFileRef): string {
+  return `${archivoUrl(ref)}/vista`;
+}
+
 /** The signed-in person's certificate PDF for a completed course (owner-only route). */
 export function certificadoUrl(cursoId: string): string {
   return `/api/aprendizaje/certificado/${encodeURIComponent(cursoId)}`;

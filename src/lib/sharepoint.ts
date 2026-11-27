@@ -216,6 +216,26 @@ export async function uploadSharePointAttachment(file: File): Promise<SharePoint
   }
 }
 
+/**
+ * A short-lived, embeddable viewer URL for an item (Graph driveItem
+ * "preview"): Microsoft's own online viewer for PDF, Word, Excel and
+ * PowerPoint, shown in an <iframe> without downloading the file.
+ */
+export async function getSharePointPreviewUrl(driveId: string, itemId: string): Promise<string> {
+  const accessToken = await getGraphAccessToken();
+  const res = await fetch(`https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/preview`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!res.ok) {
+    throw new Error(`No se pudo preparar la vista previa: ${res.status} ${await res.text()}`);
+  }
+  const data = (await res.json()) as { getUrl?: string };
+  if (!data.getUrl) throw new Error("Este archivo no tiene vista previa disponible");
+  return data.getUrl;
+}
+
 export async function getSharePointDownloadUrl(driveId: string, itemId: string): Promise<string> {
   const accessToken = await getGraphAccessToken();
   const res = await fetch(
