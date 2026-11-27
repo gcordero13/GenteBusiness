@@ -1,201 +1,224 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckSquare, ChevronRight, Square } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from "@/components/ui/avatar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Check, ChevronRight, FolderOpen } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import type { EstadoOption, TareaListRow } from "./actions";
-import { initials } from "./AssigneePicker";
-import { progressOpacity } from "./progress";
+import { BarraAvance, EstadoPill, FechaLimiteText, PersonaAvatar, PrioridadBadge } from "./Distintivos";
+import { esCerrada, hoyISO, subtareasResumen } from "./visual";
 
-// Soft background tint for a task's own color tag - same hue, low opacity,
-// so it reads as a subtle wash behind the row rather than a solid block.
-function softTint(hex: string | null): string | undefined {
-  if (!hex || hex.length !== 7) return undefined;
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  if ([r, g, b].some((n) => Number.isNaN(n))) return undefined;
-  return `rgba(${r}, ${g}, ${b}, 0.1)`;
-}
+type ChildrenMap = Map<string, TareaListRow[]>;
 
-function isClosedKind(kind: string | null): boolean {
-  return kind === "completado" || kind === "cancelado";
-}
-
-// Creator + assignee, deduped (a self-created, self-assigned task shows
-// just one avatar) - the people "involved" with this task per the names
-// this schema actually tracks.
-function involucrados(t: TareaListRow): { id: string; name: string; photoUrl: string | null }[] {
-  const people = [{ id: t.createdBy, name: t.creatorName, photoUrl: t.creatorPhotoUrl }];
-  if (t.assigneeId && t.assigneeId !== t.createdBy) {
-    people.push({ id: t.assigneeId, name: t.assigneeName ?? t.assigneeId, photoUrl: t.assigneePhotoUrl });
-  }
-  return people;
-}
-
-function TaskRow({
-  task,
-  depth,
-  childrenByParent,
-  expandedIds,
-  toggleExpanded,
-  onSelect,
-  onToggleComplete,
-  estados,
-  onChangeEstado,
-}: {
-  task: TareaListRow;
-  depth: number;
-  childrenByParent: Map<string, TareaListRow[]>;
+interface RowProps {
+  childrenByParent: ChildrenMap;
   expandedIds: Set<string>;
   toggleExpanded: (id: string) => void;
   onSelect: (t: TareaListRow) => void;
   onToggleComplete: (taskId: string, proyectoId: string, rowEl: HTMLElement) => void;
   // Empty estados / no onChangeEstado (the mixed-project "Mis tareas" view,
   // same restriction Tablero's drag-and-drop already has - no single estado
-  // catalog applies across projects there) falls back to the read-only badge.
+  // catalog applies across projects there) falls back to the read-only pill.
   estados: EstadoOption[];
   onChangeEstado?: (taskId: string, estadoId: string, anchorEl: HTMLElement | null) => void;
+  showProyecto: boolean;
+  hoy: string;
+}
+
+/** Square checkbox: done tasks fill with the brand color; parents are computed from their sub-tasks. */
+function CompleteToggle({
+  task,
+  onToggleComplete,
+  size = "size-[18px]",
+}: {
+  task: TareaListRow;
+  onToggleComplete: RowProps["onToggleComplete"];
+  size?: string;
 }) {
-  const children = childrenByParent.get(task.id) ?? [];
-  const isExpanded = expandedIds.has(task.id);
-  const estadoCellRef = useRef<HTMLDivElement>(null);
-  const estadoEditable = Boolean(onChangeEstado) && estados.length > 0;
+  const done = task.percentComplete === 100;
+  if (task.hasChildren) {
+    return (
+      <span
+        title="Se completa con sus subtareas"
+        className={`${size} inline-flex shrink-0 items-center justify-center rounded-md border border-dashed border-muted-foreground/40 ${done ? "bg-[#04B1AF]/30" : ""}`}
+      >
+        {done && <Check className="size-3 text-white" />}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      aria-label={done ? "Tarea completada" : `Marcar "${task.title}" como completada`}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (done) return;
+        onToggleComplete(task.id, task.proyectoId, e.currentTarget);
+      }}
+      className={`${size} inline-flex shrink-0 items-center justify-center rounded-md border-[1.5px] transition-colors ${
+        done ? "border-[#04B1AF] bg-[#04B1AF] text-white" : "border-muted-foreground/50 hover:border-[#04B1AF]"
+      }`}
+    >
+      {done && <Check className="size-3" strokeWidth={3} />}
+    </button>
+  );
+}
+
+function EstadoCell({ task, estados, onChangeEstado }: Pick<RowProps, "estados" | "onChangeEstado"> & { task: TareaListRow }) {
+  const ref = useRef<HTMLDivElement>(null);
+  if (!onChangeEstado || estados.length === 0) return <EstadoPill name={task.estadoName} color={task.estadoColor} />;
+  return (
+    <div ref={ref} className="inline-block max-w-full" onClick={(e) => e.stopPropagation()}>
+      <Select value={task.estadoId ?? undefined} onValueChange={(v) => v && onChangeEstado(task.id, v, ref.current)}>
+        <SelectTrigger
+          size="sm"
+          aria-label={`Estado de "${task.title}"`}
+          className="h-auto max-w-full gap-1 border-none bg-transparent p-0 shadow-none hover:opacity-80 [&>svg]:size-3"
+        >
+          <EstadoPill name={task.estadoName} color={task.estadoColor} />
+        </SelectTrigger>
+        <SelectContent>
+          {estados.map((e) => (
+            <SelectItem key={e.id} value={e.id}>
+              <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: e.color ?? "#94a3b8" }} />
+              {e.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function TaskRow({ task, depth, ...p }: RowProps & { task: TareaListRow; depth: number }) {
+  const children = p.childrenByParent.get(task.id) ?? [];
+  const isExpanded = p.expandedIds.has(task.id);
+  const resumen = subtareasResumen(children);
+  const cerrada = esCerrada(task.estadoKind) || task.percentComplete === 100;
 
   return (
     <>
-      <tr className="border-b last:border-0 hover:brightness-95" style={{ backgroundColor: softTint(task.color) }}>
-        <td className="p-3">
-          {task.hasChildren ? (
-            <span className="inline-flex" title="Calculado a partir de las subtareas">
-              <CheckSquare className="size-4 text-muted-foreground opacity-30" />
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (task.percentComplete === 100) return;
-                onToggleComplete(task.id, task.proyectoId, e.currentTarget);
-              }}
-              className="shrink-0 text-muted-foreground"
-            >
-              {task.percentComplete === 100 ? (
-                <CheckSquare className="size-4 text-[#04B1AF]" />
-              ) : (
-                <Square className="size-4" />
-              )}
-            </button>
-          )}
-        </td>
-        <td className="cursor-pointer p-3 font-medium text-foreground" onClick={() => onSelect(task)}>
-          <div className="flex items-center gap-1.5" style={{ paddingLeft: `${depth * 1.25}rem` }}>
+      <tr className="cursor-pointer border-t transition-colors hover:bg-muted/50" onClick={() => p.onSelect(task)}>
+        <td className="py-2.5 pr-2 pl-4">
+          <div className="flex min-w-0 items-center gap-2.5" style={{ paddingLeft: `${depth * 1.75}rem` }}>
+            <CompleteToggle task={task} onToggleComplete={p.onToggleComplete} />
             {children.length > 0 ? (
               <button
                 type="button"
+                aria-label={isExpanded ? "Ocultar subtareas" : "Ver subtareas"}
+                aria-expanded={isExpanded}
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleExpanded(task.id);
+                  p.toggleExpanded(task.id);
                 }}
-                className="shrink-0 text-muted-foreground"
+                className="-m-1 shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                <ChevronRight className={`size-3.5 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
+                <ChevronRight className={`size-4 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
               </button>
             ) : (
-              <span className="inline-block size-3.5 shrink-0" />
+              <span className="inline-block size-4 shrink-0" />
             )}
             {task.color && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: task.color }} />}
-            <span className={children.length > 0 ? "font-semibold" : ""}>{task.title}</span>
-            {children.length > 0 && (
-              <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                {children.length}
+            <span
+              className={`truncate text-sm ${children.length > 0 ? "font-semibold" : ""} ${
+                cerrada ? "text-muted-foreground line-through" : "text-foreground"
+              }`}
+            >
+              {task.title}
+            </span>
+            {resumen && (
+              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {resumen} subtareas
               </span>
             )}
           </div>
         </td>
-        <td className="p-3 text-muted-foreground">
-          <Link href={`/planificacion/proyectos/${task.proyectoId}`} className="hover:text-[#04B1AF] hover:underline">
-            {task.proyectoName}
-          </Link>
+        {p.showProyecto && (
+          <td className="px-2 py-2.5 text-sm">
+            <Link
+              href={`/planificacion/proyectos/${task.proyectoId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-muted-foreground hover:text-[#036E6C] hover:underline dark:hover:text-[#5FD6D4]"
+            >
+              {task.proyectoName}
+            </Link>
+          </td>
+        )}
+        <td className="px-2 py-2.5">
+          <EstadoCell task={task} estados={p.estados} onChangeEstado={p.onChangeEstado} />
         </td>
-        <td className="cursor-pointer p-3 text-muted-foreground" onClick={() => onSelect(task)}>
-          {task.planificacionName ?? "—"}
+        <td className="px-2 py-2.5">
+          <PrioridadBadge priority={task.priority} />
         </td>
-        <td className={estadoEditable ? "p-3 text-muted-foreground" : "cursor-pointer p-3 text-muted-foreground"} onClick={estadoEditable ? undefined : () => onSelect(task)}>
-          {estadoEditable ? (
-            <div ref={estadoCellRef} className="inline-block">
-              <Select
-                value={task.estadoId ?? undefined}
-                onValueChange={(v) => v && onChangeEstado!(task.id, v, estadoCellRef.current)}
-              >
-                <SelectTrigger size="sm" className="h-7 gap-1.5 border-none bg-transparent px-1.5 text-xs shadow-none hover:bg-muted">
-                  <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: task.estadoColor ?? "#94a3b8" }} />
-                  <SelectValue>{() => task.estadoName ?? "—"}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {estados.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: e.color ?? "#94a3b8" }} />
-                      {e.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : (
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full" style={{ backgroundColor: task.estadoColor ?? "#94a3b8" }} />
-              {task.estadoName ?? "—"}
+        <td className="px-2 py-2.5">
+          {task.assigneeName ? (
+            <span className="flex min-w-0 items-center gap-2">
+              <PersonaAvatar name={task.assigneeName} photoUrl={task.assigneePhotoUrl} />
+              <span className="truncate text-sm">{task.assigneeName}</span>
             </span>
+          ) : (
+            <span className="text-sm text-muted-foreground">Sin asignar</span>
           )}
         </td>
-        <td className="cursor-pointer p-3" onClick={() => onSelect(task)}>
-          <div className="flex items-center gap-1.5">
-            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full bg-[#04B1AF] transition-[width] duration-300"
-                style={{ width: `${task.percentComplete}%`, opacity: progressOpacity(task.percentComplete) }}
-              />
-            </div>
-            <span className="text-xs font-semibold text-muted-foreground">{task.percentComplete}%</span>
-          </div>
+        <td className="px-2 py-2.5">
+          <FechaLimiteText dueDate={task.dueDate} hoy={p.hoy} cerrada={cerrada} />
         </td>
-        <td className="cursor-pointer p-3 text-muted-foreground" onClick={() => onSelect(task)}>
-          {task.priority ?? "—"}
-        </td>
-        <td className="cursor-pointer p-3 text-muted-foreground" onClick={() => onSelect(task)}>
-          {task.dueDate ?? "—"}
-        </td>
-        <td className="cursor-pointer p-3" onClick={() => onSelect(task)}>
-          <AvatarGroup>
-            {involucrados(task).map((p) => (
-              <Avatar key={p.id} size="sm" title={p.name}>
-                {p.photoUrl && <AvatarImage src={p.photoUrl} alt="" />}
-                <AvatarFallback>{initials(p.name)}</AvatarFallback>
-              </Avatar>
-            ))}
-          </AvatarGroup>
+        <td className="py-2.5 pr-4 pl-2">
+          <BarraAvance percent={task.percentComplete} />
         </td>
       </tr>
-      {isExpanded &&
-        children.map((child) => (
-          <TaskRow
-            key={child.id}
-            task={child}
-            depth={depth + 1}
-            childrenByParent={childrenByParent}
-            expandedIds={expandedIds}
-            toggleExpanded={toggleExpanded}
-            onSelect={onSelect}
-            onToggleComplete={onToggleComplete}
-            estados={estados}
-            onChangeEstado={onChangeEstado}
-          />
-        ))}
+      {isExpanded && children.map((child) => <TaskRow key={child.id} task={child} depth={depth + 1} {...p} />)}
     </>
   );
+}
+
+/** Phone layout: one card per task instead of a wide table (approved redesign). */
+function TaskCard({ task, ...p }: RowProps & { task: TareaListRow }) {
+  const resumen = subtareasResumen(p.childrenByParent.get(task.id) ?? []);
+  const cerrada = esCerrada(task.estadoKind) || task.percentComplete === 100;
+  return (
+    <li>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => p.onSelect(task)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            p.onSelect(task);
+          }
+        }}
+        className="flex gap-3 rounded-xl border bg-card p-3.5 text-left shadow-xs active:bg-muted/50"
+      >
+        <span className="pt-0.5">
+          <CompleteToggle task={task} onToggleComplete={p.onToggleComplete} size="size-5" />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className={`text-[15px] leading-snug font-semibold ${cerrada ? "text-muted-foreground line-through" : "text-foreground"}`}>
+            {task.title}
+          </span>
+          {p.showProyecto && <span className="-mt-1 text-xs text-muted-foreground">{task.proyectoName}</span>}
+          <span className="flex flex-wrap items-center gap-2">
+            <EstadoPill name={task.estadoName} color={task.estadoColor} />
+            <PrioridadBadge priority={task.priority} />
+            {resumen && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{resumen}</span>
+            )}
+          </span>
+          <span className="flex items-center justify-between gap-2">
+            <FechaLimiteText dueDate={task.dueDate} hoy={p.hoy} cerrada={cerrada} />
+            {task.assigneeName && <PersonaAvatar name={task.assigneeName} photoUrl={task.assigneePhotoUrl} />}
+          </span>
+        </span>
+      </div>
+    </li>
+  );
+}
+
+interface Grupo {
+  key: string;
+  title: string | null;
+  tasks: TareaListRow[];
 }
 
 export function ListaView({
@@ -205,6 +228,8 @@ export function ListaView({
   onToggleComplete,
   estados = [],
   onChangeEstado,
+  showProyecto = true,
+  groupByPlanificacion = false,
 }: {
   // Root-level tasks shown as the table's top-level rows.
   tasks: TareaListRow[];
@@ -216,8 +241,41 @@ export function ListaView({
   onToggleComplete: (taskId: string, proyectoId: string, rowEl: HTMLElement) => void;
   estados?: EstadoOption[];
   onChangeEstado?: (taskId: string, estadoId: string, anchorEl: HTMLElement | null) => void;
+  /** Off inside a single project, where the column would repeat the same name. */
+  showProyecto?: boolean;
+  /** Group root tasks under their planificación (inside a single project). */
+  groupByPlanificacion?: boolean;
 }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const hoy = useMemo(() => hoyISO(), []);
+
+  const childrenByParent = useMemo(() => {
+    const map: ChildrenMap = new Map();
+    for (const t of allTasks) {
+      if (!t.parentTaskId) continue;
+      if (!map.has(t.parentTaskId)) map.set(t.parentTaskId, []);
+      map.get(t.parentTaskId)!.push(t);
+    }
+    return map;
+  }, [allTasks]);
+
+  const grupos = useMemo<Grupo[]>(() => {
+    // Closed root tasks (completado/cancelado) sink to the bottom, keeping
+    // their relative order otherwise - Array#sort is stable.
+    const sorted = [...tasks].sort((a, b) => Number(esCerrada(a.estadoKind)) - Number(esCerrada(b.estadoKind)));
+    if (!groupByPlanificacion || !sorted.some((t) => t.planificacionName)) {
+      return [{ key: "todas", title: null, tasks: sorted }];
+    }
+    const byPlan = new Map<string, Grupo>();
+    for (const t of sorted) {
+      const key = t.planificacionId ?? "sin-planificacion";
+      if (!byPlan.has(key)) byPlan.set(key, { key, title: t.planificacionName ?? "Sin planificación", tasks: [] });
+      byPlan.get(key)!.tasks.push(t);
+    }
+    const list = [...byPlan.values()];
+    if (list.length <= 1) return [{ key: "todas", title: null, tasks: sorted }];
+    return [...list.filter((g) => g.key !== "sin-planificacion"), ...list.filter((g) => g.key === "sin-planificacion")];
+  }, [tasks, groupByPlanificacion]);
 
   function toggleExpanded(id: string) {
     setExpandedIds((prev) => {
@@ -229,54 +287,94 @@ export function ListaView({
   }
 
   if (tasks.length === 0) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">Sin tareas todavía.</p>;
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-card/60 px-6 py-12 text-center">
+        <FolderOpen className="size-8 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">Sin tareas todavía</p>
+        <p className="text-sm text-muted-foreground">Las tareas que crees o te asignen aparecerán aquí.</p>
+      </div>
+    );
   }
 
-  const childrenByParent = new Map<string, TareaListRow[]>();
-  for (const t of allTasks) {
-    if (!t.parentTaskId) continue;
-    if (!childrenByParent.has(t.parentTaskId)) childrenByParent.set(t.parentTaskId, []);
-    childrenByParent.get(t.parentTaskId)!.push(t);
-  }
-
-  // Closed root tasks (completado/cancelado) sink to the bottom, keeping
-  // their relative order otherwise - Array#sort is a stable sort, so this
-  // only ever moves closed tasks down, never reorders within either group.
-  const sortedTasks = [...tasks].sort((a, b) => Number(isClosedKind(a.estadoKind)) - Number(isClosedKind(b.estadoKind)));
+  const rowProps: RowProps = {
+    childrenByParent,
+    expandedIds,
+    toggleExpanded,
+    onSelect,
+    onToggleComplete,
+    estados,
+    onChangeEstado,
+    showProyecto,
+    hoy,
+  };
+  const columnCount = showProyecto ? 7 : 6;
 
   return (
-    <div className="max-h-[32rem] overflow-auto rounded-2xl border bg-card shadow-sm">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 z-10 bg-card">
-          <tr className="border-b text-left text-xs text-muted-foreground">
-            <th className="w-8 p-3"></th>
-            <th className="p-3 font-medium">Título</th>
-            <th className="p-3 font-medium">Proyecto</th>
-            <th className="p-3 font-medium">Planificación</th>
-            <th className="p-3 font-medium">Estado</th>
-            <th className="p-3 font-medium">Progreso</th>
-            <th className="p-3 font-medium">Prioridad</th>
-            <th className="p-3 font-medium">Fecha límite</th>
-            <th className="p-3 font-medium">Involucrados</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedTasks.map((t) => (
-            <TaskRow
-              key={t.id}
-              task={t}
-              depth={0}
-              childrenByParent={childrenByParent}
-              expandedIds={expandedIds}
-              toggleExpanded={toggleExpanded}
-              onSelect={onSelect}
-              onToggleComplete={onToggleComplete}
-              estados={estados}
-              onChangeEstado={onChangeEstado}
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div className="hidden max-h-[40rem] overflow-auto rounded-2xl border bg-card shadow-xs md:block">
+        <table className="w-full min-w-[56rem] table-fixed">
+          <colgroup>
+            <col />
+            {showProyecto && <col className="w-[11rem]" />}
+            <col className="w-[10rem]" />
+            <col className="w-[6.5rem]" />
+            <col className="w-[11rem]" />
+            <col className="w-[8.5rem]" />
+            <col className="w-[9.5rem]" />
+          </colgroup>
+          <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur">
+            <tr className="text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <th className="py-3 pr-2 pl-4 font-semibold">Tarea</th>
+              {showProyecto && <th className="px-2 py-3 font-semibold">Proyecto</th>}
+              <th className="px-2 py-3 font-semibold">Estado</th>
+              <th className="px-2 py-3 font-semibold">Prioridad</th>
+              <th className="px-2 py-3 font-semibold">Responsable</th>
+              <th className="px-2 py-3 font-semibold">Fecha límite</th>
+              <th className="py-3 pr-4 pl-2 font-semibold">Avance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grupos.map((g) => (
+              <Fragment key={g.key}>
+                {g.title && (
+                  <tr className="border-t bg-card">
+                    <td colSpan={columnCount} className="px-4 pt-4 pb-1.5">
+                      <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#036E6C] dark:text-[#5FD6D4]">
+                        <FolderOpen className="size-4" />
+                        {g.title}
+                        <span className="font-normal text-muted-foreground">
+                          · {g.tasks.length} {g.tasks.length === 1 ? "tarea" : "tareas"}
+                        </span>
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                {g.tasks.map((t) => (
+                  <TaskRow key={t.id} task={t} depth={0} {...rowProps} />
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="space-y-4 md:hidden">
+        {grupos.map((g) => (
+          <section key={g.key} className="space-y-2">
+            {g.title && (
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-[#036E6C] dark:text-[#5FD6D4]">
+                <FolderOpen className="size-4" />
+                {g.title}
+              </h3>
+            )}
+            <ul className="space-y-2">
+              {g.tasks.map((t) => (
+                <TaskCard key={t.id} task={t} {...rowProps} />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </>
   );
 }

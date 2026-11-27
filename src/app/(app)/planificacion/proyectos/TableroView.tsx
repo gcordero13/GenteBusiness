@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useMemo, useState } from "react";
+import { CalendarDays } from "lucide-react";
 import type { TareaListRow } from "./actions";
-import { initials } from "./AssigneePicker";
+import { EstadoPill, FechaLimiteText, PersonaAvatar, PrioridadBadge } from "./Distintivos";
 import { progressOpacity } from "./progress";
+import { esCerrada, hoyISO } from "./visual";
 
 export interface TableroColumn {
   key: string;
@@ -14,20 +15,38 @@ export interface TableroColumn {
 
 export function TableroView({
   tasks,
+  allTasks = [],
   columns,
   getColumnKey,
   onSelect,
   onDrop,
+  showProyecto = true,
 }: {
   tasks: TareaListRow[];
+  /** Every loaded task, sub-tasks included, for each card's "2/5" sub-task progress. */
+  allTasks?: TareaListRow[];
   columns: TableroColumn[];
   getColumnKey: (t: TareaListRow) => string;
   onSelect: (t: TareaListRow) => void;
   onDrop?: (taskId: string, columnKey: string, cardEl: HTMLElement | null) => void;
+  showProyecto?: boolean;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingEl, setDraggingEl] = useState<HTMLElement | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
+  const hoy = useMemo(() => hoyISO(), []);
+
+  const hijas = useMemo(() => {
+    const map = new Map<string, { done: number; total: number }>();
+    for (const t of allTasks) {
+      if (!t.parentTaskId) continue;
+      const s = map.get(t.parentTaskId) ?? { done: 0, total: 0 };
+      s.total += 1;
+      if (t.percentComplete === 100) s.done += 1;
+      map.set(t.parentTaskId, s);
+    }
+    return map;
+  }, [allTasks]);
 
   const byColumn = new Map<string, TareaListRow[]>();
   for (const c of columns) byColumn.set(c.key, []);
@@ -38,13 +57,14 @@ export function TableroView({
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
+    <div className="flex gap-4 overflow-x-auto pb-3">
       {columns.map((col) => {
         const items = byColumn.get(col.key) ?? [];
         const isDragOver = dragOverKey === col.key;
         return (
-          <div
+          <section
             key={col.key}
+            aria-label={col.label}
             onDragOver={(e) => {
               if (!onDrop) return;
               e.preventDefault();
@@ -61,19 +81,18 @@ export function TableroView({
               setDraggingEl(null);
               if (id) onDrop(id, col.key, el);
             }}
-            className={`w-64 shrink-0 space-y-2 rounded-xl border border-t-4 bg-card p-3 shadow-sm ${
-              isDragOver ? "border-[#04B1AF] bg-[#04B1AF]/5" : ""
+            className={`flex w-72 shrink-0 flex-col gap-2.5 rounded-2xl p-3 transition-colors ${
+              isDragOver ? "bg-[#04B1AF]/10 ring-2 ring-[#04B1AF]" : "bg-muted/60"
             }`}
-            style={{ borderTopColor: col.color ?? "#94a3b8" }}
           >
-            <div className="flex items-center justify-between px-0.5">
-              <h3 className="text-xs font-semibold text-foreground">{col.label}</h3>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                {items.length}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {items.map((t) => (
+            <header className="flex items-center justify-between px-1 py-0.5">
+              <EstadoPill name={col.label} color={col.color} className="text-sm" />
+              <span className="text-sm font-semibold text-muted-foreground tabular-nums">{items.length}</span>
+            </header>
+            {items.map((t) => {
+              const s = hijas.get(t.id);
+              const cerrada = esCerrada(t.estadoKind) || t.percentComplete === 100;
+              return (
                 <button
                   key={t.id}
                   type="button"
@@ -87,34 +106,51 @@ export function TableroView({
                     setDraggingEl(null);
                   }}
                   onClick={() => onSelect(t)}
-                  className={`w-full rounded-lg border bg-background p-2.5 text-left text-xs hover:bg-muted ${
+                  className={`flex w-full flex-col gap-2.5 rounded-xl border bg-card p-3.5 text-left shadow-xs transition-shadow hover:shadow-md ${
                     onDrop ? "cursor-grab active:cursor-grabbing" : ""
                   } ${draggingId === t.id ? "opacity-40" : ""}`}
                 >
-                  <div className="flex items-center gap-1.5">
-                    {t.color && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: t.color }} />}
-                    <p className="min-w-0 flex-1 truncate font-semibold text-foreground">{t.title}</p>
-                    <Avatar size="sm" className="size-5 shrink-0" title={t.assigneeName ?? "Sin asignar"}>
-                      {t.assigneePhotoUrl && <AvatarImage src={t.assigneePhotoUrl} alt="" />}
-                      <AvatarFallback className="text-[9px]">{t.assigneeName ? initials(t.assigneeName) : "—"}</AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <p className="truncate text-muted-foreground">{t.proyectoName}</p>
-                  <div className="mt-1.5 flex items-center gap-1.5">
-                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full bg-[#04B1AF]"
-                        style={{ width: `${t.percentComplete}%`, opacity: progressOpacity(t.percentComplete) }}
-                      />
-                    </div>
-                    <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{t.percentComplete}%</span>
-                  </div>
-                  {t.dueDate && <p className="mt-1 text-muted-foreground">{t.dueDate}</p>}
+                  <span className="flex items-center justify-between gap-2">
+                    <PrioridadBadge priority={t.priority} />
+                    <span className="truncate text-xs text-muted-foreground">
+                      {showProyecto ? t.proyectoName : t.planificacionName}
+                    </span>
+                  </span>
+                  <span className="flex items-start gap-2">
+                    {t.color && <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ backgroundColor: t.color }} />}
+                    <span className={`text-sm leading-snug font-semibold ${cerrada ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                      {t.title}
+                    </span>
+                  </span>
+                  {s && (
+                    <span className="flex items-center gap-2">
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <span
+                          className="block h-full rounded-full bg-[#04B1AF]"
+                          style={{ width: `${(s.done / s.total) * 100}%`, opacity: progressOpacity((s.done / s.total) * 100) }}
+                        />
+                      </span>
+                      <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                        {s.done}/{s.total}
+                      </span>
+                    </span>
+                  )}
+                  <span className="flex items-center justify-between gap-2 border-t pt-2.5">
+                    <span className="inline-flex items-center gap-1.5">
+                      <CalendarDays className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                      <FechaLimiteText dueDate={t.dueDate} hoy={hoy} cerrada={cerrada} />
+                    </span>
+                    <PersonaAvatar name={t.assigneeName} photoUrl={t.assigneePhotoUrl} />
+                  </span>
                 </button>
-              ))}
-              {items.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">Sin tareas</p>}
-            </div>
-          </div>
+              );
+            })}
+            {items.length === 0 && (
+              <p className="rounded-xl border border-dashed py-6 text-center text-sm text-muted-foreground">
+                {onDrop ? "Arrastra tareas aquí" : "Sin tareas"}
+              </p>
+            )}
+          </section>
         );
       })}
     </div>

@@ -62,6 +62,9 @@ export function ProyectosWorkspace({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [exporting, setExporting] = useState(false);
+  // Inside one project (detail pages pass its id) the Proyecto column/label
+  // would just repeat the page title, and Lista groups by planificación.
+  const singleProject = Boolean(defaultProyectoId);
 
   const filteredTasks = useMemo(() => {
     if (!fromDate && !toDate) return tasks;
@@ -142,20 +145,25 @@ export function ProyectosWorkspace({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label="Vistas" className="flex gap-1 overflow-x-auto rounded-xl border bg-card p-1 shadow-xs">
           {VIEW_OPTIONS.map((v) => (
             <button
               key={v.key}
               type="button"
+              role="tab"
+              aria-selected={view === v.key}
+              aria-label={v.label}
               onClick={() => setView(v.key)}
-              className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold sm:px-2.5 ${
-                view === v.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3 ${
+                view === v.key
+                  ? "bg-[#04B1AF]/12 font-semibold text-[#036E6C] dark:bg-[#04B1AF]/20 dark:text-[#5FD6D4]"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
               title={v.label}
             >
-              <v.icon className="size-3.5" />
+              <v.icon className="size-4" />
               <span className="hidden sm:inline">{v.label}</span>
             </button>
           ))}
@@ -164,28 +172,28 @@ export function ProyectosWorkspace({
         {/* Lives here (not inside any one view, not a tab of its own) so it
             applies uniformly across all four views - confirmed with the
             user: next to the view switcher, not tucked below the table. */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           {(fromDate || toDate) && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-sm text-muted-foreground tabular-nums">
               {rootFilteredTasks.length} de {tasks.filter((t) => !t.parentTaskId || !tasks.some((p) => p.id === t.parentTaskId)).length}
             </span>
           )}
-          <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+          <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
             Desde
             <input
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              className="h-9 rounded-lg border border-input bg-card px-2 text-sm text-foreground"
             />
           </label>
-          <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+          <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
             Hasta
             <input
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              className="h-9 rounded-lg border border-input bg-card px-2 text-sm text-foreground"
             />
           </label>
           {(fromDate || toDate) && (
@@ -195,7 +203,7 @@ export function ProyectosWorkspace({
                 setFromDate("");
                 setToDate("");
               }}
-              className="h-8 px-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+              className="h-9 px-2 text-sm font-medium text-muted-foreground hover:text-foreground"
             >
               Limpiar
             </button>
@@ -216,10 +224,10 @@ export function ProyectosWorkspace({
               }
             }}
             title="Exportar avances a Excel (tareas y subtareas)"
-            className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+            className="flex h-9 items-center gap-1.5 rounded-lg border bg-card px-3 text-sm font-medium text-foreground shadow-xs hover:bg-muted disabled:opacity-60"
           >
-            <Download className="size-3.5" />
-            {exporting ? "Exportando…" : "Exportar"}
+            <Download className="size-4" />
+            {exporting ? "Exportando…" : "Exportar a Excel"}
           </button>
         </div>
       </div>
@@ -236,11 +244,15 @@ export function ProyectosWorkspace({
           onToggleComplete={toggleListaComplete}
           estados={estados}
           onChangeEstado={onDropEstado ? changeListaEstado : undefined}
+          showProyecto={!singleProject}
+          groupByPlanificacion={singleProject}
         />
       )}
       {view === "tablero" && (
         <TableroView
           tasks={rootFilteredTasks}
+          allTasks={tasks}
+          showProyecto={!singleProject}
           columns={columns}
           getColumnKey={getColumnKey}
           onSelect={setSelected}
