@@ -12,6 +12,7 @@ import { DashboardView } from "./DashboardView";
 import { TareaDetailModal } from "./TareaDetailModal";
 import type { AssigneeOption } from "./TareaCreateDialog";
 import { celebrateCompletion } from "./celebrate";
+import { exportAvancesXlsx } from "./exportAvances";
 
 type ViewMode = "lista" | "tablero" | "calendario" | "jerarquia" | "dashboard";
 
@@ -22,36 +23,6 @@ const VIEW_OPTIONS: { key: ViewMode; label: string; icon: typeof List }[] = [
   { key: "jerarquia", label: "Jerarquía", icon: Network },
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
 ];
-
-function csvCell(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
-}
-
-// Client-side CSV export of whatever's currently in view (respects the
-// date-range filter below) - confirmed with the user: "exportar los
-// avances", so progress % is the headline column.
-function exportAvancesCsv(tasks: TareaListRow[]) {
-  const header = ["Título", "Proyecto", "Estado", "Progreso %", "Prioridad", "Responsable", "Fecha límite"];
-  const rows = tasks.map((t) => [
-    t.title,
-    t.proyectoName,
-    t.estadoName ?? "",
-    String(t.percentComplete),
-    t.priority ?? "",
-    t.assigneeName ?? "",
-    t.dueDate ?? "",
-  ]);
-  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
-  // Leading BOM so Excel (the realistic consumer here) reads accented
-  // characters correctly instead of mangling UTF-8 as Latin-1.
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `avance-tareas-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 // Reused by both the landing screen (one instance per "Mis tareas"/
 // "Compartido conmigo" section, tasks spanning many projects, drag-to-
@@ -90,6 +61,7 @@ export function ProyectosWorkspace({
   // the user: "no como un tab", shown next to the view switcher.
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const filteredTasks = useMemo(() => {
     if (!fromDate && !toDate) return tasks;
@@ -228,14 +200,26 @@ export function ProyectosWorkspace({
               Limpiar
             </button>
           )}
+          {/* Excel with two sheets: the tasks in view (date filter applied)
+              and, on "Subtareas", all their sub-tasks under a title row per
+              project. allTasks is the unfiltered set so sub-tasks whose own
+              date falls outside the filter still come along with their parent. */}
           <button
             type="button"
-            onClick={() => exportAvancesCsv(rootFilteredTasks)}
-            title="Exportar avances a CSV"
-            className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                await exportAvancesXlsx(rootFilteredTasks, tasks);
+              } finally {
+                setExporting(false);
+              }
+            }}
+            title="Exportar avances a Excel (tareas y subtareas)"
+            className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
           >
             <Download className="size-3.5" />
-            Exportar
+            {exporting ? "Exportando…" : "Exportar"}
           </button>
         </div>
       </div>
