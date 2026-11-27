@@ -46,7 +46,10 @@ describe("Sidebar", () => {
     expect(menu.className).not.toMatch(/overflow/);
 
     fireEvent.click(screen.getByRole("button", { name: "Ajustes" }));
-    expect(screen.getByRole("link", { name: "Empresas" }).getAttribute("href")).toBe("/companies");
+    const empresas = screen.getByRole("link", { name: "Empresas" });
+    expect(empresas.getAttribute("href")).toBe("/companies");
+    // Readable on its white panel: not the navy menu's inherited light gray.
+    expect(empresas.parentElement!.className).toContain("text-popover-foreground");
   });
 
   it("picks the most specific link when several match", () => {

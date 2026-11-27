@@ -117,7 +117,9 @@ function FlyoutNavGroup({
         )}
       </button>
       {open && (
-        <div className="absolute top-0 left-full z-50 ml-2 min-w-[230px] space-y-0.5 rounded-xl border bg-card p-1.5 shadow-lg">
+        // Its own text color: otherwise it inherits the navy menu's light gray
+        // and the options look washed out on the white panel (user report).
+        <div className="absolute top-0 left-full z-50 ml-2 min-w-[230px] space-y-0.5 rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-lg">
           {links.map(({ href, label: subLabel, icon: SubIcon }) => (
             <a
               key={href}
@@ -129,7 +131,7 @@ function FlyoutNavGroup({
                 onNavigate?.();
               }}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm whitespace-nowrap hover:bg-muted",
+                "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium whitespace-nowrap hover:bg-muted",
                 href === current && "bg-[#04B1AF]/12 font-semibold text-[#036E6C] dark:text-[#5FD6D4]",
               )}
             >
