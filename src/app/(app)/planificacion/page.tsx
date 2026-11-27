@@ -87,7 +87,10 @@ export default async function PlanificacionPage() {
   }
 
   return (
-    <div className="w-full min-w-0 space-y-7 px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
+    // At least one screen tall (minus the phone's top bar) so the docked
+    // "Necesitan tu atención" bar always sits at the bottom edge, even with
+    // few projects and tasks (user request, 2026-11-27).
+    <div className="flex min-h-[calc(100dvh-3.5rem)] w-full min-w-0 flex-col space-y-7 px-4 pt-4 sm:px-6 sm:pt-6 md:min-h-dvh lg:px-8 lg:pt-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1.5">
           <p className="text-sm text-muted-foreground">

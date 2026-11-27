@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, CircleCheck, TriangleAlert } from "lucide-react";
 import { EstadoPill, FechaLimiteText, PrioridadBadge } from "./proyectos/Distintivos";
@@ -16,43 +16,21 @@ export interface AtencionItem {
   dueDate: string | null;
 }
 
-const STORAGE_KEY = "planificacion-atencion-abierta";
-
 /**
- * "Necesitan tu atención", docked at the bottom of the screen (user request,
- * 2026-11-27): it stays visible while scrolling the landing page. The bar
- * always shows how many tasks need attention; the list folds open/closed and
- * remembers the choice on this device.
+ * "Necesitan tu atención", docked at the bottom edge of the screen (user
+ * request, 2026-11-27): always minimized - only the title and how many tasks
+ * need attention - until the person opens it.
  */
 export function AtencionDock({ items, hoy }: { items: AtencionItem[]; hoy: string }) {
-  const [abierta, setAbierta] = useState(true);
-
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from this device's preference
-      if (localStorage.getItem(STORAGE_KEY) === "false") setAbierta(false);
-    } catch {
-      // Storage unavailable (private mode): keep it open.
-    }
-  }, []);
-
-  function toggle() {
-    setAbierta((prev) => {
-      try {
-        localStorage.setItem(STORAGE_KEY, String(!prev));
-      } catch {
-        // Not critical.
-      }
-      return !prev;
-    });
-  }
+  const [abierta, setAbierta] = useState(false);
+  const toggle = () => setAbierta((prev) => !prev);
 
   const hay = items.length > 0;
 
   return (
     <section
       aria-labelledby="atencion-title"
-      className="sticky bottom-0 z-20 -mx-4 border-t bg-card/95 shadow-[0_-8px_24px_-12px_rgba(11,37,69,0.25)] backdrop-blur sm:-mx-6 sm:rounded-t-2xl sm:border-x lg:-mx-8"
+      className="sticky bottom-0 z-20 -mx-4 mt-auto border-t bg-card/95 shadow-[0_-8px_24px_-12px_rgba(11,37,69,0.25)] backdrop-blur sm:-mx-6 sm:rounded-t-2xl sm:border-x lg:-mx-8"
     >
       <button
         type="button"
@@ -80,7 +58,7 @@ export function AtencionDock({ items, hoy }: { items: AtencionItem[]; hoy: strin
           <span className="hidden text-sm text-muted-foreground sm:inline">· vencidas o por vencer en 2 días</span>
         </span>
         <span className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
-          <span className="hidden sm:inline">{abierta ? "Ocultar" : "Ver"}</span>
+          <span className="hidden sm:inline">{abierta ? "Minimizar" : "Ver tareas"}</span>
           {abierta ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
         </span>
       </button>
