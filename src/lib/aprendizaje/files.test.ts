@@ -9,6 +9,8 @@ describe("validateUpload", () => {
     expect(validateUpload("archivo", { size: 10, type: "" })).toBeNull();
     expect(validateUpload("firma", { size: 10, type: "image/png" })).toBeNull();
     expect(validateUpload("firma", { size: 10, type: "image/jpeg" })).toBeNull();
+    expect(validateUpload("tutorial", { size: 10, type: "video/mp4" })).toBeNull();
+    expect(validateUpload("tutorial", { size: 10, type: "image/png" })).toBeNull();
   });
 
   it.each<[Parameters<typeof validateUpload>[0], { size: number; type: string }, string]>([
@@ -21,6 +23,8 @@ describe("validateUpload", () => {
     // The certificate PDF can only embed PNG/JPG signatures.
     ["firma", { size: 10, type: "image/webp" }, "La firma debe ser una imagen PNG o JPG."],
     ["firma", { size: MAX_FIRMA_BYTES + 1, type: "image/png" }, "La firma no puede pesar más de 5 MB."],
+    ["tutorial", { size: 10, type: "application/pdf" }, "Sube un video (MP4, WebM o MOV) o una imagen (JPG, PNG, WebP o GIF)."],
+    ["tutorial", { size: MAX_VIDEO_BYTES + 1, type: "video/mp4" }, "El video no puede pesar más de 2 GB."],
   ])("rejects %s %j", (kind, file, error) => {
     expect(validateUpload(kind, file)).toBe(error);
   });

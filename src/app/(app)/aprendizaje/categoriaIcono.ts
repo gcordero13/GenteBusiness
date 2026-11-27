@@ -1,9 +1,8 @@
-import { BookOpen, Landmark, MonitorPlay } from "lucide-react";
+import { BookOpen, Landmark } from "lucide-react";
 import type { CursoCategory } from "@/lib/aprendizaje/types";
 
-/** The icon of each Aprende category (Cursos, Tutoriales, Historias). */
+/** The icon of each course category (tutorials have their own cards). */
 export const CATEGORIA_ICONO: Record<CursoCategory, typeof BookOpen> = {
   curso: BookOpen,
-  tutorial: MonitorPlay,
   historia: Landmark,
 };

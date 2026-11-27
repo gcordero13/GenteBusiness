@@ -16,7 +16,6 @@ import {
   type CursoCategory,
   type CursoDetail,
   type CursoStatus,
-  type ModuloOption,
 } from "@/lib/aprendizaje/types";
 import {
   createLeccion,
@@ -32,7 +31,6 @@ import { EvaluacionEditor } from "./EvaluacionEditor";
 import { FirmaCertificadoEditor } from "./FirmaCertificadoEditor";
 import { LeccionEditor } from "./LeccionEditor";
 import { SharePointUploadButton } from "./SharePointUploadButton";
-import { TutorialModuloEditor } from "./TutorialModuloEditor";
 
 const STATUS_ACTIONS: Record<CursoStatus, { label: string; to: CursoStatus }[]> = {
   borrador: [{ label: "Publicar", to: "publicado" }],
@@ -43,15 +41,7 @@ const STATUS_ACTIONS: Record<CursoStatus, { label: string; to: CursoStatus }[]> 
   archivado: [{ label: "Publicar de nuevo", to: "publicado" }],
 };
 
-export function CursoEditor({
-  curso,
-  preguntas = [],
-  modulos = [],
-}: {
-  curso: CursoDetail;
-  preguntas?: PreguntaGestion[];
-  modulos?: ModuloOption[];
-}) {
+export function CursoEditor({ curso, preguntas = [] }: { curso: CursoDetail; preguntas?: PreguntaGestion[] }) {
   const router = useRouter();
   const [title, setTitle] = useState(curso.title);
   const [description, setDescription] = useState(curso.description ?? "");
@@ -243,8 +233,6 @@ export function CursoEditor({
 
       <EvaluacionEditor cursoId={curso.id} settings={curso.evaluacion} lecciones={curso.lecciones} />
 
-      {/* Only tutorials pop up when the platform opens. */}
-      {curso.category === "tutorial" && <TutorialModuloEditor curso={curso} modulos={modulos} />}
 
       <FirmaCertificadoEditor curso={curso} />
     </div>

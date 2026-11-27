@@ -11,9 +11,9 @@ export async function logout() {
 }
 
 /** Records that the person closed a module tutorial pop-up, so it doesn't show again. */
-export async function cerrarTutorial(cursoId: string): Promise<{ error?: string }> {
+export async function cerrarTutorial(tutorialId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("aprendizaje_cerrar_tutorial", { p_curso_id: cursoId });
+  const { error } = await supabase.rpc("aprendizaje_cerrar_tutorial", { p_tutorial_id: tutorialId });
   if (error) return { error: error.message };
   revalidatePath("/", "layout");
   return {};

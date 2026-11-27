@@ -1,8 +1,31 @@
-/** Fixed categories (user decision, 2026-11-27): Cursos, Tutoriales, Historias. */
-export type CursoCategory = "curso" | "tutorial" | "historia";
+/**
+ * Course categories. Tutorials are NOT courses (user, 2026-11-27): they live
+ * in their own table (see Tutorial below) and get their own catalog tab.
+ */
+export type CursoCategory = "curso" | "historia";
 
-/** Display order of the categories (catalog tabs, selectors). */
-export const CATEGORIES: CursoCategory[] = ["curso", "tutorial", "historia"];
+/** Display order of the course categories (selectors). */
+export const CATEGORIES: CursoCategory[] = ["curso", "historia"];
+
+/** Aprende catalog tabs: Cursos, Tutoriales, Historias. */
+export type CatalogTab = "curso" | "tutorial" | "historia";
+export const CATALOG_TABS: { key: CatalogTab; label: string }[] = [
+  { key: "curso", label: "Cursos" },
+  { key: "tutorial", label: "Tutoriales" },
+  { key: "historia", label: "Historias" },
+];
+
+/** A tutorial: a name, the module it explains and one video (file or link) or one image. */
+export interface Tutorial {
+  id: string;
+  title: string;
+  moduleKey: string;
+  moduleLabel: string;
+  videoUrl: string | null;
+  videoFile: DriveFileRef | null;
+  imagen: DriveFileRef | null;
+  active: boolean;
+}
 export type CursoStatus = "borrador" | "publicado" | "archivado";
 
 /** A file stored in SharePoint, referenced by Graph drive/item ids. */
@@ -106,7 +129,6 @@ export interface GestionCursoRow {
 
 export const CATEGORY_LABELS: Record<CursoCategory, string> = {
   curso: "Cursos",
-  tutorial: "Tutoriales",
   historia: "Historias",
 };
 
@@ -137,7 +159,6 @@ export function certificadoUrl(cursoId: string): string {
 
 export const CATEGORY_SHORT_LABELS: Record<CursoCategory, string> = {
   curso: "Curso",
-  tutorial: "Tutorial",
   historia: "Historia",
 };
 

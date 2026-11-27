@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { splitMisCursos, siguientePaso } from "@/lib/aprendizaje/portada";
-import { CATEGORIES, CATEGORY_LABELS, type CursoCategory } from "@/lib/aprendizaje/types";
-import { aprendizajeFlags, getMiPerfil, listCatalog, listProximos } from "./actions";
+import { CATALOG_TABS, type CatalogTab } from "@/lib/aprendizaje/types";
+import { aprendizajeFlags, getMiPerfil, listCatalog, listProximos, listTutoriales } from "./actions";
+import { TutorialesCatalogo } from "./TutorialesCatalogo";
 import { CursoCard } from "./CursoCard";
 import { EnProgresoCard } from "./EnProgresoCard";
 import { PortadaBanner } from "./PortadaBanner";
@@ -41,8 +42,13 @@ export default async function AprendizajePage({
   if (!flags.canView) redirect("/");
 
   const { categoria } = await searchParams;
-  const category: CursoCategory = CATEGORIES.find((c) => c === categoria) ?? "curso";
-  const [catalogo, perfil, proximos] = await Promise.all([listCatalog(), getMiPerfil(), listProximos()]);
+  const category: CatalogTab = CATALOG_TABS.find((t) => t.key === categoria)?.key ?? "curso";
+  const [catalogo, perfil, proximos, tutoriales] = await Promise.all([
+    listCatalog(),
+    getMiPerfil(),
+    listProximos(),
+    category === "tutorial" ? listTutoriales() : Promise.resolve([]),
+  ]);
   const { enProgreso, completados } = splitMisCursos(catalogo);
   const visibles = catalogo.filter((c) => c.category === category);
 
@@ -90,22 +96,24 @@ export default async function AprendizajePage({
           title="Explora el catálogo"
           aside={
             <nav aria-label="Categorías" className="flex flex-wrap gap-2">
-              {CATEGORIES.map((c) => (
+              {CATALOG_TABS.map((t) => (
                 <Link
-                  key={c}
-                  href={c === "curso" ? "/aprendizaje#catalogo" : `/aprendizaje?categoria=${c}#catalogo`}
-                  aria-current={c === category ? "page" : undefined}
+                  key={t.key}
+                  href={t.key === "curso" ? "/aprendizaje#catalogo" : `/aprendizaje?categoria=${t.key}#catalogo`}
+                  aria-current={t.key === category ? "page" : undefined}
                   className={`inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold ${
-                    c === category ? "bg-[#036E6C] text-white" : "border bg-card text-foreground hover:bg-muted"
+                    t.key === category ? "bg-[#036E6C] text-white" : "border bg-card text-foreground hover:bg-muted"
                   }`}
                 >
-                  {CATEGORY_LABELS[c]}
+                  {t.label}
                 </Link>
               ))}
             </nav>
           }
         >
-          {visibles.length === 0 ? (
+          {category === "tutorial" ? (
+            <TutorialesCatalogo tutoriales={tutoriales} />
+          ) : visibles.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">Todavía no hay contenidos publicados aquí.</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">

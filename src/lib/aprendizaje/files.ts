@@ -1,4 +1,4 @@
-export type UploadKind = "video" | "archivo" | "portada" | "firma";
+export type UploadKind = "video" | "archivo" | "portada" | "firma" | "tutorial";
 
 export const MAX_VIDEO_BYTES = 2 * 1024 ** 3;
 export const MAX_FILE_BYTES = 100 * 1024 ** 2;
@@ -14,6 +14,7 @@ export const UPLOAD_ACCEPT: Record<UploadKind, string> = {
   video: VIDEO_TYPES.join(","),
   portada: IMAGE_TYPES.join(","),
   firma: FIRMA_TYPES.join(","),
+  tutorial: [...VIDEO_TYPES, ...IMAGE_TYPES].join(","),
   archivo: "",
 };
 
@@ -24,6 +25,12 @@ export function validateUpload(kind: UploadKind, file: { size: number; type: str
     if (!VIDEO_TYPES.includes(file.type)) return "El video debe ser MP4, WebM o MOV.";
     if (file.size > MAX_VIDEO_BYTES) return "El video no puede pesar más de 2 GB.";
     return null;
+  }
+  if (kind === "tutorial") {
+    // A tutorial is one video or one image.
+    if (VIDEO_TYPES.includes(file.type)) return file.size > MAX_VIDEO_BYTES ? "El video no puede pesar más de 2 GB." : null;
+    if (IMAGE_TYPES.includes(file.type)) return file.size > MAX_FILE_BYTES ? "La imagen no puede pesar más de 100 MB." : null;
+    return "Sube un video (MP4, WebM o MOV) o una imagen (JPG, PNG, WebP o GIF).";
   }
   if (kind === "firma") {
     if (!FIRMA_TYPES.includes(file.type)) return "La firma debe ser una imagen PNG o JPG.";

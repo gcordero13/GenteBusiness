@@ -30,7 +30,8 @@ export default async function AppLayout({
     (permissionRows ?? []).map((p: ModulePermissionRow) => [p.module_key, p]),
   );
   const { data: canViewComplaints } = await supabase.rpc("can_view_complaints");
-  // Module tutorials announced at login; one at a time, newest first.
+  // Tutorials of the modules this person has, popped up when the platform
+  // opens until closed once; one at a time, newest first.
   const { data: tutorialRows } = await supabase.rpc("aprendizaje_tutoriales_pendientes");
   const tutorial = ((tutorialRows ?? []) as RawTutorialPendiente[]).map(toTutorialPendiente)[0] ?? null;
   const canViewAprendizaje = Boolean(
@@ -70,7 +71,7 @@ export default async function AppLayout({
     >
       <PushNotificationManager />
       {tutorial && (
-        <TutorialModuloDialog key={tutorial.cursoId} tutorial={tutorial} canViewAprendizaje={canViewAprendizaje} />
+        <TutorialModuloDialog key={tutorial.tutorialId} tutorial={tutorial} canViewAprendizaje={canViewAprendizaje} />
       )}
       {children}
     </AppShell>

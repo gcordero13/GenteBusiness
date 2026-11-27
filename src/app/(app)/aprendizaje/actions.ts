@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { toCatalogCurso, toCursoDetail, type RawCurso } from "@/lib/aprendizaje/mapCurso";
-import type { CatalogCurso, CursoDetail, PerfilAprendizaje, ProximoCurso } from "@/lib/aprendizaje/types";
+import type { CatalogCurso, CursoDetail, PerfilAprendizaje, ProximoCurso, Tutorial } from "@/lib/aprendizaje/types";
+import { toTutorial, type RawTutorial } from "@/lib/aprendizaje/tutoriales";
 import {
   summarizeIntentosPorLeccion,
   type EvaluacionEstado,
@@ -203,6 +204,21 @@ export async function getMiPerfil(): Promise<PerfilAprendizaje> {
     department: dept?.name ?? null,
     photoUrl: contact.photo_url || null,
   };
+}
+
+/**
+ * Active tutorials of the modules the caller's role profile has. RLS on
+ * aprendizaje_tutoriales does the module check (managers see every one, so
+ * the inactive ones are filtered out here).
+ */
+export async function listTutoriales(): Promise<Tutorial[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("aprendizaje_tutoriales")
+    .select("id, title, module_key, video_url, video_drive_id, video_item_id, imagen_drive_id, imagen_item_id, active, modules(label)")
+    .eq("active", true)
+    .order("created_at", { ascending: false });
+  return ((data ?? []) as unknown as RawTutorial[]).map(toTutorial);
 }
 
 export async function listProximos(): Promise<ProximoCurso[]> {

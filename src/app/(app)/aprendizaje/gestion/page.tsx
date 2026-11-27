@@ -5,13 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CATEGORY_LABELS, STATUS_LABELS } from "@/lib/aprendizaje/types";
 import { aprendizajeFlags } from "../actions";
-import { listCursosGestion } from "./actions";
+import { listCursosGestion, listModulos, listTutorialesGestion } from "./actions";
 import { NuevoCursoDialog } from "./NuevoCursoDialog";
+import { TutorialesGestion } from "./TutorialesGestion";
 
 export default async function AprendizajeGestionPage() {
   const flags = await aprendizajeFlags();
   if (!flags.canManage) redirect("/aprendizaje");
-  const cursos = await listCursosGestion();
+  const [cursos, tutoriales, modulos] = await Promise.all([listCursosGestion(), listTutorialesGestion(), listModulos()]);
 
   return (
     <div className="min-h-full bg-gradient-to-b from-[#04B1AF]/[0.06] via-transparent to-transparent">
@@ -23,11 +24,14 @@ export default async function AprendizajeGestionPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Aprende · Gestión</h1>
-            <p className="text-sm text-muted-foreground">Crea cursos, tutoriales e historias, y publícalos.</p>
+            <p className="text-sm text-muted-foreground">Crea cursos, historias y tutoriales.</p>
           </div>
-          <NuevoCursoDialog />
         </div>
 
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-lg font-semibold">Cursos e historias</h2>
+          <NuevoCursoDialog />
+        </div>
         <div className="rounded-xl border bg-card shadow-sm">
           <Table>
             <TableHeader>
@@ -65,6 +69,8 @@ export default async function AprendizajeGestionPage() {
             </TableBody>
           </Table>
         </div>
+
+        <TutorialesGestion tutoriales={tutoriales} modulos={modulos} />
       </div>
     </div>
   );

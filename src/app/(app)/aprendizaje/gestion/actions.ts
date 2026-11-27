@@ -15,7 +15,9 @@ import type {
   LeccionQuiz,
   GestionCursoRow,
   ModuloOption,
+  Tutorial,
 } from "@/lib/aprendizaje/types";
+import { toTutorial, type RawTutorial } from "@/lib/aprendizaje/tutoriales";
 import { toVideoEmbed } from "@/lib/aprendizaje/videoEmbed";
 import {
   pesoTotal,
@@ -93,8 +95,6 @@ export async function createCurso(input: {
       description: input.description.trim() || null,
       category: input.category,
       created_by: ctx.userId,
-      // A tutorial pops up when the platform opens unless turned off in Gestión.
-      anunciar_al_iniciar: input.category === "tutorial",
     })
     .select("id")
     .single();
@@ -112,21 +112,12 @@ export async function updateCurso(
   if (!input.title.trim()) return { error: "El título es obligatorio." };
   if (!CATEGORIES.includes(input.category)) return { error: "Categoría inválida." };
 
-  // Becoming a tutorial turns its pop-up on (it can be turned off again in Gestión).
-  const { data: antes } = await ctx.supabase.from("aprendizaje_cursos").select("category").eq("id", cursoId).maybeSingle();
-  const pasaATutorial = input.category === "tutorial" && antes?.category !== "tutorial";
   const { error } = await ctx.supabase
     .from("aprendizaje_cursos")
-    .update({
-      title: input.title.trim(),
-      description: input.description.trim() || null,
-      category: input.category,
-      ...(pasaATutorial ? { anunciar_al_iniciar: true } : {}),
-    })
+    .update({ title: input.title.trim(), description: input.description.trim() || null, category: input.category })
     .eq("id", cursoId);
   if (error) return { error: error.message };
   revalidateCurso(cursoId);
-  if (pasaATutorial || antes?.category === "tutorial") revalidatePath("/", "layout");
   return {};
 }
 
@@ -499,7 +490,7 @@ export async function setAnunciarProximamente(cursoId: string, value: boolean): 
   return {};
 }
 
-/** Platform modules a course can be the tutorial of, for the editor's selector. */
+/** Platform modules a tutorial can belong to, for the selector. */
 export async function listModulos(): Promise<ModuloOption[]> {
   const ctx = await managerClient();
   if (!ctx) return [];
@@ -507,24 +498,91 @@ export async function listModulos(): Promise<ModuloOption[]> {
   return (data ?? []) as ModuloOption[];
 }
 
-/**
- * A tutorial's pop-up settings: the module it explains (null = a general
- * tutorial, shown to everyone with Aprende access; a module = only people
- * with that module) and whether it pops up when the platform opens.
- */
-export async function setTutorialModulo(
-  cursoId: string,
-  moduleKey: string | null,
-  anunciarAlIniciar: boolean,
-): Promise<ActionResult> {
+// ---------------------------------------------------------------------------
+// Tutorials (user, 2026-11-27): not courses - just a name, the module it
+// belongs to and one video (file or link) or one image. Active as soon as
+// they're saved; people with that module see them in Aprende and in a
+// pop-up when the platform opens.
+
+const TUTORIAL_SELECT =
+  "id, title, module_key, video_url, video_drive_id, video_item_id, imagen_drive_id, imagen_item_id, active, modules(label)";
+
+export async function listTutorialesGestion(): Promise<Tutorial[]> {
+  const ctx = await managerClient();
+  if (!ctx) return [];
+  const { data } = await ctx.supabase.from("aprendizaje_tutoriales").select(TUTORIAL_SELECT).order("created_at", { ascending: false });
+  return ((data ?? []) as unknown as RawTutorial[]).map(toTutorial);
+}
+
+/** What a tutorial shows: an uploaded video, a video link, or an image. */
+export type TutorialMedio =
+  | { tipo: "video"; file: DriveFileRef }
+  | { tipo: "enlace"; url: string }
+  | { tipo: "imagen"; file: DriveFileRef };
+
+function medioColumns(medio: TutorialMedio) {
+  return {
+    video_drive_id: medio.tipo === "video" ? medio.file.driveId : null,
+    video_item_id: medio.tipo === "video" ? medio.file.itemId : null,
+    video_url: medio.tipo === "enlace" ? medio.url.trim() : null,
+    imagen_drive_id: medio.tipo === "imagen" ? medio.file.driveId : null,
+    imagen_item_id: medio.tipo === "imagen" ? medio.file.itemId : null,
+  };
+}
+
+function revalidateTutoriales() {
+  revalidatePath("/aprendizaje/gestion");
+  revalidatePath("/aprendizaje");
+  revalidatePath("/", "layout");
+}
+
+/** Creates a tutorial (no id) or updates it; `medio` null keeps the current video/image. */
+export async function saveTutorial(input: {
+  id?: string;
+  title: string;
+  moduleKey: string;
+  medio: TutorialMedio | null;
+}): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  if (!input.title.trim()) return { error: "Escribe el nombre del tutorial." };
+  if (!input.moduleKey) return { error: "Elige el módulo del tutorial." };
+  if (!input.id && !input.medio) return { error: "Sube un video o una imagen, o pega el enlace del video." };
+  if (input.medio?.tipo === "enlace" && !toVideoEmbed(input.medio.url.trim())) {
+    return { error: "El enlace del video no es válido." };
+  }
+
+  const row = {
+    title: input.title.trim(),
+    module_key: input.moduleKey,
+    updated_at: new Date().toISOString(),
+    ...(input.medio ? medioColumns(input.medio) : {}),
+  };
+  const { error } = input.id
+    ? await ctx.supabase.from("aprendizaje_tutoriales").update(row).eq("id", input.id)
+    : await ctx.supabase.from("aprendizaje_tutoriales").insert({ ...row, created_by: ctx.userId });
+  if (error) return { error: error.message };
+  revalidateTutoriales();
+  return {};
+}
+
+export async function setTutorialActivo(id: string, active: boolean): Promise<ActionResult> {
   const ctx = await managerClient();
   if (!ctx) return { error: "No autorizado" };
   const { error } = await ctx.supabase
-    .from("aprendizaje_cursos")
-    .update({ tutorial_module_key: moduleKey, anunciar_al_iniciar: anunciarAlIniciar })
-    .eq("id", cursoId);
+    .from("aprendizaje_tutoriales")
+    .update({ active, updated_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) return { error: error.message };
-  revalidateCurso(cursoId);
-  revalidatePath("/", "layout");
+  revalidateTutoriales();
+  return {};
+}
+
+export async function deleteTutorial(id: string): Promise<ActionResult> {
+  const ctx = await managerClient();
+  if (!ctx) return { error: "No autorizado" };
+  const { error } = await ctx.supabase.from("aprendizaje_tutoriales").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidateTutoriales();
   return {};
 }
