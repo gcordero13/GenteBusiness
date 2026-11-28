@@ -139,7 +139,7 @@ export function CompanyForm({ initial }: { initial?: CompanyInput }) {
           <div className="space-y-1">
             <Label htmlFor={`firma-arte-${initial?.id ?? "nueva"}`}>Arte de fondo (opcional)</Label>
             <p className="text-xs text-muted-foreground">
-              La imagen de la firma sin nombre, foto, datos ni íconos, de 1004 × 590 px o con esa proporción. Sin arte, se dibuja
+              La imagen de la firma con sus logos, pero sin nombre, foto, datos ni íconos, de 1004 × 590 px o con esa proporción. Sin arte, se dibuja
               el diseño con el logo.
             </p>
             <input

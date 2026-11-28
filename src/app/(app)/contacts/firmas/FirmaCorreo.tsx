@@ -5,8 +5,9 @@
 // inline styles so the PNG export matches the preview.
 //
 // When the company has its signature art uploaded in Empresas (`fondo`: the
-// background without name, photo or data), it is the background and only the
-// photo and the person's data are placed on top; otherwise the design is
+// background with its logos, without name, photo or data), it is the background
+// and only the photo and the person's data go on top (no logo: "sin foto" is the
+// art with the data); otherwise the design is
 // drawn here, with the logos from Empresas.
 /* eslint-disable @next/next/no-img-element -- exported to PNG with html-to-image; next/image can't be used */
 import type { CSSProperties } from "react";
@@ -115,7 +116,7 @@ function FirmaSbc({ persona, conFoto, fondo, logoEmpresa, logosGrupo }: FirmaPro
       {foto ? (
         <Foto url={persona.fotoUrl!} left={80} top={136} size={338} />
       ) : (
-        logoEmpresa && (
+        !fondo && logoEmpresa && (
           <img
             src={logoEmpresa}
             alt=""
@@ -191,7 +192,7 @@ function FirmaJsc({ persona, conFoto, fondo, logoEmpresa, logoGrupo }: FirmaProp
       {foto ? (
         <Foto url={persona.fotoUrl!} left={105} top={168} size={260} />
       ) : (
-        logoEmpresa && (
+        !fondo && logoEmpresa && (
           <img src={logoEmpresa} alt="" crossOrigin="anonymous" style={{ ...abs({ left: 110, top: 160, width: 300, height: 220, objectFit: "contain" }), ...MULTIPLICAR }} />
         )
       )}
@@ -259,7 +260,7 @@ function FirmaKexford({ persona, conFoto, fondo, logoEmpresa, logoGrupo }: Firma
       {foto ? (
         <Foto url={persona.fotoUrl!} left={105} top={172} size={260} />
       ) : (
-        logoEmpresa && (
+        !fondo && logoEmpresa && (
           <img src={logoEmpresa} alt="" crossOrigin="anonymous" style={{ ...abs({ left: 90, top: 160, width: 300, height: 220, objectFit: "contain" }), ...MULTIPLICAR }} />
         )
       )}
