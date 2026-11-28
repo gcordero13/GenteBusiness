@@ -18,7 +18,6 @@ const props = {
   fondoSinFoto: null,
   logoEmpresa: null,
   logoGrupo: null,
-  logosGrupo: [],
   fuentes: { texto: "f-texto", nombre: "f-nombre" },
 };
 

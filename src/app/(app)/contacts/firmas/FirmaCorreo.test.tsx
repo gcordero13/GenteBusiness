@@ -24,7 +24,6 @@ function render(plantilla: "sbc" | "jsc" | "kexford", conFoto: boolean, fondo: s
       fondoSinFoto={fondoSinFoto}
       logoEmpresa="https://cdn.example.com/logo.png"
       logoGrupo="https://cdn.example.com/grupo.png"
-      logosGrupo={["https://cdn.example.com/otra.png"]}
       fuentes={{ texto: "f-texto", nombre: "f-nombre" }}
     />,
   );
@@ -59,5 +58,11 @@ describe("FirmaCorreo", () => {
     const conFoto = render("sbc", true, "https://cdn.example.com/arte.png", "https://cdn.example.com/arte-sin-foto.png");
     expect(conFoto).toContain("arte.png");
     expect(conFoto).not.toContain("arte-sin-foto.png");
+  });
+
+  it("sbc: the drawn design has the group's four white logos; with the art they come from the art", () => {
+    expect(render("sbc", true, null)).toContain("/firmas/sbc-logos-grupo.png");
+    expect(render("sbc", false, null)).toContain("/firmas/sbc-logos-grupo.png");
+    expect(render("sbc", true, "https://cdn.example.com/arte.png")).not.toContain("sbc-logos-grupo.png");
   });
 });

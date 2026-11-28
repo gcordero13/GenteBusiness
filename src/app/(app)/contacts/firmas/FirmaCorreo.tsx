@@ -18,11 +18,8 @@ export const FIRMA_ANCHO = 1004;
 export const FIRMA_ALTO = 590;
 
 const BLANCO: CSSProperties = { filter: "brightness(0) invert(1)" };
-/**
- * White silhouette on a dark background even for logos with a white box
- * (Kexford): the box turns black and blends away, the drawing turns white.
- */
-const BLANCO_SOBRE_OSCURO: CSSProperties = { filter: "grayscale(1) invert(1) brightness(5)", mixBlendMode: "screen" };
+/** Ciudad del Sol, Kexford, José Sánchez Comercial and SBI in white (user request, 2026-11-27). */
+const LOGOS_GRUPO_SBC = "/firmas/sbc-logos-grupo.png";
 /** Logos with a white box blend into the light designs. */
 const MULTIPLICAR: CSSProperties = { mixBlendMode: "multiply" };
 
@@ -38,8 +35,6 @@ export interface FirmaProps {
   logoEmpresa: string | null;
   /** Sánchez Business & Corp's logo, for "Una marca del grupo". */
   logoGrupo: string | null;
-  /** The other companies' logos, for the group strip of the dark design. */
-  logosGrupo: string[];
   /** Font class names (fuentes.ts, loaded on the server). */
   fuentes: { texto: string; nombre: string };
 }
@@ -96,7 +91,7 @@ const SBC = {
   subeSinFoto: -12,
 } as const;
 
-function FirmaSbc({ fuentes, persona, conFoto, fondo, logoEmpresa, logosGrupo }: FirmaProps) {
+function FirmaSbc({ fuentes, persona, conFoto, fondo, logoEmpresa }: FirmaProps) {
   const foto = conFoto && persona.fotoUrl;
   const { texto, filaCentro, filaPaso } = SBC;
   const anchoBloque = FIRMA_ANCHO - texto - 20;
@@ -130,13 +125,8 @@ function FirmaSbc({ fuentes, persona, conFoto, fondo, logoEmpresa, logosGrupo }:
           <div style={abs({ left: 70, top: 118 + dy, width: FIRMA_ANCHO - 70, height: 383, background: "#2a2a2a", borderTopLeftRadius: 192, borderBottomLeftRadius: 192 })} />
           {foto && <div style={abs({ left: SBC.foto.left, top: SBC.foto.top, width: SBC.foto.size, height: SBC.foto.size, borderRadius: "50%", background: "#353535" })} />}
           <div style={abs({ left: 499, top: 150 + dy, width: 3, height: 325, background: SBC.teal })} />
-          {logosGrupo.length > 0 && (
-            <div style={abs({ left: 520, top: 515, width: 400, height: 42, display: "flex", alignItems: "center", justifyContent: "center", gap: 24 })}>
-              {logosGrupo.map((src) => (
-                <img key={src} src={src} alt="" crossOrigin="anonymous" style={{ height: 34, maxWidth: 96, objectFit: "contain", ...BLANCO_SOBRE_OSCURO }} />
-              ))}
-            </div>
-          )}
+          {/* The group's four white logos, cut from the company's own signature. */}
+          <img src={LOGOS_GRUPO_SBC} alt="" style={abs({ left: 526, top: 515, width: 385, height: 44 })} />
         </>
       )}
 

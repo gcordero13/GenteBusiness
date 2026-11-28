@@ -40,9 +40,6 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
   // The design chosen in Empresas, or the one matching the company's name.
   const plantilla = (empresa?.firma_plantilla as Plantilla | null) ?? plantillaDeEmpresa(empresa?.name);
   const empresaGrupo = (companies ?? []).find((c) => plantillaDeEmpresa(c.name) === "sbc" && c.logo_url) ?? null;
-  const logosGrupo = (companies ?? [])
-    .filter((c) => c.logo_url && c.id !== empresa?.id && plantillaDeEmpresa(c.name) !== "sbc")
-    .map((c) => c.logo_url as string);
   const { data: departments } = await supabase
     .from("departments")
     .select("id, name, company_id")
@@ -188,7 +185,6 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
           propia={isSelf}
           logoEmpresa={empresa?.logo_url ?? null}
           logoGrupo={empresaGrupo?.logo_url ?? null}
-          logosGrupo={logosGrupo}
         />
         </div>
       )}
