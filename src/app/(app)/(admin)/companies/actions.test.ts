@@ -33,13 +33,20 @@ describe("saveCompany", () => {
     const supabase = mockSupabase();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
 
-    const result = await saveCompany(undefined, "Acme", "https://cdn.example.com/acme.png");
+    const result = await saveCompany(undefined, {
+      name: "Acme",
+      logoUrl: "https://cdn.example.com/acme.png",
+      firmaFondoUrl: "https://cdn.example.com/arte.png",
+      firmaPlantilla: "jsc",
+    });
 
     expect(result.error).toBeUndefined();
     expect(supabase.from).toHaveBeenCalledWith("companies");
     expect(supabase.insert).toHaveBeenCalledWith({
       name: "Acme",
       logo_url: "https://cdn.example.com/acme.png",
+      firma_fondo_url: "https://cdn.example.com/arte.png",
+      firma_plantilla: "jsc",
     });
   });
 
@@ -47,10 +54,10 @@ describe("saveCompany", () => {
     const supabase = mockSupabase();
     vi.mocked(createClient).mockResolvedValue(supabase as never);
 
-    const result = await saveCompany("company-1", "Acme", null);
+    const result = await saveCompany("company-1", { name: "Acme", logoUrl: null, firmaFondoUrl: null, firmaPlantilla: "" });
 
     expect(result.error).toBeUndefined();
-    expect(supabase.update).toHaveBeenCalledWith({ name: "Acme", logo_url: null });
+    expect(supabase.update).toHaveBeenCalledWith({ name: "Acme", logo_url: null, firma_fondo_url: null, firma_plantilla: null });
     expect(supabase.eq).toHaveBeenCalledWith("id", "company-1");
   });
 
@@ -58,9 +65,19 @@ describe("saveCompany", () => {
     const supabase = mockSupabase({ message: "boom" });
     vi.mocked(createClient).mockResolvedValue(supabase as never);
 
-    const result = await saveCompany(undefined, "Acme", null);
+    const result = await saveCompany(undefined, { name: "Acme", logoUrl: null, firmaFondoUrl: null, firmaPlantilla: null });
 
     expect(result.error).toBe("boom");
+  });
+
+  it("rejects an unknown signature design without touching the database", async () => {
+    const supabase = mockSupabase();
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await saveCompany("company-1", { name: "Acme", logoUrl: null, firmaFondoUrl: null, firmaPlantilla: "otra" });
+
+    expect(result.error).toBe("Distribución de firma no válida.");
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 });
 

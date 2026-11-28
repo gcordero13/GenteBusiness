@@ -6,6 +6,8 @@ import { SelfEditForm } from "../SelfEditForm";
 import { GoservicesEjecutorTypeSelect } from "../GoservicesEjecutorTypeSelect";
 import { setContactStatus, deleteContact } from "../actions";
 import { Button } from "@/components/ui/button";
+import { FirmasCorreo } from "../firmas/FirmasCorreo";
+import { plantillaDeEmpresa, type Plantilla } from "../firmas/firmaDatos";
 
 export default async function EditContactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,7 +29,16 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
     redirect("/");
   }
 
-  const { data: companies } = await supabase.from("companies").select("id, name").order("name");
+  const { data: companies } = await supabase.from("companies").select("id, name, logo_url, firma_fondo_url, firma_plantilla").order("name");
+
+  // Email signature (Mi perfil): only on the person's own contact.
+  const empresa = (companies ?? []).find((c) => c.id === contact.company_id) ?? null;
+  // The design chosen in Empresas, or the one matching the company's name.
+  const plantilla = (empresa?.firma_plantilla as Plantilla | null) ?? plantillaDeEmpresa(empresa?.name);
+  const empresaGrupo = (companies ?? []).find((c) => plantillaDeEmpresa(c.name) === "sbc" && c.logo_url) ?? null;
+  const logosGrupo = (companies ?? [])
+    .filter((c) => c.logo_url && c.id !== empresa?.id && plantillaDeEmpresa(c.name) !== "sbc")
+    .map((c) => c.logo_url as string);
   const { data: departments } = await supabase
     .from("departments")
     .select("id, name, company_id")
@@ -77,8 +88,9 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-6 p-6">
-      <h1 className="text-xl font-semibold">Editar contacto</h1>
+    <div className="mx-auto w-full max-w-5xl min-w-0 space-y-8 p-4 sm:p-6">
+    <div className="mx-auto max-w-md space-y-6">
+      <h1 className="text-xl font-semibold">{isSelf ? "Mi perfil" : "Editar contacto"}</h1>
       {flags?.can_edit ? (
         <ContactForm
           companies={companies ?? []}
@@ -142,6 +154,27 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
           </form>
         )}
       </div>
+    </div>
+
+      {isSelf && (
+        <FirmasCorreo
+          persona={{
+            nombre: contact.first_name,
+            apellido: contact.last_name,
+            puesto: contact.position,
+            email: contact.email,
+            extension: contact.extension,
+            celular: contact.fleet_phone,
+            tieneWhatsapp: contact.has_whatsapp,
+            fotoUrl: contact.photo_url,
+          }}
+          plantilla={plantilla}
+          fondo={empresa?.firma_fondo_url ?? null}
+          logoEmpresa={empresa?.logo_url ?? null}
+          logoGrupo={empresaGrupo?.logo_url ?? null}
+          logosGrupo={logosGrupo}
+        />
+      )}
     </div>
   );
 }

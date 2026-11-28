@@ -60,7 +60,15 @@ export default async function CompaniesPage() {
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">
-                    <CompanyForm initial={{ id: c.id, name: c.name, logo_url: c.logo_url }} />
+                    <CompanyForm
+                      initial={{
+                        id: c.id,
+                        name: c.name,
+                        logo_url: c.logo_url,
+                        firma_fondo_url: c.firma_fondo_url ?? null,
+                        firma_plantilla: c.firma_plantilla ?? null,
+                      }}
+                    />
                     {flags.can_delete && (
                       <DeleteIconButton
                         confirmMessage={`¿Eliminar la empresa "${c.name}"? Esto también eliminará sus departamentos. Esta acción no se puede deshacer.`}
