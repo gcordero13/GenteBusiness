@@ -24,6 +24,7 @@ interface CompanyInput {
   name: string;
   logo_url: string | null;
   firma_fondo_url: string | null;
+  firma_fondo_sin_foto_url: string | null;
   firma_plantilla: string | null;
 }
 
@@ -51,6 +52,8 @@ export function CompanyForm({ initial }: { initial?: CompanyInput }) {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [arteUrl, setArteUrl] = useState(initial?.firma_fondo_url ?? null);
   const [arteFile, setArteFile] = useState<File | null>(null);
+  const [arteSinFotoUrl, setArteSinFotoUrl] = useState(initial?.firma_fondo_sin_foto_url ?? null);
+  const [arteSinFotoFile, setArteSinFotoFile] = useState<File | null>(null);
   const [plantilla, setPlantilla] = useState(initial?.firma_plantilla ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -59,23 +62,32 @@ export function CompanyForm({ initial }: { initial?: CompanyInput }) {
     startTransition(async () => {
       let finalLogoUrl = logoUrl;
       let finalArteUrl = arteUrl;
+      let finalArteSinFotoUrl = arteSinFotoUrl;
 
       if (logoFile) {
         const r = await subir(logoFile);
         if (r.error) return setError(r.error);
         finalLogoUrl = r.url!;
       }
+      for (const f of [arteFile, arteSinFotoFile]) {
+        if (f && f.size > ARTE_MAX) return setError("El arte de la firma no puede pasar de 10 MB.");
+      }
       if (arteFile) {
-        if (arteFile.size > ARTE_MAX) return setError("El arte de la firma no puede pasar de 10 MB.");
         const r = await subir(arteFile);
         if (r.error) return setError(r.error);
         finalArteUrl = r.url!;
+      }
+      if (arteSinFotoFile) {
+        const r = await subir(arteSinFotoFile);
+        if (r.error) return setError(r.error);
+        finalArteSinFotoUrl = r.url!;
       }
 
       const result = await saveCompany(initial?.id, {
         name,
         logoUrl: finalLogoUrl,
         firmaFondoUrl: finalArteUrl,
+        firmaFondoSinFotoUrl: finalArteSinFotoUrl,
         firmaPlantilla: plantilla || null,
       });
       setError(result.error ?? null);
@@ -86,6 +98,8 @@ export function CompanyForm({ initial }: { initial?: CompanyInput }) {
           setLogoFile(null);
           setArteUrl(null);
           setArteFile(null);
+          setArteSinFotoUrl(null);
+          setArteSinFotoFile(null);
           setPlantilla("");
         }
         setOpen(false);
@@ -136,28 +150,28 @@ export function CompanyForm({ initial }: { initial?: CompanyInput }) {
           <p className="text-xs text-muted-foreground">
             Todos los contactos de esta empresa ven su firma en Mi perfil con este diseño, su foto y sus datos.
           </p>
-          <div className="space-y-1">
-            <Label htmlFor={`firma-arte-${initial?.id ?? "nueva"}`}>Arte de fondo (opcional)</Label>
-            <p className="text-xs text-muted-foreground">
-              La imagen de la firma con sus logos, pero sin nombre, foto, datos ni íconos, de 1004 × 590 px o con esa proporción. Sin arte, se dibuja
-              el diseño con el logo.
-            </p>
-            <input
-              id={`firma-arte-${initial?.id ?? "nueva"}`}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => setArteFile(e.target.files?.[0] ?? null)}
-            />
-            {arteUrl && !arteFile && (
-              <div className="mt-2 flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL */}
-                <img src={arteUrl} alt="Arte actual de la firma" className="h-16 w-auto rounded border object-contain" />
-                <Button type="button" variant="outline" size="sm" onClick={() => setArteUrl(null)}>
-                  Quitar arte
-                </Button>
-              </div>
-            )}
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Cada arte con sus logos, pero sin nombre, foto, datos ni íconos, de 1004 × 590 px o con esa proporción. Sin arte,
+            se dibuja el diseño con el logo.
+          </p>
+          <ArteFirma
+            id={`firma-arte-${initial?.id ?? "nueva"}`}
+            label="Arte con foto (opcional)"
+            ayuda="Con el círculo donde va la foto."
+            url={arteUrl}
+            archivo={arteFile}
+            onArchivo={setArteFile}
+            onQuitar={() => setArteUrl(null)}
+          />
+          <ArteFirma
+            id={`firma-arte-sin-foto-${initial?.id ?? "nueva"}`}
+            label="Arte sin foto (opcional)"
+            ayuda="Con el logo grande donde iría la foto. Si no se sube, la versión sin foto usa el arte con foto."
+            url={arteSinFotoUrl}
+            archivo={arteSinFotoFile}
+            onArchivo={setArteSinFotoFile}
+            onQuitar={() => setArteSinFotoUrl(null)}
+          />
           <div className="space-y-1">
             <Label htmlFor={`firma-distribucion-${initial?.id ?? "nueva"}`}>Distribución</Label>
             <p className="text-xs text-muted-foreground">Dónde van la foto y los datos sobre el arte.</p>
@@ -184,5 +198,40 @@ export function CompanyForm({ initial }: { initial?: CompanyInput }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ArteFirma({
+  id,
+  label,
+  ayuda,
+  url,
+  archivo,
+  onArchivo,
+  onQuitar,
+}: {
+  id: string;
+  label: string;
+  ayuda: string;
+  url: string | null;
+  archivo: File | null;
+  onArchivo: (f: File | null) => void;
+  onQuitar: () => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id}>{label}</Label>
+      <p className="text-xs text-muted-foreground">{ayuda}</p>
+      <input id={id} type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => onArchivo(e.target.files?.[0] ?? null)} />
+      {url && !archivo && (
+        <div className="mt-2 flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL */}
+          <img src={url} alt={`${label}: actual`} className="h-16 w-auto rounded border object-contain" />
+          <Button type="button" variant="outline" size="sm" onClick={onQuitar}>
+            Quitar arte
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

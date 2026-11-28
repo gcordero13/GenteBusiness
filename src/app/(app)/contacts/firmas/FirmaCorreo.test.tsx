@@ -14,13 +14,14 @@ const persona = {
   fotoUrl: "https://cdn.example.com/foto.png",
 };
 
-function render(plantilla: "sbc" | "jsc" | "kexford", conFoto: boolean, fondo: string | null) {
+function render(plantilla: "sbc" | "jsc" | "kexford", conFoto: boolean, fondo: string | null, fondoSinFoto: string | null = null) {
   return renderToStaticMarkup(
     <FirmaCorreo
       persona={persona}
       plantilla={plantilla}
       conFoto={conFoto}
       fondo={fondo}
+      fondoSinFoto={fondoSinFoto}
       logoEmpresa="https://cdn.example.com/logo.png"
       logoGrupo="https://cdn.example.com/grupo.png"
       logosGrupo={["https://cdn.example.com/otra.png"]}
@@ -50,4 +51,13 @@ describe("FirmaCorreo", () => {
       expect(sinFoto).not.toContain("arte.png");
     });
   }
+
+  it("the 'sin foto' version uses its own art when the company has one", () => {
+    const sinFoto = render("sbc", false, "https://cdn.example.com/arte.png", "https://cdn.example.com/arte-sin-foto.png");
+    expect(sinFoto).toContain("arte-sin-foto.png");
+    expect(sinFoto).not.toContain("arte.png\"");
+    const conFoto = render("sbc", true, "https://cdn.example.com/arte.png", "https://cdn.example.com/arte-sin-foto.png");
+    expect(conFoto).toContain("arte.png");
+    expect(conFoto).not.toContain("arte-sin-foto.png");
+  });
 });

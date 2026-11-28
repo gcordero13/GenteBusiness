@@ -18,6 +18,11 @@ export const FIRMA_ANCHO = 1004;
 export const FIRMA_ALTO = 590;
 
 const BLANCO: CSSProperties = { filter: "brightness(0) invert(1)" };
+/**
+ * White silhouette on a dark background even for logos with a white box
+ * (Kexford): the box turns black and blends away, the drawing turns white.
+ */
+const BLANCO_SOBRE_OSCURO: CSSProperties = { filter: "grayscale(1) invert(1) brightness(5)", mixBlendMode: "screen" };
 /** Logos with a white box blend into the light designs. */
 const MULTIPLICAR: CSSProperties = { mixBlendMode: "multiply" };
 
@@ -27,6 +32,8 @@ export interface FirmaProps {
   conFoto: boolean;
   /** The company's signature art (Empresas), or null to draw the design. */
   fondo: string | null;
+  /** The art of the "sin foto" version; null = `fondo` for both. */
+  fondoSinFoto: string | null;
   /** The person's company logo (from Empresas). */
   logoEmpresa: string | null;
   /** Sánchez Business & Corp's logo, for "Una marca del grupo". */
@@ -36,6 +43,11 @@ export interface FirmaProps {
   /** Font class names (fuentes.ts, loaded on the server). */
   fuentes: { texto: string; nombre: string };
 }
+
+/** Barlow Semi Condensed bold and Montserrat bold, relative to the Montserrat
+ * regular widths of `tamanoQueCabe` (measured in the browser). */
+const BARLOW = 0.8;
+const NEGRITA = 1.1;
 
 /** Name size that keeps long names inside the design. */
 function tamanoNombre(nombre: string, base: number): number {
@@ -61,22 +73,39 @@ function Foto({ url, left, top, size }: { url: string; left: number; top: number
 }
 
 export function FirmaCorreo(props: FirmaProps) {
-  if (props.plantilla === "jsc") return <FirmaJsc {...props} />;
-  if (props.plantilla === "kexford") return <FirmaKexford {...props} />;
-  return <FirmaSbc {...props} />;
+  const conFoto = props.conFoto && Boolean(props.persona.fotoUrl);
+  const p = { ...props, fondo: conFoto ? props.fondo : (props.fondoSinFoto ?? props.fondo) };
+  if (p.plantilla === "jsc") return <FirmaJsc {...p} />;
+  if (p.plantilla === "kexford") return <FirmaKexford {...p} />;
+  return <FirmaSbc {...p} />;
 }
 
 // ---------------------------------------------------------------------------
 // Sánchez Business & Corp: dark gradient, rounded band, photo circle, teal
-// divider, the group's logos at the bottom. Positions measured on the
-// company's own 1637 × 961 template, scaled to 1004 × 590.
+// divider, the group's logos at the bottom. Every position and size measured
+// pixel by pixel on the company's own 1004 × 590 signature (2026-11-27).
+const SBC = {
+  foto: { left: 94, top: 140, size: 340 },
+  /** Left edge of the name, title and contact rows (icon at 532, text at 580). */
+  texto: 532,
+  /** Centers of the contact rows, 40 px apart; the social row goes after them. */
+  filaCentro: 275,
+  filaPaso: 40,
+  teal: "#1BB3C8",
+  /** Without photo the band, divider and data sit 12 px higher (the company's "sin foto" signature). */
+  subeSinFoto: -12,
+} as const;
+
 function FirmaSbc({ fuentes, persona, conFoto, fondo, logoEmpresa, logosGrupo }: FirmaProps) {
   const foto = conFoto && persona.fotoUrl;
-  // Moved left from 528 so long emails fit (user report, 2026-11-27).
-  const texto = 516;
-  const anchoLinea = FIRMA_ANCHO - texto - 32 - 16 - 16;
+  const { texto, filaCentro, filaPaso } = SBC;
+  const anchoBloque = FIRMA_ANCHO - texto - 20;
+  const anchoLinea = FIRMA_ANCHO - (texto + 32 + 16) - 16;
   const nombre = `${persona.nombre} ${persona.apellido}`.trim();
   const marca = MARCAS.sbc;
+  const lineas = lineasFirma(persona, "sbc");
+  const dy = foto ? 0 : SBC.subeSinFoto;
+  const fila = (i: number, alto: number) => filaCentro + dy + i * filaPaso - alto / 2;
 
   return (
     <div
@@ -86,27 +115,25 @@ function FirmaSbc({ fuentes, persona, conFoto, fondo, logoEmpresa, logosGrupo }:
         height: FIRMA_ALTO,
         position: "relative",
         overflow: "hidden",
-        background: "linear-gradient(115deg, #7b7b7b 0%, #4b4b4b 36%, #262626 70%, #1b1b1b 100%)",
-        color: "#f4f4f4",
+        background: "linear-gradient(110deg, #787878 0%, #4a4a4a 45%, #1e1e1e 80%, #161616 100%)",
+        color: "#fff",
       }}
     >
       {fondo ? (
         <Fondo src={fondo} />
       ) : (
         <>
-          <div style={abs({ left: 600, top: -60, width: 420, height: 420, border: "64px solid rgba(255,255,255,0.05)", borderRadius: 36, transform: "rotate(45deg)" })} />
-          <div style={abs({ left: 820, top: 200, width: 300, height: 300, border: "52px solid rgba(255,255,255,0.05)", borderRadius: 28, transform: "rotate(45deg)" })} />
-          {logoEmpresa && <img src={logoEmpresa} alt="" crossOrigin="anonymous" style={{ ...abs({ left: 180, top: 22, height: 88 }), ...BLANCO }} />}
-          <div style={abs({ left: 57, top: 117, width: FIRMA_ANCHO - 57, height: 378, background: "#2b2b2b", borderTopLeftRadius: 189, borderBottomLeftRadius: 189 })} />
-          <div style={abs({ left: 80, top: 136, width: 338, height: 338, borderRadius: "50%", background: "#353535" })} />
-          <div style={abs({ left: 494, top: 149, width: 3, height: 321, background: "#1ed3e0" })} />
+          <div style={abs({ left: 560, top: -40, width: 400, height: 400, border: "60px solid rgba(255,255,255,0.05)", borderRadius: 34, transform: "rotate(45deg)" })} />
+          <div style={abs({ left: 800, top: 210, width: 280, height: 280, border: "48px solid rgba(255,255,255,0.05)", borderRadius: 26, transform: "rotate(45deg)" })} />
+          {/* Without photo the logo goes big in the band instead of at the top. */}
+          {logoEmpresa && foto && <img src={logoEmpresa} alt="" crossOrigin="anonymous" style={{ ...abs({ left: 190, top: 30, height: 72 }), ...BLANCO }} />}
+          <div style={abs({ left: 70, top: 118 + dy, width: FIRMA_ANCHO - 70, height: 383, background: "#2a2a2a", borderTopLeftRadius: 192, borderBottomLeftRadius: 192 })} />
+          {foto && <div style={abs({ left: SBC.foto.left, top: SBC.foto.top, width: SBC.foto.size, height: SBC.foto.size, borderRadius: "50%", background: "#353535" })} />}
+          <div style={abs({ left: 499, top: 150 + dy, width: 3, height: 325, background: SBC.teal })} />
           {logosGrupo.length > 0 && (
-            <div style={abs({ left: 500, top: 510, width: 480, height: 56, display: "flex", alignItems: "center", justifyContent: "center", gap: 20 })}>
-              {/* On white chips: some logos have a white box that a white filter would blank out. */}
+            <div style={abs({ left: 520, top: 515, width: 400, height: 42, display: "flex", alignItems: "center", justifyContent: "center", gap: 24 })}>
               {logosGrupo.map((src) => (
-                <span key={src} style={{ height: 52, padding: "4px 12px", boxSizing: "border-box", borderRadius: 10, background: "#fff", display: "flex", alignItems: "center" }}>
-                  <img src={src} alt="" crossOrigin="anonymous" style={{ height: 44, maxWidth: 120, objectFit: "contain" }} />
-                </span>
+                <img key={src} src={src} alt="" crossOrigin="anonymous" style={{ height: 34, maxWidth: 96, objectFit: "contain", ...BLANCO_SOBRE_OSCURO }} />
               ))}
             </div>
           )}
@@ -114,39 +141,46 @@ function FirmaSbc({ fuentes, persona, conFoto, fondo, logoEmpresa, logosGrupo }:
       )}
 
       {foto ? (
-        <Foto url={persona.fotoUrl!} left={80} top={136} size={338} />
+        <Foto url={persona.fotoUrl!} left={SBC.foto.left} top={SBC.foto.top} size={SBC.foto.size} />
       ) : (
         !fondo && logoEmpresa && (
           <img
             src={logoEmpresa}
             alt=""
             crossOrigin="anonymous"
-            style={{ ...abs({ left: 125, top: 185, width: 248, height: 238, objectFit: "contain" }), ...BLANCO }}
+            style={{ ...abs({ left: 170, top: 195, width: 260, height: 200, objectFit: "contain" }), ...BLANCO }}
           />
         )
       )}
 
-      <div style={abs({ left: texto, top: 146, width: FIRMA_ANCHO - texto - 24 })}>
-        <div className={fuentes.nombre} style={{ fontSize: tamanoNombre(nombre, 44), fontWeight: 700, lineHeight: 1.1 }}>
-          {nombre}
+      {/* line-height 1 so the tops below put the letters where the original has them. */}
+      <div
+        className={fuentes.nombre}
+        style={abs({ left: texto - 1, top: 156 + dy, width: anchoBloque, fontSize: tamanoQueCabe(nombre, 44.5, anchoBloque / BARLOW), fontWeight: 700, lineHeight: 1, whiteSpace: "nowrap" })}
+      >
+        {nombre}
+      </div>
+      {persona.puesto && (
+        <div
+          style={abs({ left: texto, top: 214 + dy, width: anchoBloque, fontSize: tamanoQueCabe(persona.puesto, 22, anchoBloque / NEGRITA), fontWeight: 700, lineHeight: 1, whiteSpace: "nowrap", color: SBC.teal })}
+        >
+          {persona.puesto}
         </div>
-        {persona.puesto && <div style={{ marginTop: 8, fontSize: 24, fontWeight: 700, color: "#22AFC7" }}>{persona.puesto}</div>}
-        <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-          {lineasFirma(persona, "sbc").map((l) => (
-            <div key={l.icono} style={{ display: "flex", alignItems: "center", gap: 16, fontSize: tamanoQueCabe(l.texto, 20, anchoLinea) }}>
-              <span style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <IconoLineaFirma icono={l.icono} color="#2b2b2b" size={20} />
-              </span>
-              <span style={{ whiteSpace: "nowrap" }}>{l.texto}</span>
-            </div>
-          ))}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 20 }}>
-            {marca.redes.map((r) => (
-              <IconoRed key={r} red={r} color="#fff" size={32} />
-            ))}
-            <span style={{ marginLeft: 8 }}>{marca.usuarioRedes}</span>
-          </div>
+      )}
+      {lineas.map((l, i) => (
+        <div key={l.icono} style={abs({ left: texto, top: fila(i, 32), height: 32, display: "flex", alignItems: "center", gap: 16 })}>
+          <span style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <IconoLineaFirma icono={l.icono} color="#2a2a2a" size={24} />
+          </span>
+          {/* The original has the email a point smaller than the other lines. */}
+          <span style={{ fontSize: tamanoQueCabe(l.texto, l.icono === "correo" ? 17 : 18, anchoLinea), lineHeight: 1, whiteSpace: "nowrap" }}>{l.texto}</span>
         </div>
+      ))}
+      <div style={abs({ left: texto + 1, top: fila(lineas.length, 31) + 1, height: 31, display: "flex", alignItems: "center", gap: 5 })}>
+        {marca.redes.map((r) => (
+          <IconoRed key={r} red={r} color="#fff" size={31} />
+        ))}
+        <span style={{ marginLeft: 6, fontSize: 20, lineHeight: 1, whiteSpace: "nowrap" }}>{marca.usuarioRedes}</span>
       </div>
     </div>
   );

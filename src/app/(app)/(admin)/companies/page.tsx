@@ -66,6 +66,7 @@ export default async function CompaniesPage() {
                         name: c.name,
                         logo_url: c.logo_url,
                         firma_fondo_url: c.firma_fondo_url ?? null,
+                        firma_fondo_sin_foto_url: c.firma_fondo_sin_foto_url ?? null,
                         firma_plantilla: c.firma_plantilla ?? null,
                       }}
                     />

@@ -15,6 +15,7 @@ const props = {
   },
   plantilla: "sbc" as const,
   fondo: null,
+  fondoSinFoto: null,
   logoEmpresa: null,
   logoGrupo: null,
   logosGrupo: [],

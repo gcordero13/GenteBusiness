@@ -30,7 +30,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
     redirect("/");
   }
 
-  const { data: companies } = await supabase.from("companies").select("id, name, logo_url, firma_fondo_url, firma_plantilla").order("name");
+  const { data: companies } = await supabase.from("companies").select("id, name, logo_url, firma_fondo_url, firma_fondo_sin_foto_url, firma_plantilla").order("name");
 
   // Email signature: the person's own (Mi perfil), or anyone's for whoever
   // can edit or manage contacts (user request, 2026-11-27) - it only shows
@@ -183,6 +183,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
           }}
           plantilla={plantilla}
           fondo={empresa?.firma_fondo_url ?? null}
+          fondoSinFoto={empresa?.firma_fondo_sin_foto_url ?? null}
           fuentes={FUENTES_FIRMA}
           propia={isSelf}
           logoEmpresa={empresa?.logo_url ?? null}

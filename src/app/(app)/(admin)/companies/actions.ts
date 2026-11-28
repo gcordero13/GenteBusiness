@@ -10,6 +10,8 @@ export interface CompanyInput {
   logoUrl: string | null;
   /** Email-signature art (background without name, photo or data). */
   firmaFondoUrl: string | null;
+  /** Art of the "sin foto" version (null = the same art for both). */
+  firmaFondoSinFotoUrl: string | null;
   /** Which signature design places the data on the art; null = by name. */
   firmaPlantilla: string | null;
 }
@@ -23,6 +25,7 @@ export async function saveCompany(id: string | undefined, input: CompanyInput) {
     name: input.name,
     logo_url: input.logoUrl,
     firma_fondo_url: input.firmaFondoUrl,
+    firma_fondo_sin_foto_url: input.firmaFondoSinFotoUrl,
     firma_plantilla: plantilla,
   };
   const supabase = await createClient();
