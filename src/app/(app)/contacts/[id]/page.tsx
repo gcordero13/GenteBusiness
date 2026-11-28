@@ -8,6 +8,7 @@ import { setContactStatus, deleteContact } from "../actions";
 import { Button } from "@/components/ui/button";
 import { FirmasCorreo } from "../firmas/FirmasCorreo";
 import { plantillaDeEmpresa, type Plantilla } from "../firmas/firmaDatos";
+import { FUENTES_FIRMA } from "../firmas/fuentes";
 
 export default async function EditContactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -170,6 +171,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
           }}
           plantilla={plantilla}
           fondo={empresa?.firma_fondo_url ?? null}
+          fuentes={FUENTES_FIRMA}
           logoEmpresa={empresa?.logo_url ?? null}
           logoGrupo={empresaGrupo?.logo_url ?? null}
           logosGrupo={logosGrupo}

@@ -1,12 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("next/font/google", () => ({
-  Montserrat: () => ({ className: "f-montserrat" }),
-  Barlow_Semi_Condensed: () => ({ className: "f-barlow" }),
-}));
-
-const { FirmaCorreo } = await import("./FirmaCorreo");
+import { FirmaCorreo } from "./FirmaCorreo";
 
 const persona = {
   nombre: "Ana",
@@ -29,6 +24,7 @@ function render(plantilla: "sbc" | "jsc" | "kexford", conFoto: boolean, fondo: s
       logoEmpresa="https://cdn.example.com/logo.png"
       logoGrupo="https://cdn.example.com/grupo.png"
       logosGrupo={["https://cdn.example.com/otra.png"]}
+      fuentes={{ texto: "f-texto", nombre: "f-nombre" }}
     />,
   );
 }

@@ -11,12 +11,8 @@
 // drawn here, with the logos from Empresas.
 /* eslint-disable @next/next/no-img-element -- exported to PNG with html-to-image; next/image can't be used */
 import type { CSSProperties } from "react";
-import { Barlow_Semi_Condensed, Montserrat } from "next/font/google";
 import { lineasFirma, MARCAS, type PersonaFirma, type Plantilla } from "./firmaDatos";
 import { IconoLineaFirma, IconoRed } from "./IconosFirma";
-
-const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
-const barlow = Barlow_Semi_Condensed({ subsets: ["latin"], weight: ["600", "700"] });
 
 export const FIRMA_ANCHO = 1004;
 export const FIRMA_ALTO = 590;
@@ -37,6 +33,8 @@ export interface FirmaProps {
   logoGrupo: string | null;
   /** The other companies' logos, for the group strip of the dark design. */
   logosGrupo: string[];
+  /** Font class names (fuentes.ts, loaded on the server). */
+  fuentes: { texto: string; nombre: string };
 }
 
 /** Name size that keeps long names inside the design. */
@@ -72,7 +70,7 @@ export function FirmaCorreo(props: FirmaProps) {
 // Sánchez Business & Corp: dark gradient, rounded band, photo circle, teal
 // divider, the group's logos at the bottom. Positions measured on the
 // company's own 1637 × 961 template, scaled to 1004 × 590.
-function FirmaSbc({ persona, conFoto, fondo, logoEmpresa, logosGrupo }: FirmaProps) {
+function FirmaSbc({ fuentes, persona, conFoto, fondo, logoEmpresa, logosGrupo }: FirmaProps) {
   const foto = conFoto && persona.fotoUrl;
   const texto = 528;
   const nombre = `${persona.nombre} ${persona.apellido}`.trim();
@@ -80,7 +78,7 @@ function FirmaSbc({ persona, conFoto, fondo, logoEmpresa, logosGrupo }: FirmaPro
 
   return (
     <div
-      className={montserrat.className}
+      className={fuentes.texto}
       style={{
         width: FIRMA_ANCHO,
         height: FIRMA_ALTO,
@@ -127,7 +125,7 @@ function FirmaSbc({ persona, conFoto, fondo, logoEmpresa, logosGrupo }: FirmaPro
       )}
 
       <div style={abs({ left: texto, top: 146, width: FIRMA_ANCHO - texto - 24 })}>
-        <div className={barlow.className} style={{ fontSize: tamanoNombre(nombre, 44), fontWeight: 700, lineHeight: 1.1 }}>
+        <div className={fuentes.nombre} style={{ fontSize: tamanoNombre(nombre, 44), fontWeight: 700, lineHeight: 1.1 }}>
           {nombre}
         </div>
         {persona.puesto && <div style={{ marginTop: 8, fontSize: 24, fontWeight: 700, color: "#22AFC7" }}>{persona.puesto}</div>}
@@ -154,7 +152,7 @@ function FirmaSbc({ persona, conFoto, fondo, logoEmpresa, logosGrupo }: FirmaPro
 
 // ---------------------------------------------------------------------------
 // Ferretería José Sánchez Comercial: white and blue, orange contact band.
-function FirmaJsc({ persona, conFoto, fondo, logoEmpresa, logoGrupo }: FirmaProps) {
+function FirmaJsc({ fuentes, persona, conFoto, fondo, logoEmpresa, logoGrupo }: FirmaProps) {
   const foto = conFoto && persona.fotoUrl;
   const nombre = `${persona.nombre} ${persona.apellido}`.trim();
   const marca = MARCAS.jsc;
@@ -163,7 +161,7 @@ function FirmaJsc({ persona, conFoto, fondo, logoEmpresa, logoGrupo }: FirmaProp
 
   return (
     <div
-      className={montserrat.className}
+      className={fuentes.texto}
       style={{ width: FIRMA_ANCHO, height: FIRMA_ALTO, position: "relative", overflow: "hidden", background: "#fff" }}
     >
       {fondo ? (
@@ -224,7 +222,7 @@ function FirmaJsc({ persona, conFoto, fondo, logoEmpresa, logoGrupo }: FirmaProp
 
 // ---------------------------------------------------------------------------
 // Kexford Company: white and teal, orange icon column.
-function FirmaKexford({ persona, conFoto, fondo, logoEmpresa, logoGrupo }: FirmaProps) {
+function FirmaKexford({ fuentes, persona, conFoto, fondo, logoEmpresa, logoGrupo }: FirmaProps) {
   const foto = conFoto && persona.fotoUrl;
   const nombre = `${persona.nombre} ${persona.apellido}`.trim();
   const naranja = "#E8961E";
@@ -234,7 +232,7 @@ function FirmaKexford({ persona, conFoto, fondo, logoEmpresa, logoGrupo }: Firma
 
   return (
     <div
-      className={montserrat.className}
+      className={fuentes.texto}
       style={{ width: FIRMA_ANCHO, height: FIRMA_ALTO, position: "relative", overflow: "hidden", background: "#fff" }}
     >
       {fondo ? (
