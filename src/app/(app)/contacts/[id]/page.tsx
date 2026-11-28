@@ -89,8 +89,16 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl min-w-0 space-y-8 p-4 sm:p-6">
-    <div className="mx-auto max-w-md space-y-6">
+    // Mi perfil: the person's data on the left and their signature on the
+    // right (user request, 2026-11-27); stacked on phones.
+    <div
+      className={`mx-auto w-full min-w-0 p-4 sm:p-6 ${
+        isSelf
+          ? "max-w-7xl space-y-8 xl:grid xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:items-start xl:gap-8 xl:space-y-0"
+          : "max-w-md"
+      }`}
+    >
+      <div className="mx-auto w-full max-w-md space-y-6 xl:mx-0">
       <h1 className="text-xl font-semibold">{isSelf ? "Mi perfil" : "Editar contacto"}</h1>
       {flags?.can_edit ? (
         <ContactForm
@@ -158,6 +166,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
     </div>
 
       {isSelf && (
+        <div className="min-w-0 xl:sticky xl:top-6">
         <FirmasCorreo
           persona={{
             nombre: contact.first_name,
@@ -176,6 +185,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
           logoGrupo={empresaGrupo?.logo_url ?? null}
           logosGrupo={logosGrupo}
         />
+        </div>
       )}
     </div>
   );
