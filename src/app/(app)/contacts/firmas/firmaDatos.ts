@@ -96,3 +96,28 @@ export function lineasFirma(p: PersonaFirma, plantilla: Plantilla): LineaFirma[]
 export function nombreArchivoFirma(p: Pick<PersonaFirma, "nombre" | "apellido">, conFoto: boolean): string {
   return `Firma - ${`${p.nombre} ${p.apellido}`.trim()} (${conFoto ? "con foto" : "sin foto"}).png`;
 }
+
+// Long emails (e.g. analistacobros2@sanchezbusinesscorp.com) ran past the
+// right edge (user report, 2026-11-27): each contact line shrinks to fit its
+// space. Widths in em of Montserrat 400, measured in the browser; slightly
+// generous so the estimate never falls short.
+const ANCHAS = new Set([..."mwMW@%"]);
+const ESTRECHAS = new Set([..."ijlftrI1.,:;-'|! "]);
+
+/** Estimated width of `texto` in em (Montserrat regular). */
+export function anchoTextoEm(texto: string): number {
+  let em = 0;
+  for (const c of texto) {
+    if (ANCHAS.has(c)) em += 1.0;
+    else if (ESTRECHAS.has(c)) em += 0.34;
+    else if (c >= "A" && c <= "Z") em += 0.72;
+    else em += 0.62;
+  }
+  return em;
+}
+
+/** Font size (px) for `texto`: `base`, or smaller so it fits in `ancho` px. */
+export function tamanoQueCabe(texto: string, base: number, ancho: number): number {
+  const cabe = Math.floor((ancho / Math.max(anchoTextoEm(texto), 1)) * 10) / 10;
+  return Math.max(12, Math.min(base, cabe));
+}

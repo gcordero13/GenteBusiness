@@ -11,7 +11,7 @@
 // drawn here, with the logos from Empresas.
 /* eslint-disable @next/next/no-img-element -- exported to PNG with html-to-image; next/image can't be used */
 import type { CSSProperties } from "react";
-import { lineasFirma, MARCAS, type PersonaFirma, type Plantilla } from "./firmaDatos";
+import { lineasFirma, MARCAS, tamanoQueCabe, type PersonaFirma, type Plantilla } from "./firmaDatos";
 import { IconoLineaFirma, IconoRed } from "./IconosFirma";
 
 export const FIRMA_ANCHO = 1004;
@@ -72,7 +72,9 @@ export function FirmaCorreo(props: FirmaProps) {
 // company's own 1637 × 961 template, scaled to 1004 × 590.
 function FirmaSbc({ fuentes, persona, conFoto, fondo, logoEmpresa, logosGrupo }: FirmaProps) {
   const foto = conFoto && persona.fotoUrl;
-  const texto = 528;
+  // Moved left from 528 so long emails fit (user report, 2026-11-27).
+  const texto = 516;
+  const anchoLinea = FIRMA_ANCHO - texto - 32 - 16 - 16;
   const nombre = `${persona.nombre} ${persona.apellido}`.trim();
   const marca = MARCAS.sbc;
 
@@ -131,7 +133,7 @@ function FirmaSbc({ fuentes, persona, conFoto, fondo, logoEmpresa, logosGrupo }:
         {persona.puesto && <div style={{ marginTop: 8, fontSize: 24, fontWeight: 700, color: "#22AFC7" }}>{persona.puesto}</div>}
         <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
           {lineasFirma(persona, "sbc").map((l) => (
-            <div key={l.icono} style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 20 }}>
+            <div key={l.icono} style={{ display: "flex", alignItems: "center", gap: 16, fontSize: tamanoQueCabe(l.texto, 20, anchoLinea) }}>
               <span style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <IconoLineaFirma icono={l.icono} color="#2b2b2b" size={20} />
               </span>
@@ -202,7 +204,7 @@ function FirmaJsc({ fuentes, persona, conFoto, fondo, logoEmpresa, logoGrupo }: 
 
       <div style={abs({ left: 555, top: 222, width: 430, display: "flex", flexDirection: "column", gap: 9, color: "#fff" })}>
         {lineasFirma(persona, "jsc").map((l) => (
-          <div key={l.icono} style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 19 }}>
+          <div key={l.icono} style={{ display: "flex", alignItems: "center", gap: 14, fontSize: tamanoQueCabe(l.texto, 19, FIRMA_ANCHO - 555 - 36 - 14 - 16) }}>
             <span style={{ width: 36, height: 36, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <IconoLineaFirma icono={l.icono} color={naranja} size={21} />
             </span>
@@ -211,7 +213,7 @@ function FirmaJsc({ fuentes, persona, conFoto, fondo, logoEmpresa, logoGrupo }: 
         ))}
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 19 }}>
           {marca.redes.map((r) => (
-            <IconoRed key={r} red={r} color="#fff" size={36} />
+            <IconoRed key={r} red={r} color="#fff" size={36} simbolo={naranja} />
           ))}
           <span style={{ marginLeft: 10 }}>{marca.usuarioRedes}</span>
         </div>
@@ -273,7 +275,7 @@ function FirmaKexford({ fuentes, persona, conFoto, fondo, logoEmpresa, logoGrupo
           <span style={{ width: 42, height: 42, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <IconoLineaFirma icono={l.icono} color={naranja} size={24} />
           </span>
-          <span style={{ fontSize: 20, whiteSpace: "nowrap" }}>{l.texto}</span>
+          <span style={{ fontSize: tamanoQueCabe(l.texto, 20, FIRMA_ANCHO - 482 - 42 - 44 - 16), whiteSpace: "nowrap" }}>{l.texto}</span>
         </div>
       ))}
     </div>

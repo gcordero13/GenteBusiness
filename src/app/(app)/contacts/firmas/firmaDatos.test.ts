@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatoTelefono, lineasFirma, nombreArchivoFirma, plantillaDeEmpresa, type PersonaFirma } from "./firmaDatos";
+import { anchoTextoEm, formatoTelefono, lineasFirma, nombreArchivoFirma, plantillaDeEmpresa, tamanoQueCabe, type PersonaFirma } from "./firmaDatos";
 
 const PERSONA: PersonaFirma = {
   nombre: "Gerónimo",
@@ -62,5 +62,32 @@ describe("nombreArchivoFirma", () => {
   it("names the file after the person and the version", () => {
     expect(nombreArchivoFirma(PERSONA, true)).toBe("Firma - Gerónimo Cordero Bello (con foto).png");
     expect(nombreArchivoFirma(PERSONA, false)).toBe("Firma - Gerónimo Cordero Bello (sin foto).png");
+  });
+});
+
+describe("tamanoQueCabe", () => {
+  // Real widths of Montserrat 400 at 20px, measured in the browser.
+  const MEDIDOS: [string, number][] = [
+    ["analistacobros2@sanchezbusinesscorp.com", 438.9],
+    ["gcordero@sanchezbusinesscorp.com", 374.4],
+    ["mmmmmmmmmmwwwwwwwwww@mmmmwwww.com", 610.2],
+    ["rrodriguez@jsanchezcomercial.com", 359.3],
+    ["www.josesanchezcomercial.com", 325.0],
+    ["809-468-1600 ext. 160", 215.6],
+  ];
+
+  it("never estimates a text narrower than it really is, nor much wider", () => {
+    for (const [texto, real] of MEDIDOS) {
+      const estimado = anchoTextoEm(texto) * 20;
+      expect(estimado, texto).toBeGreaterThanOrEqual(real - 0.5); // measurements rounded to 0.1 px
+      expect(estimado, texto).toBeLessThan(real * 1.15);
+    }
+  });
+
+  it("keeps the base size when the text fits and shrinks a long email so it fits", () => {
+    expect(tamanoQueCabe("809-468-1600 ext. 160", 20, 424)).toBe(20);
+    const t = tamanoQueCabe("analistacobros2@sanchezbusinesscorp.com", 20, 424);
+    expect(t).toBeLessThan(20);
+    expect(t * (438.9 / 20)).toBeLessThanOrEqual(424);
   });
 });

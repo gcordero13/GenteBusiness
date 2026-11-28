@@ -93,12 +93,18 @@ export function IconoLineaFirma({ icono, color, size }: Props & { icono: IconoLi
   }
 }
 
-export function IconoRed({ red, color, size }: Props & { red: "facebook" | "instagram" | "linkedin" }) {
+/** `simbolo` = color of the "f" / camera / "in" (orange in José Sánchez Comercial's design). */
+export function IconoRed({
+  red,
+  color,
+  size,
+  simbolo = "rgba(0,0,0,0.85)",
+}: Props & { red: "facebook" | "instagram" | "linkedin"; simbolo?: string }) {
   if (red === "facebook") {
     return (
       <Svg size={size}>
         <circle cx="12" cy="12" r="11" fill={color} />
-        <path d="M13.3 20v-6.6h2.2l.4-2.6h-2.6V9.2c0-.8.3-1.3 1.3-1.3H16V5.6a17 17 0 0 0-2-.1c-2 0-3.3 1.2-3.3 3.4v1.9H8.5v2.6h2.2V20Z" fill="#000" fillOpacity="0.85" />
+        <path d="M13.3 20v-6.6h2.2l.4-2.6h-2.6V9.2c0-.8.3-1.3 1.3-1.3H16V5.6a17 17 0 0 0-2-.1c-2 0-3.3 1.2-3.3 3.4v1.9H8.5v2.6h2.2V20Z" fill={simbolo} />
       </Svg>
     );
   }
@@ -106,18 +112,18 @@ export function IconoRed({ red, color, size }: Props & { red: "facebook" | "inst
     return (
       <Svg size={size}>
         <circle cx="12" cy="12" r="11" fill={color} />
-        <rect x="6.5" y="6.5" width="11" height="11" rx="3.2" fill="none" stroke="#000" strokeOpacity="0.85" strokeWidth="1.7" />
-        <circle cx="12" cy="12" r="2.6" fill="none" stroke="#000" strokeOpacity="0.85" strokeWidth="1.7" />
-        <circle cx="15.2" cy="8.8" r="0.9" fill="#000" fillOpacity="0.85" />
+        <rect x="6.5" y="6.5" width="11" height="11" rx="3.2" fill="none" stroke={simbolo} strokeWidth="1.7" />
+        <circle cx="12" cy="12" r="2.6" fill="none" stroke={simbolo} strokeWidth="1.7" />
+        <circle cx="15.2" cy="8.8" r="0.9" fill={simbolo} />
       </Svg>
     );
   }
   return (
     <Svg size={size}>
       <rect x="1" y="1" width="22" height="22" rx="3" fill={color} />
-      <rect x="5.5" y="9.5" width="2.8" height="8.5" fill="#000" fillOpacity="0.85" />
-      <circle cx="6.9" cy="6.6" r="1.6" fill="#000" fillOpacity="0.85" />
-      <path d="M10.5 9.5h2.7v1.2c.4-.7 1.4-1.4 2.8-1.4 2.6 0 3.1 1.7 3.1 3.9V18h-2.8v-4.2c0-1-.1-2.3-1.4-2.3-1.4 0-1.6 1.1-1.6 2.2V18h-2.8Z" fill="#000" fillOpacity="0.85" />
+      <rect x="5.5" y="9.5" width="2.8" height="8.5" fill={simbolo} />
+      <circle cx="6.9" cy="6.6" r="1.6" fill={simbolo} />
+      <path d="M10.5 9.5h2.7v1.2c.4-.7 1.4-1.4 2.8-1.4 2.6 0 3.1 1.7 3.1 3.9V18h-2.8v-4.2c0-1-.1-2.3-1.4-2.3-1.4 0-1.6 1.1-1.6 2.2V18h-2.8Z" fill={simbolo} />
     </Svg>
   );
 }
