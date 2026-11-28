@@ -64,4 +64,10 @@ describe("toTutorial", () => {
     expect(toTutorial({ ...RAW, modules: null }).moduleLabel).toBe("planificacion");
     expect(toTutorial({ ...RAW, modules: [{ label: "Planificación" }] }).moduleLabel).toBe("Planificación");
   });
+
+  it("a tutorial without module is Mi perfil's (seen by everyone)", () => {
+    const t = toTutorial({ ...RAW, module_key: null, modules: null });
+    expect(t.moduleKey).toBeNull();
+    expect(t.moduleLabel).toBe("Mi perfil");
+  });
 });

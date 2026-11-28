@@ -540,13 +540,14 @@ function revalidateTutoriales() {
 export async function saveTutorial(input: {
   id?: string;
   title: string;
-  moduleKey: string;
+  /** null = Mi perfil: shown to everyone. */
+  moduleKey: string | null;
   medio: TutorialMedio | null;
 }): Promise<ActionResult> {
   const ctx = await managerClient();
   if (!ctx) return { error: "No autorizado" };
   if (!input.title.trim()) return { error: "Escribe el nombre del tutorial." };
-  if (!input.moduleKey) return { error: "Elige el módulo del tutorial." };
+  if (input.moduleKey === "") return { error: "Elige el módulo del tutorial." };
   if (!input.id && !input.medio) return { error: "Sube un video o una imagen, o pega el enlace del video." };
   if (input.medio?.tipo === "enlace" && !toVideoEmbed(input.medio.url.trim())) {
     return { error: "El enlace del video no es válido." };

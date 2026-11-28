@@ -92,6 +92,23 @@ describe("TutorialesGestion", () => {
     );
   });
 
+  it("can be placed in Mi perfil (no module: seen by everyone)", async () => {
+    render(<TutorialesGestion tutoriales={[]} modulos={MODULOS} />);
+    fireEvent.click(screen.getByRole("button", { name: /Nuevo tutorial/ }));
+    fireEvent.change(screen.getByLabelText("Nombre del tutorial"), { target: { value: "Firma de correo" } });
+    fireEvent.change(screen.getByLabelText("Módulo"), { target: { value: "__mi_perfil" } });
+    expect(screen.getByRole("option", { name: "Mi perfil (todos los usuarios)" })).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Enlace de YouTube o Vimeo"));
+    fireEvent.change(screen.getByLabelText("Enlace del video"), { target: { value: "https://youtu.be/abc" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear tutorial" }));
+    await waitFor(() => expect(saveTutorial).toHaveBeenCalledWith(expect.objectContaining({ title: "Firma de correo", moduleKey: null })));
+  });
+
+  it("an existing Mi perfil tutorial opens with Mi perfil chosen", () => {
+    render(<TutorialesGestion tutoriales={[{ ...VIDEO, moduleKey: null, moduleLabel: "Mi perfil" }]} modulos={MODULOS} />);
+    expect(screen.getByText("Mi perfil · Video")).toBeTruthy();
+  });
+
   it("can't be created without choosing the module", () => {
     render(<TutorialesGestion tutoriales={[]} modulos={MODULOS} />);
     fireEvent.click(screen.getByRole("button", { name: /Nuevo tutorial/ }));

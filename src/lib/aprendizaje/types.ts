@@ -19,7 +19,8 @@ export const CATALOG_TABS: { key: CatalogTab; label: string }[] = [
 export interface Tutorial {
   id: string;
   title: string;
-  moduleKey: string;
+  /** null = "Mi perfil": shown to everyone (Mi perfil is not a module). */
+  moduleKey: string | null;
   moduleLabel: string;
   videoUrl: string | null;
   videoFile: DriveFileRef | null;

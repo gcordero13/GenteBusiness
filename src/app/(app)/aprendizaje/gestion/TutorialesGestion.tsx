@@ -18,6 +18,9 @@ import { SharePointUploadButton } from "./[cursoId]/SharePointUploadButton";
  * saved: people with that module see them in Aprende and once in a pop-up
  * when the platform opens.
  */
+/** Select value for tutorials without module (Mi perfil, seen by everyone). */
+const MI_PERFIL = "__mi_perfil";
+
 export function TutorialesGestion({ tutoriales, modulos }: { tutoriales: Tutorial[]; modulos: ModuloOption[] }) {
   const router = useRouter();
   const [editando, setEditando] = useState<Tutorial | "nuevo" | null>(null);
@@ -126,7 +129,7 @@ function TutorialDialog({
   onSaved: () => void;
 }) {
   const [title, setTitle] = useState(tutorial?.title ?? "");
-  const [moduleKey, setModuleKey] = useState(tutorial?.moduleKey ?? "");
+  const [moduleKey, setModuleKey] = useState(tutorial ? (tutorial.moduleKey ?? MI_PERFIL) : "");
   const [fuente, setFuente] = useState<"archivo" | "enlace">(tutorial?.videoUrl ? "enlace" : "archivo");
   const [enlace, setEnlace] = useState(tutorial?.videoUrl ?? "");
   const [subido, setSubido] = useState<{ medio: TutorialMedio; nombre: string } | null>(null);
@@ -147,7 +150,7 @@ function TutorialDialog({
     if (fuente === "enlace" && enlace.trim() && enlace.trim() !== tutorial?.videoUrl) medio = { tipo: "enlace", url: enlace };
     if (fuente === "archivo" && subido) medio = subido.medio;
     startTransition(async () => {
-      const result = await saveTutorial({ id: tutorial?.id, title, moduleKey, medio });
+      const result = await saveTutorial({ id: tutorial?.id, title, moduleKey: moduleKey === MI_PERFIL ? null : moduleKey, medio });
       if (result.error) setError(result.error);
       else onSaved();
     });
@@ -158,7 +161,9 @@ function TutorialDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{tutorial ? "Editar tutorial" : "Nuevo tutorial"}</DialogTitle>
-          <DialogDescription>Solo lo verán quienes tengan permiso en el módulo que elijas.</DialogDescription>
+          <DialogDescription>
+            Solo lo verán quienes tengan permiso en el módulo que elijas. Los de «Mi perfil» los ven todos los usuarios.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -170,6 +175,7 @@ function TutorialDialog({
             <Label htmlFor="tutorial-modulo">Módulo</Label>
             <select id="tutorial-modulo" className={FIELD_CLASS_NAME} value={moduleKey} onChange={(e) => setModuleKey(e.target.value)}>
               <option value="">Elige el módulo…</option>
+              <option value={MI_PERFIL}>Mi perfil (todos los usuarios)</option>
               {modulos.map((m) => (
                 <option key={m.key} value={m.key}>
                   {m.label}

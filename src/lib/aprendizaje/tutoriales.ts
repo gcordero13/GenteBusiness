@@ -1,5 +1,8 @@
 import type { DriveFileRef, Tutorial } from "./types";
 
+/** Label of tutorials without module: Mi perfil, which everyone has (user, 2026-11-27). */
+export const TUTORIAL_MI_PERFIL = "Mi perfil";
+
 const ref = (driveId: string | null | undefined, itemId: string | null | undefined): DriveFileRef | null =>
   driveId && itemId ? { driveId, itemId } : null;
 
@@ -7,7 +10,7 @@ const ref = (driveId: string | null | undefined, itemId: string | null | undefin
 export interface RawTutorial {
   id: string;
   title: string;
-  module_key: string;
+  module_key: string | null;
   video_url: string | null;
   video_drive_id: string | null;
   video_item_id: string | null;
@@ -23,7 +26,7 @@ export function toTutorial(raw: RawTutorial): Tutorial {
     id: raw.id,
     title: raw.title,
     moduleKey: raw.module_key,
-    moduleLabel: mod?.label ?? raw.module_key,
+    moduleLabel: mod?.label ?? raw.module_key ?? TUTORIAL_MI_PERFIL,
     videoUrl: raw.video_url,
     videoFile: ref(raw.video_drive_id, raw.video_item_id),
     imagen: ref(raw.imagen_drive_id, raw.imagen_item_id),
@@ -45,7 +48,7 @@ export interface TutorialPendiente {
 export interface RawTutorialPendiente {
   tutorial_id: string;
   title: string;
-  module_key: string;
+  module_key: string | null;
   module_label: string;
   video_url: string | null;
   video_drive_id: string | null;
