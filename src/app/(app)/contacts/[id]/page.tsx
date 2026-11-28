@@ -32,7 +32,10 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
 
   const { data: companies } = await supabase.from("companies").select("id, name, logo_url, firma_fondo_url, firma_plantilla").order("name");
 
-  // Email signature (Mi perfil): only on the person's own contact.
+  // Email signature: the person's own (Mi perfil), or anyone's for whoever
+  // can edit or manage contacts (user request, 2026-11-27) - it only shows
+  // Agenda data they already see.
+  const verFirma = isSelf || Boolean(flags?.can_edit || flags?.can_manage);
   const empresa = (companies ?? []).find((c) => c.id === contact.company_id) ?? null;
   // The design chosen in Empresas, or the one matching the company's name.
   const plantilla = (empresa?.firma_plantilla as Plantilla | null) ?? plantillaDeEmpresa(empresa?.name);
@@ -89,11 +92,11 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
   }
 
   return (
-    // Mi perfil: the person's data on the left and their signature on the
-    // right (user request, 2026-11-27); stacked on phones.
+    // The person's data on the left and their signature on the right
+    // (user request, 2026-11-27); stacked on smaller screens.
     <div
       className={`mx-auto w-full min-w-0 p-4 sm:p-6 ${
-        isSelf
+        verFirma
           ? "max-w-7xl space-y-8 xl:grid xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:items-start xl:gap-8 xl:space-y-0"
           : "max-w-md"
       }`}
@@ -165,7 +168,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
       </div>
     </div>
 
-      {isSelf && (
+      {verFirma && (
         <div className="min-w-0 xl:sticky xl:top-6">
         <FirmasCorreo
           persona={{
@@ -181,6 +184,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
           plantilla={plantilla}
           fondo={empresa?.firma_fondo_url ?? null}
           fuentes={FUENTES_FIRMA}
+          propia={isSelf}
           logoEmpresa={empresa?.logo_url ?? null}
           logoGrupo={empresaGrupo?.logo_url ?? null}
           logosGrupo={logosGrupo}

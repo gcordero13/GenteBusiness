@@ -9,9 +9,11 @@ import { nombreArchivoFirma } from "./firmaDatos";
 /**
  * "Mi firma de correo" in Mi perfil (user request, 2026-11-27): the person's
  * signature in their company's design, with and without photo, to download
- * or copy as an image and paste into Outlook.
+ * or copy as an image and paste into Outlook. `propia` = false when someone
+ * who manages contacts looks at another person's signature.
  */
-export function FirmasCorreo(props: Omit<FirmaProps, "conFoto">) {
+export function FirmasCorreo({ propia = true, ...props }: Omit<FirmaProps, "conFoto"> & { propia?: boolean }) {
+  const nombreCompleto = `${props.persona.nombre} ${props.persona.apellido}`.trim();
   const tieneFoto = Boolean(props.persona.fotoUrl);
   const [conFoto, setConFoto] = useState(tieneFoto);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
@@ -79,10 +81,12 @@ export function FirmasCorreo(props: Omit<FirmaProps, "conFoto">) {
         <div className="space-y-1">
           <h2 id="firma-title" className="flex items-center gap-2 text-lg font-semibold">
             <Mail className="size-5 text-[#036E6C] dark:text-[#5FD6D4]" />
-            Mi firma de correo
+            {propia ? "Mi firma de correo" : `Firma de correo de ${nombreCompleto}`}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Se arma con tus datos de la Agenda. Si algo no está bien, corrígelo arriba y la firma se actualiza.
+            {propia
+              ? "Se arma con tus datos de la Agenda. Si algo no está bien, corrígelo en el formulario y la firma se actualiza."
+              : "Se arma con sus datos de la Agenda. Si algo no está bien, corrígelo en el formulario y la firma se actualiza."}
           </p>
         </div>
         <div role="tablist" aria-label="Versión" className="flex gap-1 rounded-xl border bg-card p-1">
@@ -96,7 +100,7 @@ export function FirmasCorreo(props: Omit<FirmaProps, "conFoto">) {
               role="tab"
               aria-selected={conFoto === v.valor}
               disabled={v.valor && !tieneFoto}
-              title={v.valor && !tieneFoto ? "Tu contacto no tiene foto" : undefined}
+              title={v.valor && !tieneFoto ? (propia ? "Tu contacto no tiene foto" : "Este contacto no tiene foto") : undefined}
               onClick={() => setConFoto(v.valor)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
                 conFoto === v.valor
@@ -112,7 +116,7 @@ export function FirmasCorreo(props: Omit<FirmaProps, "conFoto">) {
 
       <div ref={marcoRef} className="w-full overflow-hidden rounded-xl border" style={{ height: FIRMA_ALTO * escala }}>
         <div style={{ width: FIRMA_ANCHO, height: FIRMA_ALTO, transform: `scale(${escala})`, transformOrigin: "top left" }}>
-          <div ref={firmaRef} role="img" aria-label={`Firma de correo de ${props.persona.nombre} ${props.persona.apellido}`}>
+          <div ref={firmaRef} role="img" aria-label={`Firma de correo de ${nombreCompleto}`}>
             <FirmaCorreo {...props} conFoto={conFoto} />
           </div>
         </div>
